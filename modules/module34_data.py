@@ -1,5 +1,5 @@
 # =========================
-# MODULE 3 + 4 (OPTIMIZED + GSMAP ACTIVE)
+# MODULE 3 + 4 (FINAL FIXED + OPTIMIZED + GSMAP)
 # =========================
 
 import re
@@ -24,16 +24,7 @@ TZ_OFFSET = {
 }
 
 # =========================
-# CREDENTIAL
-# =========================
-def get_bmkg_credentials():
-    return (
-        st.secrets["bmkg"]["user"],
-        st.secrets["bmkg"]["pass"]
-    )
-
-# =========================
-# DATE NORMALIZATION
+# DATE NORMALIZATION (ROBUST)
 # =========================
 def normalize_date(raw):
 
@@ -42,32 +33,16 @@ def normalize_date(raw):
 
     s = str(raw)
 
-    # =========================
-    # HAPUS JAM (kalau ada)
-    # =========================
+    # hapus jam
     s = re.sub(r"\d{1,2}[.:]\d{2}(-\d{1,2}[.:]\d{2})?", "", s)
-
-    # =========================
-    # NORMALISASI SEPARATOR
-    # =========================
     s = s.replace("/", " ")
 
-    # =========================
-    # KONVERSI BULAN INDONESIA → INGGRIS
-    # =========================
+    # bulan indonesia → inggris
     month_map = {
-        "Januari": "January",
-        "Februari": "February",
-        "Maret": "March",
-        "April": "April",
-        "Mei": "May",
-        "Juni": "June",
-        "Juli": "July",
-        "Agustus": "August",
-        "September": "September",
-        "Oktober": "October",
-        "November": "November",
-        "Desember": "December"
+        "Januari":"January","Februari":"February","Maret":"March",
+        "April":"April","Mei":"May","Juni":"June","Juli":"July",
+        "Agustus":"August","September":"September",
+        "Oktober":"October","November":"November","Desember":"December"
     }
 
     for indo, eng in month_map.items():
@@ -75,16 +50,10 @@ def normalize_date(raw):
 
     s = s.strip()
 
-    # =========================
-    # FORMAT YANG DIDUKUNG
-    # =========================
+    # format manual
     formats = [
-        "%d.%m.%Y",
-        "%d-%m-%Y",
-        "%d %B %Y",
-        "%Y-%m-%d",
-        "%d %b %Y",
-        "%d/%m/%Y"
+        "%d.%m.%Y", "%d-%m-%Y", "%d %B %Y",
+        "%Y-%m-%d", "%d %b %Y"
     ]
 
     for fmt in formats:
@@ -93,100 +62,100 @@ def normalize_date(raw):
         except:
             continue
 
-    # =========================
-    # FALLBACK PARSER
-    # =========================
     try:
         return parser.parse(s, dayfirst=True)
     except:
         return None
 
 # =========================
-# LOAD GSMAP (CACHED)
+# GSMAP (SAFE + CACHED)
 # =========================
 @st.cache_data(ttl=3600)
 def load_gsmap_cached(dt):
 
-    ftp_host = st.secrets["ftp"]["host"]
-    ftp_user = st.secrets["ftp"]["user"]
-    ftp_pass = st.secrets["ftp"]["pass"]
+    try:
+        ftp_host = st.secrets["ftp"]["host"]
+        ftp_user = st.secrets["ftp"]["user"]
+        ftp_pass = st.secrets["ftp"]["pass"]
 
-    Y = dt.strftime("%Y")
-    M = dt.strftime("%m")
-    D = dt.strftime("%d")
-    H = dt.strftime("%H")
+        Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
 
-    remote_path = f"/himawari6/GSMaP/netcdf/{Y}/{M}/{D}/GSMaP_{Y}{M}{D}{H}00.nc"
+        remote_path = f"/himawari6/GSMaP/netcdf/{Y}/{M}/{D}/GSMaP_{Y}{M}{D}{H}00.nc"
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
-    tmp_path = tmp.name
-    tmp.close()
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
+        tmp_path = tmp.name
+        tmp.close()
 
-    ftp = ftplib.FTP(ftp_host)
-    ftp.login(ftp_user, ftp_pass)
+        ftp = ftplib.FTP(ftp_host, timeout=20)
+        ftp.login(ftp_user, ftp_pass)
 
-    with open(tmp_path, "wb") as f:
-        ftp.retrbinary(f"RETR {remote_path}", f.write)
+        with open(tmp_path, "wb") as f:
+            ftp.retrbinary(f"RETR {remote_path}", f.write)
 
-    ftp.quit()
+        ftp.quit()
 
-    ds = xr.open_dataset(tmp_path)
+        ds = xr.open_dataset(tmp_path)
+        os.remove(tmp_path)
 
-    os.remove(tmp_path)
+        return ds
 
-    return ds
+    except Exception as e:
+        st.warning(f"GSMAP gagal load: {e}")
+        return None
 
 # =========================
-# LOAD DATASET (CACHED)
+# LOAD DATASET (SAFE + CACHED)
 # =========================
 @st.cache_data(ttl=3600)
-def load_datasets_cached(dt_utc):
+def load_datasets_cached(dt_input):
 
-    user, password = get_bmkg_credentials()
+    # 🔥 FIX: pastikan datetime
+    dt = normalize_date(dt_input)
+    if dt is None:
+        return None, None, None
 
-    YYYY, MM, DD = dt_utc.strftime("%Y"), dt_utc.strftime("%m"), dt_utc.strftime("%d")
+    user = st.secrets["bmkg"]["user"]
+    password = st.secrets["bmkg"]["pass"]
 
+    YYYY, MM, DD = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d")
+
+    # =========================
     # WW3
-    urls_wave = [
+    # =========================
+    ds_wave = None
+    for url in [
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc",
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_0000.nc",
-    ]
-
-    ds_wave = None
-    for url in urls_wave:
+    ]:
         try:
             ds_wave = xr.open_dataset(url)
             break
         except:
             time.sleep(1)
 
-    if ds_wave is None:
-        return None, None, None
-
+    # =========================
     # FVCOM
-    urls_cur = [
+    # =========================
+    ds_cur = None
+    for url in [
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc",
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_0000.nc",
-    ]
-
-    ds_cur = None
-    for url in urls_cur:
+    ]:
         try:
             ds_cur = xr.open_dataset(url)
             break
         except:
             time.sleep(1)
 
-    if ds_cur is None:
-        return None, None, None
-
-    # GSMAP → hanya load 1x (jam 00)
-    ds_rain = load_gsmap_cached(dt_utc)
+    # =========================
+    # GSMAP
+    # =========================
+    ds_rain = load_gsmap_cached(dt)
 
     return ds_wave, ds_cur, ds_rain
 
 # =========================
-# SAFE EXTRACT (FAST)
+# SAFE EXTRACT
 # =========================
 def safe_extract(ds, var, t, lat, lon, depth=None):
 
@@ -202,52 +171,30 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
         if depth is not None and "depth" in da.dims:
             da = da.sel(depth=0, method="nearest")
 
-        try:
-            val = float(da.sel(lat=lat, lon=lon, method="nearest").values)
-            if not np.isnan(val):
-                return val
-        except:
-            pass
-
-        lat_vals = ds["lat"].values
-        lon_vals = ds["lon"].values
-
-        lat_idx = np.abs(lat_vals - lat).argmin()
-        lon_idx = np.abs(lon_vals - lon).argmin()
-
-        for r in range(1, 3):
-            for i in range(lat_idx-r, lat_idx+r+1):
-                for j in range(lon_idx-r, lon_idx+r+1):
-                    try:
-                        val = float(da.isel(lat=i, lon=j).values)
-                        if not np.isnan(val):
-                            return val
-                    except:
-                        continue
-
-        return 0.0
+        return float(da.sel(lat=lat, lon=lon, method="nearest").values)
 
     except:
         return 0.0
 
 # =========================
-# EXTRACT WEATHER
+# WEATHER EXTRACTION
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     rain_val = None
 
-    try:
-        var = list(ds_rain.data_vars)[0]
-        da = ds_rain[var]
+    if ds_rain is not None:
+        try:
+            var = list(ds_rain.data_vars)[0]
+            da = ds_rain[var]
 
-        if "time" in da.dims:
-            da = da.sel(time=t, method="nearest")
+            if "time" in da.dims:
+                da = da.sel(time=t, method="nearest")
 
-        rain_val = float(da.sel(lat=lat, lon=lon, method="nearest").values)
+            rain_val = float(da.sel(lat=lat, lon=lon, method="nearest").values)
 
-    except:
-        rain_val = None
+        except:
+            rain_val = None
 
     return {
         "wave": {
