@@ -173,14 +173,49 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     rain_val = None
 
     if ds_rain is not None:
+
         try:
             var = list(ds_rain.data_vars)[0]
             da = ds_rain[var]
 
+            # ======================
+            # HANDLE TIME
+            # ======================
             if "time" in da.dims:
                 da = da.sel(time=t, method="nearest")
 
-            rain_val = float(da.sel(lat=lat, lon=lon, method="nearest").values)
+            # ======================
+            # DETECT NAMA KOORDINAT
+            # ======================
+            lat_name = None
+            for name in ["lat", "latitude"]:
+                if name in da.coords:
+                    lat_name = name
+                    break
+
+            lon_name = None
+            for name in ["lon", "longitude"]:
+                if name in da.coords:
+                    lon_name = name
+                    break
+
+            # ======================
+            # AMBIL NILAI TERDEKAT
+            # ======================
+            if lat_name and lon_name:
+
+                lat_vals = da[lat_name].values
+                lon_vals = da[lon_name].values
+
+                lat_idx = np.abs(lat_vals - lat).argmin()
+                lon_idx = np.abs(lon_vals - lon).argmin()
+
+                da_point = da.isel({lat_name: lat_idx, lon_name: lon_idx})
+
+                rain_val = float(da_point.values)
+
+                if np.isnan(rain_val):
+                    rain_val = None
 
         except:
             rain_val = None
