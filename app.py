@@ -7,7 +7,7 @@ from pathlib import Path
 # =========================
 from modules.module1_request import load_request_sheet_streamlit
 from modules.module2_route import process_route_segment_module2_streamlit
-from modules.module34_data import process_module34
+from modules.module34_data import process_module34, load_datasets_cached
 from modules.module5_analysis import process_module5
 from modules.module6_report import generate_final_docx_streamlit
 
@@ -36,6 +36,9 @@ def init_state():
         "run_module34": False,
         "run_module5": False,
         "run_generate": False,
+        "ds_wave": None,
+        "ds_cur": None,
+        "ds_rain": None,
     }
     for k, v in keys.items():
         if k not in st.session_state:
@@ -49,11 +52,12 @@ init_state()
 st.header("🟦 Data Permintaan PTSP")
 
 df_requests = load_request_sheet_streamlit()
-if df_requests is not None:
-    st.session_state.df_requests = df_requests
-else:
-    st.warning("Data tidak tersedia")
+
+if df_requests is None:
+    st.error("Gagal load data")
     st.stop()
+
+st.session_state.df_requests = df_requests
 
 # =========================
 # PILIH ID
@@ -67,16 +71,14 @@ selected_id = st.selectbox("Pilih ID", id_list)
 if selected_id:
     st.session_state.selected_id = selected_id
 
-# =========================
-# FILTER DATA
-# =========================
 df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
 
 if df_id.empty:
     st.warning("Data tidak ditemukan")
-else:
-    st.success(f"{len(df_id)} data ditemukan")
-    st.dataframe(df_id)
+    st.stop()
+
+st.success(f"{len(df_id)} data ditemukan")
+st.dataframe(df_id)
 
 # =========================
 # MODULE 2 – ROUTE
@@ -99,7 +101,7 @@ if len(results_module2) == len(df_id):
     st.success("✅ Semua rute valid")
 
 # =========================
-# MODULE 3-4 BUTTON
+# MODULE 3-4
 # =========================
 st.header("🟨 Ambil Data Cuaca")
 
@@ -109,21 +111,51 @@ if st.button("🌐 Ambil Data Cuaca"):
     st.session_state.run_module34 = True
 
 # =========================
-# MODULE 3-4 PROCESS
+# PROCESS MODULE 3-4
 # =========================
 if st.session_state.run_module34 and st.session_state.results_module2:
 
+    # =========================
+    # LOAD DATASET SEKALI
+    # =========================
+    if st.session_state.ds_wave is None:
+
+        with st.spinner("Load dataset (sekali saja)..."):
+
+            sample_row = df_id.iloc[0]
+            dt_sample = sample_row["Tanggal Koordinat"]
+
+            ds_wave, ds_cur, ds_rain = load_datasets_cached(dt_sample)
+
+            if ds_wave is None or ds_cur is None:
+                st.error("Gagal load dataset BMKG")
+                st.stop()
+
+            st.session_state.ds_wave = ds_wave
+            st.session_state.ds_cur = ds_cur
+            st.session_state.ds_rain = ds_rain
+
+    # =========================
+    # PROCESS LOOP
+    # =========================
     results_module34 = []
     gagal = False
+
+    progress = st.progress(0)
 
     with st.spinner("Mengambil data cuaca..."):
 
         for i, item in enumerate(st.session_state.results_module2):
 
+            progress.progress((i + 1) / len(st.session_state.results_module2))
+
             result = process_module34(
                 row=df_id.iloc[i],
                 polyline=item["titik5"],
-                tz=tz
+                tz=tz,
+                ds_wave=st.session_state.ds_wave,
+                ds_cur=st.session_state.ds_cur,
+                ds_rain=st.session_state.ds_rain
             )
 
             if result is None:
@@ -142,16 +174,13 @@ if st.session_state.run_module34 and st.session_state.results_module2:
     st.session_state.run_module34 = False
 
 # =========================
-# MODULE 5 BUTTON
+# MODULE 5
 # =========================
 st.header("🟧 Analisis Cuaca")
 
 if st.button("📊 Jalankan Analisis"):
     st.session_state.run_module5 = True
 
-# =========================
-# MODULE 5 PROCESS
-# =========================
 if st.session_state.run_module5 and st.session_state.results_module34:
 
     with st.spinner("Analisis..."):
@@ -167,18 +196,19 @@ if st.session_state.run_module5 and st.session_state.results_module34:
     st.session_state.run_module5 = False
 
 # =========================
-# MODULE 6 BUTTON
+# MODULE 6
 # =========================
 st.header("🟥 Generate Laporan")
 
 template_path = Path("templates/Template PTSP.docx")
 
+if not template_path.exists():
+    st.error("Template tidak ditemukan")
+    st.stop()
+
 if st.button("📄 Generate Laporan"):
     st.session_state.run_generate = True
 
-# =========================
-# MODULE 6 PROCESS
-# =========================
 if st.session_state.run_generate and st.session_state.results_module5:
 
     with st.spinner("Menyusun laporan..."):
@@ -205,7 +235,7 @@ if st.session_state.doc_buffer:
     )
 
 # =========================
-# DEBUG (optional)
+# DEBUG
 # =========================
 with st.expander("DEBUG STATE"):
     st.write(st.session_state)
