@@ -1,5 +1,5 @@
 # =========================
-# MODULE 3 + 4 (FINAL FIXED + OPTIMIZED + GSMAP)
+# MODULE 3 + 4 (FINAL STABLE VERSION)
 # =========================
 
 import re
@@ -24,7 +24,7 @@ TZ_OFFSET = {
 }
 
 # =========================
-# DATE NORMALIZATION (ROBUST)
+# DATE NORMALIZATION
 # =========================
 def normalize_date(raw):
 
@@ -33,11 +33,9 @@ def normalize_date(raw):
 
     s = str(raw)
 
-    # hapus jam
     s = re.sub(r"\d{1,2}[.:]\d{2}(-\d{1,2}[.:]\d{2})?", "", s)
     s = s.replace("/", " ")
 
-    # bulan indonesia → inggris
     month_map = {
         "Januari":"January","Februari":"February","Maret":"March",
         "April":"April","Mei":"May","Juni":"June","Juli":"July",
@@ -50,7 +48,6 @@ def normalize_date(raw):
 
     s = s.strip()
 
-    # format manual
     formats = [
         "%d.%m.%Y", "%d-%m-%Y", "%d %B %Y",
         "%Y-%m-%d", "%d %b %Y"
@@ -68,9 +65,9 @@ def normalize_date(raw):
         return None
 
 # =========================
-# GSMAP (SAFE + CACHED)
+# GSMAP (RESOURCE CACHE)
 # =========================
-@st.cache_data(ttl=3600)
+@st.cache_resource(ttl=3600)
 def load_gsmap_cached(dt):
 
     try:
@@ -104,12 +101,11 @@ def load_gsmap_cached(dt):
         return None
 
 # =========================
-# LOAD DATASET (SAFE + CACHED)
+# LOAD DATASET (RESOURCE CACHE)
 # =========================
-@st.cache_data(ttl=3600)
+@st.cache_resource(ttl=3600)
 def load_datasets_cached(dt_input):
 
-    # 🔥 FIX: pastikan datetime
     dt = normalize_date(dt_input)
     if dt is None:
         return None, None, None
@@ -119,9 +115,7 @@ def load_datasets_cached(dt_input):
 
     YYYY, MM, DD = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d")
 
-    # =========================
     # WW3
-    # =========================
     ds_wave = None
     for url in [
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc",
@@ -133,9 +127,7 @@ def load_datasets_cached(dt_input):
         except:
             time.sleep(1)
 
-    # =========================
     # FVCOM
-    # =========================
     ds_cur = None
     for url in [
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc",
@@ -147,9 +139,6 @@ def load_datasets_cached(dt_input):
         except:
             time.sleep(1)
 
-    # =========================
-    # GSMAP
-    # =========================
     ds_rain = load_gsmap_cached(dt)
 
     return ds_wave, ds_cur, ds_rain
