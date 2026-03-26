@@ -152,18 +152,32 @@ st.header("🟨 Ambil Data Cuaca")
 
 tz = st.selectbox("Zona Waktu", ["WIB", "WITA", "WIT"])
 
+# =========================
+# VALIDASI: pastikan semua titik sudah diisi
+# =========================
+if "results_module2_dict" not in st.session_state or len(st.session_state.results_module2_dict) == 0:
+    st.warning("Silakan isi minimal 1 titik terlebih dahulu")
+    st.stop()
+
+if len(st.session_state.results_module2_dict) != len(df_id):
+    st.warning("Semua titik harus diisi sebelum lanjut")
+    st.stop()
+
+# =========================
+# BUTTON TRIGGER
+# =========================
 if st.button("🌐 Ambil Data Cuaca"):
     st.session_state.run_module34 = True
 
 # =========================
 # PROCESS MODULE 3-4
 # =========================
-if st.session_state.run_module34 and st.session_state.results_module2:
+if st.session_state.get("run_module34", False):
 
     # =========================
     # LOAD DATASET SEKALI
     # =========================
-    if st.session_state.ds_wave is None:
+    if st.session_state.get("ds_wave") is None:
 
         with st.spinner("Load dataset (sekali saja)..."):
 
@@ -181,21 +195,36 @@ if st.session_state.run_module34 and st.session_state.results_module2:
             st.session_state.ds_rain = ds_rain
 
     # =========================
-    # PROCESS LOOP
+    # PROSES LOOP AMAN
     # =========================
     results_module34 = []
     gagal = False
 
     progress = st.progress(0)
 
+    # 🔥 ambil index asli (bukan enumerate)
+    keys = sorted(st.session_state.results_module2_dict.keys())
+
     with st.spinner("Mengambil data cuaca..."):
 
-        for i, item in enumerate(st.session_state.results_module2):
+        for idx, i in enumerate(keys):
 
-            progress.progress((i + 1) / len(st.session_state.results_module2))
+            progress.progress((idx + 1) / len(keys))
+
+            item = st.session_state.results_module2_dict[i]
+
+            # =========================
+            # SAFETY CHECK (ANTI INDEX ERROR)
+            # =========================
+            if i >= len(df_id):
+                st.error(f"Index {i} melebihi jumlah data")
+                gagal = True
+                break
+
+            row = df_id.iloc[i]
 
             result = process_module34(
-                row=df_id.iloc[i],
+                row=row,
                 polyline=item["titik5"],
                 tz=tz,
                 ds_wave=st.session_state.ds_wave,
@@ -209,8 +238,11 @@ if st.session_state.run_module34 and st.session_state.results_module2:
 
             results_module34.append(result)
 
+    # =========================
+    # HASIL
+    # =========================
     if gagal:
-        st.error("❌ Gagal ambil data cuaca")
+        st.error("❌ Gagal mengambil data cuaca")
         st.session_state.results_module34 = None
     else:
         st.success("✅ Data cuaca berhasil")
