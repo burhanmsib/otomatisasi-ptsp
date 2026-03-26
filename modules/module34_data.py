@@ -189,7 +189,8 @@ def safe_extract_current(ds, var, t, lat, lon):
         dist = (lat_vals - lat)**2 + (lon_vals - lon)**2
         sorted_idx = np.argsort(dist)
 
-        for i in sorted_idx:
+        # 🔥 optimal
+        for i in sorted_idx[:30]:
             val = data_vals[i]
             if not np.isnan(val):
                 return float(val)
@@ -198,7 +199,6 @@ def safe_extract_current(ds, var, t, lat, lon):
 
     except:
         return None
-
 # =========================
 # WEATHER EXTRACTION
 # =========================
