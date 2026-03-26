@@ -1,5 +1,5 @@
 # =========================
-# MODULE 2 – ROUTE ENGINE (UPDATED & STABLE)
+# MODULE 2 – ROUTE ENGINE (FINAL VERSION)
 # =========================
 
 import streamlit as st
@@ -15,10 +15,6 @@ REQUIRED_POINTS = 5
 # HELPER – PARSE KOORDINAT
 # =========================
 def parse_decimal_coordinate(value):
-    """
-    Aman untuk data Google Sheet (kadang ada spasi)
-    Format: "lat, lon"
-    """
     try:
         parts = str(value).replace(" ", "").split(",")
         return float(parts[0]), float(parts[1])
@@ -41,7 +37,7 @@ def split_route_into_5(points_latlon):
 
     for f in fractions:
         p = line.interpolate(f, normalized=True)
-        result.append((p.y, p.x))  # lat, lon
+        result.append((p.y, p.x))
 
     return result
 
@@ -79,9 +75,45 @@ def numbered_marker(lat, lon, number):
 # =========================
 def process_route_segment_module2_streamlit(row, map_key):
 
+    st.subheader("Mode Input Lokasi")
+
     # =========================
-    # PARSE KOORDINAT AWAL & AKHIR
+    # MODE PILIHAN
     # =========================
+    mode = st.radio(
+        "Pilih Mode",
+        ["Gambar Rute", "Titik Tunggal"],
+        horizontal=True,
+        key=f"mode_{map_key}"
+    )
+
+    # =========================
+    # MODE 1: TITIK TUNGGAL
+    # =========================
+    if mode == "Titik Tunggal":
+
+        st.info("Gunakan ini jika hanya 1 koordinat (sesuai format laporan PDF)")
+
+        lat = st.number_input("Latitude", key=f"lat_{map_key}")
+        lon = st.number_input("Longitude", key=f"lon_{map_key}")
+
+        if st.button("Simpan Titik", key=f"btn_point_{map_key}"):
+
+            st.success("✅ Titik berhasil disimpan")
+
+            return {
+                "tanggal": row.get("Tanggal Koordinat"),
+                "awal": (lat, lon),
+                "akhir": (lat, lon),
+                "titik5": [(lat, lon)]  # penting untuk module 3
+            }
+
+        return None
+
+    # =========================
+    # MODE 2: GAMBAR RUTE
+    # =========================
+
     lat1, lon1 = parse_decimal_coordinate(row.get("Koordinat Awal (Desimal)"))
     lat2, lon2 = parse_decimal_coordinate(row.get("Koordinat Akhir (Desimal)"))
 
@@ -94,7 +126,7 @@ def process_route_segment_module2_streamlit(row, map_key):
     )
 
     # =========================
-    # MAP AWAL (DRAW MODE)
+    # MAP DRAW
     # =========================
     m = folium.Map(
         location=[(lat1 + lat2) / 2, (lon1 + lon2) / 2],
@@ -133,8 +165,7 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     output = st_folium(
         m,
-        height=800,
-        width=None,
+        height=600,
         key=f"draw_map_{map_key}",
         returned_objects=["last_active_drawing"]
     )
@@ -157,7 +188,6 @@ def process_route_segment_module2_streamlit(row, map_key):
         st.error(f"Rute harus TEPAT {REQUIRED_POINTS} titik. Sekarang: {len(coords)} titik.")
         return None
 
-    # lon,lat → lat,lon
     points_latlon = [(pt[1], pt[0]) for pt in coords]
 
     titik5 = split_route_into_5(points_latlon)
@@ -188,8 +218,7 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     st_folium(
         m2,
-        height=800,
-        width=None,
+        height=600,
         key=f"final_map_{map_key}"
     )
 
