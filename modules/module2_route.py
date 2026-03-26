@@ -166,6 +166,7 @@ def process_route_segment_module2_streamlit(row, map_key):
     output = st_folium(
         m,
         height=800,
+        width=None,
         key=f"draw_map_{map_key}",
         returned_objects=["last_active_drawing"]
     )
@@ -219,6 +220,7 @@ def process_route_segment_module2_streamlit(row, map_key):
     st_folium(
         m2,
         height=800,
+        width=None,
         key=f"final_map_{map_key}"
     )
 
