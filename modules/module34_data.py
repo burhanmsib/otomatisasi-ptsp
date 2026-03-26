@@ -1,5 +1,5 @@
 # =========================
-# MODULE 3 + 4 (FINAL STABLE VERSION)
+# MODULE 3 + 4 (FINAL STABLE VERSION - CURRENT FIXED)
 # =========================
 
 import re
@@ -65,7 +65,7 @@ def normalize_date(raw):
         return None
 
 # =========================
-# GSMAP (RESOURCE CACHE)
+# GSMAP
 # =========================
 @st.cache_resource(ttl=3600)
 def load_gsmap_cached(dt):
@@ -101,7 +101,7 @@ def load_gsmap_cached(dt):
         return None
 
 # =========================
-# LOAD DATASET (RESOURCE CACHE)
+# LOAD DATASET
 # =========================
 @st.cache_resource(ttl=3600)
 def load_datasets_cached(dt_input):
@@ -144,7 +144,7 @@ def load_datasets_cached(dt_input):
     return ds_wave, ds_cur, ds_rain
 
 # =========================
-# SAFE EXTRACT
+# SAFE EXTRACT (WAVE/WIND)
 # =========================
 def safe_extract(ds, var, t, lat, lon, depth=None):
 
@@ -166,6 +166,40 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
         return 0.0
 
 # =========================
+# SAFE EXTRACT CURRENT (FIX)
+# =========================
+def safe_extract_current(ds, var, t, lat, lon):
+
+    if ds is None or var not in ds:
+        return None
+
+    try:
+        da = ds[var]
+
+        if "time" in da.dims:
+            da = da.sel(time=t, method="nearest")
+
+        lat_name = "latc" if "latc" in ds else "lat"
+        lon_name = "lonc" if "lonc" in ds else "lon"
+
+        lat_vals = ds[lat_name].values.flatten()
+        lon_vals = ds[lon_name].values.flatten()
+        data_vals = da.values.flatten()
+
+        dist = (lat_vals - lat)**2 + (lon_vals - lon)**2
+        sorted_idx = np.argsort(dist)
+
+        for i in sorted_idx:
+            val = data_vals[i]
+            if not np.isnan(val):
+                return float(val)
+
+        return None
+
+    except:
+        return None
+
+# =========================
 # WEATHER EXTRACTION
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
@@ -173,20 +207,13 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     rain_val = None
 
     if ds_rain is not None:
-
         try:
             var = list(ds_rain.data_vars)[0]
             da = ds_rain[var]
 
-            # ======================
-            # HANDLE TIME
-            # ======================
             if "time" in da.dims:
                 da = da.sel(time=t, method="nearest")
 
-            # ======================
-            # DETECT NAMA KOORDINAT
-            # ======================
             lat_name = None
             for name in ["lat", "latitude"]:
                 if name in da.coords:
@@ -199,11 +226,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
                     lon_name = name
                     break
 
-            # ======================
-            # AMBIL NILAI TERDEKAT
-            # ======================
             if lat_name and lon_name:
-
                 lat_vals = da[lat_name].values
                 lon_vals = da[lon_name].values
 
@@ -220,6 +243,17 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         except:
             rain_val = None
 
+    # =========================
+    # CURRENT FIX
+    # =========================
+    u_val = safe_extract_current(ds_cur, "u", t, lat, lon)
+    v_val = safe_extract_current(ds_cur, "v", t, lat, lon)
+
+    if u_val is None:
+        u_val = 0.0
+    if v_val is None:
+        v_val = 0.0
+
     return {
         "wave": {
             "hs": safe_extract(ds_wave,"hs",t,lat,lon),
@@ -231,8 +265,8 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             "v": safe_extract(ds_wave,"vwnd",t,lat,lon)
         },
         "current": {
-            "u": safe_extract(ds_cur,"u",t,lat,lon,depth=0.5),
-            "v": safe_extract(ds_cur,"v",t,lat,lon,depth=0.5)
+            "u": u_val,
+            "v": v_val
         },
         "rain": {
             "precip": rain_val
@@ -254,7 +288,11 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         tzinfo=timezone(timedelta(hours=tz_offset))
     ).astimezone(timezone.utc).replace(tzinfo=None)
 
-    route = [(p[0], p[1]) for p in polyline]
+    # HANDLE SINGLE POINT
+    if len(polyline) == 1:
+        route = [polyline[0]] * 5
+    else:
+        route = [(p[0], p[1]) for p in polyline]
 
     segments = []
 
