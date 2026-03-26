@@ -66,39 +66,65 @@ st.header("🆔 Pilih ID Surat")
 
 id_list = sorted(df_requests["Id"].astype(str).unique())
 
-selected_id = st.selectbox("Pilih ID", id_list)
+st.subheader("Pilih atau Input ID")
 
-if selected_id:
-    st.session_state.selected_id = selected_id
+col1, col2 = st.columns(2)
 
-df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
+with col1:
+    selected_id_dropdown = st.selectbox("Pilih dari daftar", [""] + id_list)
 
-if df_id.empty:
-    st.warning("Data tidak ditemukan")
+with col2:
+    selected_id_manual = st.text_input("Atau input ID manual")
+
+selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
+
+if not selected_id:
+    st.warning("Silakan pilih atau input ID")
     st.stop()
-
-st.success(f"{len(df_id)} data ditemukan")
-st.dataframe(df_id)
-
 # =========================
 # MODULE 2 – ROUTE
 # =========================
-st.header("🟩 Gambar Rute")
+st.header("🟩 Input Lokasi / Rute")
 
-results_module2 = []
+# =========================
+# INIT STATE
+# =========================
+if "results_module2_dict" not in st.session_state:
+    st.session_state.results_module2_dict = {}
 
-for idx, row in df_id.iterrows():
+# =========================
+# PILIH TITIK
+# =========================
+index_list = list(range(len(df_id)))
 
-    st.markdown(f"### 📍 {row['Tanggal Koordinat']}")
+selected_index = st.selectbox(
+    "Pilih titik yang ingin diinput",
+    index_list,
+    format_func=lambda x: f"Titik {x+1} - {df_id.iloc[x]['Tanggal Koordinat']}"
+)
 
-    hasil = process_route_segment_module2_streamlit(row, idx)
+row = df_id.iloc[selected_index]
 
-    if hasil is not None:
-        results_module2.append(hasil)
+# =========================
+# PROSES MODULE 2
+# =========================
+hasil = process_route_segment_module2_streamlit(row, selected_index)
 
-if len(results_module2) == len(df_id):
-    st.session_state.results_module2 = results_module2
-    st.success("✅ Semua rute valid")
+if hasil is not None:
+    st.session_state.results_module2_dict[selected_index] = hasil
+    st.success(f"Titik {selected_index+1} tersimpan")
+
+# =========================
+# CEK SEMUA SELESAI
+# =========================
+if len(st.session_state.results_module2_dict) == len(df_id):
+
+    st.session_state.results_module2 = [
+        st.session_state.results_module2_dict[i]
+        for i in range(len(df_id))
+    ]
+
+    st.success("✅ Semua titik/rute sudah dibuat")
 
 # =========================
 # MODULE 3-4
