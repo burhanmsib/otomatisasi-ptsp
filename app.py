@@ -78,19 +78,38 @@ with col2:
 
 selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
 
-if not selected_id:
-    st.warning("Silakan pilih atau input ID")
-    st.stop()
 # =========================
-# MODULE 2 – ROUTE
+# VALIDASI ID
+# =========================
+if not selected_id:
+    st.warning("Silakan pilih atau input ID terlebih dahulu")
+    st.stop()
+
+# =========================
+# FILTER DATA (INI PENTING)
+# =========================
+df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
+
+if df_id is None or df_id.empty:
+    st.error("Data untuk ID ini tidak ditemukan")
+    st.stop()
+
+st.success(f"{len(df_id)} data ditemukan")
+st.dataframe(df_id)
+
+# =========================
+# MODULE 2 – INPUT RUTE
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
-# =========================
 # INIT STATE
-# =========================
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
+
+# PASTIKAN df_id SUDAH ADA (ANTI ERROR)
+if df_id is None or len(df_id) == 0:
+    st.warning("Data ID belum tersedia")
+    st.stop()
 
 # =========================
 # PILIH TITIK
