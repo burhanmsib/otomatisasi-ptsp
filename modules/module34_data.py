@@ -1,5 +1,5 @@
 # =========================
-# MODULE 3 + 4 (FINAL PRESENTATION VERSION)
+# MODULE 3 + 4 (FINAL FAST + STABLE + NO ZERO CURRENT)
 # =========================
 
 import re
@@ -108,10 +108,10 @@ def load_datasets_cached(dt_input):
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_0000.nc",
     ]:
         try:
-            ds_wave = xr.open_dataset(url)
+            ds_wave = xr.open_dataset(url, decode_times=False)
             break
         except:
-            time.sleep(1)
+            continue
 
     # FVCOM
     ds_cur = None
@@ -120,10 +120,10 @@ def load_datasets_cached(dt_input):
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_0000.nc",
     ]:
         try:
-            ds_cur = xr.open_dataset(url)
+            ds_cur = xr.open_dataset(url, decode_times=False)
             break
         except:
-            time.sleep(1)
+            continue
 
     ds_rain = load_gsmap_cached(dt)
 
@@ -154,21 +154,7 @@ def safe_extract(ds, var, t, lat, lon):
         return 0.0
 
 # =========================
-# CACHE GRID FVCOM
-# =========================
-@st.cache_resource
-def prepare_fvcom_grid(ds):
-
-    lat_name = "latc" if "latc" in ds else "lat"
-    lon_name = "lonc" if "lonc" in ds else "lon"
-
-    lat_vals = ds[lat_name].values.flatten()
-    lon_vals = ds[lon_name].values.flatten()
-
-    return lat_vals, lon_vals
-
-# =========================
-# SAFE EXTRACT CURRENT (FAST + VALID)
+# CURRENT (FINAL FIX)
 # =========================
 def safe_extract_current(ds, var, t, lat, lon):
 
@@ -181,17 +167,23 @@ def safe_extract_current(ds, var, t, lat, lon):
         if "time" in da.dims:
             da = da.sel(time=t, method="nearest")
 
-        lat_vals, lon_vals = prepare_fvcom_grid(ds)
+        lat_name = "latc" if "latc" in ds else "lat"
+        lon_name = "lonc" if "lonc" in ds else "lon"
+
+        lat_vals = ds[lat_name].values.flatten()
+        lon_vals = ds[lon_name].values.flatten()
         data_vals = da.values.flatten()
 
         dist = (lat_vals - lat)**2 + (lon_vals - lon)**2
 
-        idxs = np.argpartition(dist, 20)[:20]
+        # 🔥 cepat + stabil
+        idxs = np.argpartition(dist, 30)[:30]
 
-        for i in idxs:
-            val = data_vals[i]
-            if not np.isnan(val):
-                return float(val)
+        vals = data_vals[idxs]
+        vals = vals[~np.isnan(vals)]
+
+        if len(vals) > 0:
+            return float(vals.mean())
 
         return None
 
@@ -203,11 +195,8 @@ def safe_extract_current(ds, var, t, lat, lon):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    # =========================
-    # RAIN (FIXED)
-    # =========================
+    # RAIN
     rain_val = None
-
     if ds_rain is not None:
         try:
             var = list(ds_rain.data_vars)[0]
@@ -229,9 +218,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         except:
             rain_val = None
 
-    # =========================
-    # CURRENT (FIXED)
-    # =========================
+    # CURRENT
     u_val = safe_extract_current(ds_cur, "u", t, lat, lon)
     v_val = safe_extract_current(ds_cur, "v", t, lat, lon)
 
@@ -239,6 +226,10 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         u_val = 0.0
     if v_val is None:
         v_val = 0.0
+
+    # convert ke cm/s (biar masuk akal)
+    u_val = u_val * 100
+    v_val = v_val * 100
 
     return {
         "wave": {
