@@ -1,5 +1,5 @@
 # =========================
-# MODULE 1 – GOOGLE SHEET VIA SERVICE ACCOUNT
+# MODULE 1 – GOOGLE SHEET VIA SERVICE ACCOUNT (FINAL)
 # =========================
 
 import streamlit as st
@@ -7,6 +7,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from pathlib import Path
+import datetime
 
 # =========================
 # REQUIRED COLUMNS
@@ -33,52 +34,65 @@ REQUIRED_COLUMNS = [
 # VALIDATOR
 # =========================
 def validate_request_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
+
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"Kolom wajib tidak ditemukan: {missing}")
+
     return df.reset_index(drop=True)
 
 
 # =========================
-# LOAD GOOGLE SHEET
+# AUTH CLIENT (REUSABLE)
 # =========================
-@st.cache_data(show_spinner=False)
-def load_google_sheet():
+def get_gspread_client():
 
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
 
-    # ======================================
-    # MODE 1: LOCALHOST (pakai JSON file)
-    # ======================================
+    # LOCAL
     if Path("service_account.json").exists():
-
         creds = Credentials.from_service_account_file(
             "service_account.json",
             scopes=scopes,
         )
 
-        spreadsheet_id = "18SMCEU0t9tDub0wpwFsvnyM92z_HOe4w7nju8iRSFeY"
-        worksheet_name = "Surat"
-
-    # ======================================
-    # MODE 2: STREAMLIT CLOUD (pakai secrets)
-    # ======================================
+    # STREAMLIT CLOUD
     else:
-
         creds = Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
             scopes=scopes,
         )
 
-        spreadsheet_id = st.secrets["google_sheet"]["spreadsheet_id"]
-        worksheet_name = st.secrets["google_sheet"]["worksheet_name"]
+    return gspread.authorize(creds)
 
-    client = gspread.authorize(creds)
 
-    sheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+# =========================
+# GET CONFIG (SECRETS)
+# =========================
+def get_sheet_config():
+    config = st.secrets["google_sheet"]
+
+    return {
+        "spreadsheet_id": config["spreadsheet_id"],
+        "sheet_n8n": config["worksheet_n8n"],
+        "sheet_manual": config["worksheet_manual"],
+    }
+
+
+# =========================
+# LOAD GENERIC SHEET
+# =========================
+def load_sheet(sheet_name):
+
+    client = get_gspread_client()
+    cfg = get_sheet_config()
+
+    sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(sheet_name)
 
     data = sheet.get_all_records()
     df = pd.DataFrame(data)
@@ -87,10 +101,86 @@ def load_google_sheet():
 
 
 # =========================
-# STREAMLIT WRAPPER
+# LOAD N8N SHEET
+# =========================
+@st.cache_data(show_spinner=False)
+def load_google_sheet():
+    cfg = get_sheet_config()
+    return load_sheet(cfg["sheet_n8n"])
+
+
+# =========================
+# LOAD MANUAL SHEET
+# =========================
+def load_manual_sheet():
+    cfg = get_sheet_config()
+    return load_sheet(cfg["sheet_manual"])
+
+
+# =========================
+# GET DATA BY ID (DUAL SOURCE)
+# =========================
+def get_data_by_id(id_surat):
+
+    df_n8n = load_google_sheet()
+    df_manual = load_manual_sheet()
+
+    # Cari di n8n
+    row = df_n8n[df_n8n["Id"].astype(str) == str(id_surat)]
+    if not row.empty:
+        return row.iloc[0].to_dict()
+
+    # Cari di manual
+    row = df_manual[df_manual["Id"].astype(str) == str(id_surat)]
+    if not row.empty:
+        return row.iloc[0].to_dict()
+
+    return None
+
+
+# =========================
+# GENERATE ID (MANUAL)
+# =========================
+def generate_id():
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    return f"MAN-{now}"
+
+
+# =========================
+# SAVE MANUAL INPUT
+# =========================
+def save_manual_input(data):
+
+    client = get_gspread_client()
+    cfg = get_sheet_config()
+
+    sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(cfg["sheet_manual"])
+
+    sheet.append_row([
+        data.get("Id", ""),
+        data.get("Requester", ""),
+        data.get("Timestamp", ""),
+        data.get("Nama Perusahaan", ""),
+        data.get("Alamat Perusahaan", ""),
+        data.get("Nomor Surat", ""),
+        data.get("Informasi", ""),
+        data.get("Tanggal Koordinat", ""),
+        data.get("Koordinat", ""),
+        data.get("Koordinat Awal", ""),
+        data.get("Koordinat Akhir", ""),
+        data.get("Koordinat Awal (Desimal)", ""),
+        data.get("Koordinat Akhir (Desimal)", ""),
+        data.get("Water Checker Awal", ""),
+        data.get("Water Checker Akhir", "")
+    ])
+
+
+# =========================
+# STREAMLIT WRAPPER (DISPLAY)
 # =========================
 def load_request_sheet_streamlit():
-    st.header("📄 Data Permintaan PTSP (Google Sheet)")
+
+    st.subheader("📄 Data Permintaan PTSP")
 
     try:
         df = load_google_sheet()
