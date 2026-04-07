@@ -311,8 +311,8 @@ if st.session_state.doc_buffer:
         file_name=f"PTSP_{selected_id}.docx"
     )
 
-# =========================
-# DEBUG
-# =========================
-with st.expander("DEBUG STATE"):
-    st.write(st.session_state)
+# # =========================
+# # DEBUG
+# # =========================
+# with st.expander("DEBUG STATE"):
+#     st.write(st.session_state)
