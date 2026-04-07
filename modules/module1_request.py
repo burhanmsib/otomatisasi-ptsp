@@ -142,9 +142,40 @@ def get_data_by_id(id_surat):
 # GENERATE ID (MANUAL)
 # =========================
 def generate_id():
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    return f"MAN-{now}"
 
+    client = get_gspread_client()
+    cfg = get_sheet_config()
+
+    sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(cfg["sheet_manual"])
+
+    data = sheet.get_all_records()
+
+    if not data:
+        return "PTSP-001"
+
+    df = pd.DataFrame(data)
+
+    if "Id" not in df.columns:
+        return "PTSP-001"
+
+    ids = df["Id"].dropna().astype(str)
+
+    numbers = []
+
+    for i in ids:
+        if i.startswith("PTSP-"):
+            try:
+                num = int(i.split("-")[1])
+                numbers.append(num)
+            except:
+                continue
+
+    if not numbers:
+        return "PTSP-001"
+
+    next_id = max(numbers) + 1
+
+    return f"PTSP-{str(next_id).zfill(3)}"
 
 # =========================
 # SAVE MANUAL INPUT
