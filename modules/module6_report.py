@@ -3,6 +3,7 @@ from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.shared import OxmlElement, qn
 from docx.text.paragraph import Paragraph
+from docx.enum.table import WD_ALIGN_VERTICAL
 from datetime import datetime
 from io import BytesIO
 import re
@@ -207,7 +208,6 @@ def build_title(doc, row):
     style_paragraph(p, bold=True, align="center")
     doc.add_paragraph("")
 
-
 def build_interval_table(doc, intervals, tz="WIB"):
     headers = [
         "DATE", f"LOCAL TIME ({tz})", "WEATHER",
@@ -218,15 +218,22 @@ def build_interval_table(doc, intervals, tz="WIB"):
     table = doc.add_table(rows=1, cols=7)
     set_table_border(table)
 
+    # HEADER
     for i, h in enumerate(headers):
-        table.rows[0].cells[i].text = h
-        style_paragraph(table.rows[0].cells[i].paragraphs[0], bold=True, align="center")
+        cell = table.rows[0].cells[i]
+        cell.text = h
+        style_paragraph(cell.paragraphs[0], bold=True, align="center")
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
+    # =========================
+    # ADD DATA ROWS
+    # =========================
     for j in range(4):
         data = intervals[j] if j < len(intervals) else {}
         row = table.add_row().cells
+
         values = [
-            data.get("DATE", ""),
+            "",  # DATE dikosongkan dulu
             data.get("LOCAL TIME", ""),
             data.get("WEATHER", ""),
             data.get("WIND", ""),
@@ -234,11 +241,39 @@ def build_interval_table(doc, intervals, tz="WIB"):
             data.get("WAVE", ""),
             data.get("BEAUFORT", ""),
         ]
-        for i, v in enumerate(values):
-            row[i].text = str(v)
-            style_paragraph(row[i].paragraphs[0], align="center")
 
-    doc.add_paragraph("")
+        for i, v in enumerate(values):
+            cell = row[i]
+            cell.text = str(v)
+            style_paragraph(cell.paragraphs[0], align="center")
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+            # =========================
+            # MERGE DATE + CENTER (SAFE)
+            # =========================
+            if intervals and len(table.rows) > 1:
+            
+                date_text = intervals[0].get("DATE", "")
+            
+                # row pertama setelah header = index 1
+                start_row = 1
+                end_row = len(table.rows) - 1  # terakhir
+            
+                start_cell = table.cell(start_row, 0)
+                end_cell = table.cell(end_row, 0)
+            
+                merged_cell = start_cell.merge(end_cell)
+                merged_cell.text = date_text
+            
+                # Center horizontal
+                style_paragraph(merged_cell.paragraphs[0], align="center")
+            
+                # Bold
+                if merged_cell.paragraphs[0].runs:
+                    merged_cell.paragraphs[0].runs[0].bold = True
+            
+                # Center vertical
+                merged_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
 
 def build_notes_primary(doc):
