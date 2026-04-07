@@ -1,11 +1,16 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+import datetime
 
 # =========================
 # IMPORT MODULE
 # =========================
-from modules.module1_request import load_request_sheet_streamlit
+from modules.module1_request import (
+    load_request_sheet_streamlit,
+    save_manual_input,
+    generate_id
+)
 from modules.module2_route import process_route_segment_module2_streamlit
 from modules.module34_data import process_module34, load_datasets_cached
 from modules.module5_analysis import process_module5
@@ -39,6 +44,7 @@ def init_state():
         "ds_wave": None,
         "ds_cur": None,
         "ds_rain": None,
+        "manual_saved": False,
     }
     for k, v in keys.items():
         if k not in st.session_state:
@@ -47,73 +53,140 @@ def init_state():
 init_state()
 
 # =========================
-# MODULE 1 – GOOGLE SHEET
+# MODE INPUT (TAMBAHAN)
 # =========================
-st.header("🟦 Data Permintaan PTSP")
+st.header("🟦 Mode Input Data")
 
-df_requests = load_request_sheet_streamlit()
-
-if df_requests is None:
-    st.error("Gagal load data")
-    st.stop()
-
-st.session_state.df_requests = df_requests
+mode = st.radio(
+    "Pilih metode:",
+    ["Ambil dari Google Sheet", "Input Manual"]
+)
 
 # =========================
-# PILIH ID
+# MODE 1 – GOOGLE SHEET (ASLI TIDAK DIUBAH)
 # =========================
-st.header("🆔 Pilih ID Surat")
+if mode == "Ambil dari Google Sheet":
 
-id_list = sorted(df_requests["Id"].astype(str).unique())
+    st.header("🟦 Data Permintaan PTSP")
 
-st.subheader("Pilih atau Input ID")
+    df_requests = load_request_sheet_streamlit()
 
-col1, col2 = st.columns(2)
+    if df_requests is None:
+        st.error("Gagal load data")
+        st.stop()
 
-with col1:
-    selected_id_dropdown = st.selectbox("Pilih dari daftar", [""] + id_list)
+    st.session_state.df_requests = df_requests
 
-with col2:
-    selected_id_manual = st.text_input("Atau input ID manual")
+    # =========================
+    # PILIH ID
+    # =========================
+    st.header("🆔 Pilih ID Surat")
 
-selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
+    id_list = sorted(df_requests["Id"].astype(str).unique())
+
+    st.subheader("Pilih atau Input ID")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        selected_id_dropdown = st.selectbox("Pilih dari daftar", [""] + id_list)
+
+    with col2:
+        selected_id_manual = st.text_input("Atau input ID manual")
+
+    selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
+
+    # =========================
+    # VALIDASI ID
+    # =========================
+    if not selected_id:
+        st.warning("Silakan pilih atau input ID terlebih dahulu")
+        st.stop()
+
+    df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
+
+    if df_id is None or df_id.empty:
+        st.error("Data untuk ID ini tidak ditemukan")
+        st.stop()
+
+    st.success(f"{len(df_id)} data ditemukan")
+    st.dataframe(df_id)
 
 # =========================
-# VALIDASI ID
+# MODE 2 – INPUT MANUAL (TAMBAHAN)
 # =========================
-if not selected_id:
-    st.warning("Silakan pilih atau input ID terlebih dahulu")
-    st.stop()
+else:
+
+    st.header("📝 Input Manual Data Permintaan")
+
+    nama = st.text_input("Nama Perusahaan")
+    alamat = st.text_input("Alamat Perusahaan")
+    nomor = st.text_input("Nomor Surat")
+    tanggal = st.date_input("Tanggal")
+
+    st.subheader("Koordinat")
+
+    lat_awal = st.number_input("Latitude Awal")
+    lon_awal = st.number_input("Longitude Awal")
+
+    lat_akhir = st.number_input("Latitude Akhir")
+    lon_akhir = st.number_input("Longitude Akhir")
+
+    if st.button("Simpan Data Manual") and not st.session_state.manual_saved:
+
+        # VALIDASI
+        if lat_awal == 0 and lon_awal == 0:
+            st.error("Koordinat awal belum valid")
+            st.stop()
+
+        if lat_akhir == 0 and lon_akhir == 0:
+            st.error("Koordinat akhir belum valid")
+            st.stop()
+
+        id_surat = generate_id()
+
+        data = {
+            "Id": id_surat,
+            "Requester": "manual",
+            "Timestamp": str(datetime.datetime.now()),
+            "Nama Perusahaan": nama or "-",
+            "Alamat Perusahaan": alamat or "-",
+            "Nomor Surat": nomor or "-",
+            "Informasi": "-",
+            "Tanggal Koordinat": str(tanggal),
+            "Koordinat": f"{lat_awal},{lon_awal}",
+            "Koordinat Awal": f"{lat_awal}, {lon_awal}",
+            "Koordinat Akhir": f"{lat_akhir}, {lon_akhir}",
+            "Koordinat Awal (Desimal)": f"{lat_awal},{lon_awal}",
+            "Koordinat Akhir (Desimal)": f"{lat_akhir},{lon_akhir}",
+            "Water Checker Awal": "",
+            "Water Checker Akhir": ""
+        }
+
+        save_manual_input(data)
+
+        st.session_state.manual_saved = True
+
+        st.success(f"Data tersimpan dengan ID: {id_surat}")
+
+        df_id = pd.DataFrame([data])
+        st.dataframe(df_id)
+
+    if not st.session_state.manual_saved:
+        st.stop()
 
 # =========================
-# FILTER DATA (INI PENTING)
-# =========================
-df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
-
-if df_id is None or df_id.empty:
-    st.error("Data untuk ID ini tidak ditemukan")
-    st.stop()
-
-st.success(f"{len(df_id)} data ditemukan")
-st.dataframe(df_id)
-
-# =========================
-# MODULE 2 – INPUT RUTE
+# MODULE 2 – INPUT RUTE (ASLI)
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
-# INIT STATE
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
 
-# PASTIKAN df_id SUDAH ADA (ANTI ERROR)
 if df_id is None or len(df_id) == 0:
     st.warning("Data ID belum tersedia")
     st.stop()
 
-# =========================
-# PILIH TITIK
-# =========================
 index_list = list(range(len(df_id)))
 
 selected_index = st.selectbox(
@@ -124,18 +197,12 @@ selected_index = st.selectbox(
 
 row = df_id.iloc[selected_index]
 
-# =========================
-# PROSES MODULE 2
-# =========================
 hasil = process_route_segment_module2_streamlit(row, selected_index)
 
 if hasil is not None:
     st.session_state.results_module2_dict[selected_index] = hasil
     st.success(f"Titik {selected_index+1} tersimpan")
 
-# =========================
-# CEK SEMUA SELESAI
-# =========================
 if len(st.session_state.results_module2_dict) == len(df_id):
 
     st.session_state.results_module2 = [
@@ -146,15 +213,12 @@ if len(st.session_state.results_module2_dict) == len(df_id):
     st.success("✅ Semua titik/rute sudah dibuat")
 
 # =========================
-# MODULE 3-4
+# MODULE 3-4 (ASLI)
 # =========================
 st.header("🟨 Ambil Data Cuaca")
 
 tz = st.selectbox("Zona Waktu", ["WIB", "WITA", "WIT"])
 
-# =========================
-# VALIDASI: pastikan semua titik sudah diisi
-# =========================
 if "results_module2_dict" not in st.session_state or len(st.session_state.results_module2_dict) == 0:
     st.warning("Silakan isi minimal 1 titik terlebih dahulu")
     st.stop()
@@ -163,20 +227,11 @@ if len(st.session_state.results_module2_dict) != len(df_id):
     st.warning("Semua titik harus diisi sebelum lanjut")
     st.stop()
 
-# =========================
-# BUTTON TRIGGER
-# =========================
 if st.button("🌐 Ambil Data Cuaca"):
     st.session_state.run_module34 = True
 
-# =========================
-# PROCESS MODULE 3-4
-# =========================
 if st.session_state.get("run_module34", False):
 
-    # =========================
-    # LOAD DATASET SEKALI
-    # =========================
     if st.session_state.get("ds_wave") is None:
 
         with st.spinner("Load dataset (sekali saja)..."):
@@ -194,15 +249,11 @@ if st.session_state.get("run_module34", False):
             st.session_state.ds_cur = ds_cur
             st.session_state.ds_rain = ds_rain
 
-    # =========================
-    # PROSES LOOP AMAN
-    # =========================
     results_module34 = []
     gagal = False
 
     progress = st.progress(0)
 
-    # 🔥 ambil index asli (bukan enumerate)
     keys = sorted(st.session_state.results_module2_dict.keys())
 
     with st.spinner("Mengambil data cuaca..."):
@@ -213,9 +264,6 @@ if st.session_state.get("run_module34", False):
 
             item = st.session_state.results_module2_dict[i]
 
-            # =========================
-            # SAFETY CHECK (ANTI INDEX ERROR)
-            # =========================
             if i >= len(df_id):
                 st.error(f"Index {i} melebihi jumlah data")
                 gagal = True
@@ -238,9 +286,6 @@ if st.session_state.get("run_module34", False):
 
             results_module34.append(result)
 
-    # =========================
-    # HASIL
-    # =========================
     if gagal:
         st.error("❌ Gagal mengambil data cuaca")
         st.session_state.results_module34 = None
@@ -251,7 +296,7 @@ if st.session_state.get("run_module34", False):
     st.session_state.run_module34 = False
 
 # =========================
-# MODULE 5
+# MODULE 5 (ASLI)
 # =========================
 st.header("🟧 Analisis Cuaca")
 
@@ -273,7 +318,7 @@ if st.session_state.run_module5 and st.session_state.results_module34:
     st.session_state.run_module5 = False
 
 # =========================
-# MODULE 6
+# MODULE 6 (ASLI)
 # =========================
 st.header("🟥 Generate Laporan")
 
@@ -302,17 +347,11 @@ if st.session_state.run_generate and st.session_state.results_module5:
     st.session_state.run_generate = False
 
 # =========================
-# DOWNLOAD
+# DOWNLOAD (ASLI)
 # =========================
 if st.session_state.doc_buffer:
     st.download_button(
         "⬇️ Download Laporan",
         data=st.session_state.doc_buffer,
-        file_name=f"PTSP_{selected_id}.docx"
+        file_name=f"PTSP_{'manual' if mode=='Input Manual' else selected_id}.docx"
     )
-
-# # =========================
-# # DEBUG
-# # =========================
-# with st.expander("DEBUG STATE"):
-#     st.write(st.session_state)
