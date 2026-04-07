@@ -53,6 +53,10 @@ def init_state():
 
 init_state()
 
+if df_id is None or (isinstance(df_id, pd.DataFrame) and df_id.empty):
+    st.warning("Data ID belum tersedia")
+    st.stop()
+
 # =========================
 # 🔥 SUPER FLEXIBLE PARSER
 # =========================
