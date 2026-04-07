@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import datetime
+import re
 
 # =========================
 # IMPORT MODULE
@@ -53,7 +54,60 @@ def init_state():
 init_state()
 
 # =========================
-# MODE INPUT (TAMBAHAN)
+# 🔥 PARSER DMS → DECIMAL (UPDATED)
+# =========================
+def dms_single_to_decimal(dms):
+    pattern = r"(\d+)[°º]\s*(\d+)'\s*(\d+)\"\s*([NSEW])"
+    match = re.search(pattern, dms.strip())
+
+    if not match:
+        return None
+
+    deg, minute, sec, direction = match.groups()
+
+    decimal = float(deg) + float(minute)/60 + float(sec)/3600
+
+    if direction in ['S', 'W']:
+        decimal *= -1
+
+    return decimal
+
+
+def parse_coordinate_pair(text):
+    parts = text.split("-")
+
+    if len(parts) != 2:
+        return None
+
+    lat = dms_single_to_decimal(parts[0])
+    lon = dms_single_to_decimal(parts[1])
+
+    if lat is None or lon is None:
+        return None
+
+    return f"{lat},{lon}"
+
+
+def parse_full_coordinate(text):
+    try:
+        start_text, end_text = text.split("To")
+
+        start = parse_coordinate_pair(start_text.strip())
+        end = parse_coordinate_pair(end_text.strip())
+
+        if not start or not end:
+            return None
+
+        return {
+            "awal": start,
+            "akhir": end
+        }
+
+    except:
+        return None
+
+# =========================
+# MODE INPUT
 # =========================
 st.header("🟦 Mode Input Data")
 
@@ -63,7 +117,7 @@ mode = st.radio(
 )
 
 # =========================
-# MODE 1 – GOOGLE SHEET (ASLI TIDAK DIUBAH)
+# MODE 1 – GOOGLE SHEET (ASLI)
 # =========================
 if mode == "Ambil dari Google Sheet":
 
@@ -77,14 +131,9 @@ if mode == "Ambil dari Google Sheet":
 
     st.session_state.df_requests = df_requests
 
-    # =========================
-    # PILIH ID
-    # =========================
     st.header("🆔 Pilih ID Surat")
 
     id_list = sorted(df_requests["Id"].astype(str).unique())
-
-    st.subheader("Pilih atau Input ID")
 
     col1, col2 = st.columns(2)
 
@@ -96,24 +145,21 @@ if mode == "Ambil dari Google Sheet":
 
     selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
 
-    # =========================
-    # VALIDASI ID
-    # =========================
     if not selected_id:
         st.warning("Silakan pilih atau input ID terlebih dahulu")
         st.stop()
 
     df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
 
-    if df_id is None or df_id.empty:
-        st.error("Data untuk ID ini tidak ditemukan")
+    if df_id.empty:
+        st.error("Data tidak ditemukan")
         st.stop()
 
     st.success(f"{len(df_id)} data ditemukan")
     st.dataframe(df_id)
 
 # =========================
-# MODE 2 – INPUT MANUAL (TAMBAHAN)
+# MODE 2 – INPUT MANUAL (UPDATED)
 # =========================
 else:
 
@@ -124,23 +170,22 @@ else:
     nomor = st.text_input("Nomor Surat")
     tanggal = st.date_input("Tanggal")
 
-    st.subheader("Koordinat")
-
-    lat_awal = st.number_input("Latitude Awal")
-    lon_awal = st.number_input("Longitude Awal")
-
-    lat_akhir = st.number_input("Latitude Akhir")
-    lon_akhir = st.number_input("Longitude Akhir")
+    koordinat_dms = st.text_area(
+        "Koordinat (format derajat dari surat)",
+        placeholder="1º 41' 36\" N-101º 28' 38\" E To 1º 11' 07\" N-103º 50' 06\" E"
+    )
 
     if st.button("Simpan Data Manual") and not st.session_state.manual_saved:
 
-        # VALIDASI
-        if lat_awal == 0 and lon_awal == 0:
-            st.error("Koordinat awal belum valid")
+        # VALIDASI FORMAT
+        if "-" not in koordinat_dms or "To" not in koordinat_dms:
+            st.error("Format harus: LAT-LON To LAT-LON")
             st.stop()
 
-        if lat_akhir == 0 and lon_akhir == 0:
-            st.error("Koordinat akhir belum valid")
+        parsed = parse_full_coordinate(koordinat_dms)
+
+        if parsed is None:
+            st.error("Format koordinat tidak valid")
             st.stop()
 
         id_surat = generate_id()
@@ -154,11 +199,11 @@ else:
             "Nomor Surat": nomor or "-",
             "Informasi": "-",
             "Tanggal Koordinat": str(tanggal),
-            "Koordinat": f"{lat_awal},{lon_awal}",
-            "Koordinat Awal": f"{lat_awal}, {lon_awal}",
-            "Koordinat Akhir": f"{lat_akhir}, {lon_akhir}",
-            "Koordinat Awal (Desimal)": f"{lat_awal},{lon_awal}",
-            "Koordinat Akhir (Desimal)": f"{lat_akhir},{lon_akhir}",
+            "Koordinat": koordinat_dms,
+            "Koordinat Awal": koordinat_dms.split("To")[0],
+            "Koordinat Akhir": koordinat_dms.split("To")[1],
+            "Koordinat Awal (Desimal)": parsed["awal"],
+            "Koordinat Akhir (Desimal)": parsed["akhir"],
             "Water Checker Awal": "",
             "Water Checker Akhir": ""
         }
@@ -176,7 +221,7 @@ else:
         st.stop()
 
 # =========================
-# MODULE 2 – INPUT RUTE (ASLI)
+# MODULE 2 – ROUTE (ASLI)
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
