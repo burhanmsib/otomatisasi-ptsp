@@ -54,18 +54,15 @@ def init_state():
 init_state()
 
 # =========================
-# 🔥 PARSER DMS → DECIMAL (UPDATED)
+# 🔥 SUPER FLEXIBLE PARSER
 # =========================
-def dms_single_to_decimal(dms):
-    pattern = r"(\d+)[°º]\s*(\d+)'\s*(\d+)\"\s*([NSEW])"
-    match = re.search(pattern, dms.strip())
+def dms_to_decimal(match):
+    deg = float(match.group(1))
+    minute = float(match.group(2)) if match.group(2) else 0
+    sec = float(match.group(3)) if match.group(3) else 0
+    direction = match.group(4)
 
-    if not match:
-        return None
-
-    deg, minute, sec, direction = match.groups()
-
-    decimal = float(deg) + float(minute)/60 + float(sec)/3600
+    decimal = deg + (minute / 60) + (sec / 3600)
 
     if direction in ['S', 'W']:
         decimal *= -1
@@ -73,37 +70,36 @@ def dms_single_to_decimal(dms):
     return decimal
 
 
-def parse_coordinate_pair(text):
-    parts = text.split("-")
+def extract_all_coordinates(text):
+    pattern = r"(\d+)[°º]\s*(\d+(?:\.\d+)?)'?\s*(\d+(?:\.\d+)?)?\"?\s*([NSEW])"
+    matches = list(re.finditer(pattern, text))
 
-    if len(parts) != 2:
-        return None
+    coords = [dms_to_decimal(m) for m in matches]
 
-    lat = dms_single_to_decimal(parts[0])
-    lon = dms_single_to_decimal(parts[1])
-
-    if lat is None or lon is None:
-        return None
-
-    return f"{lat},{lon}"
+    return coords
 
 
-def parse_full_coordinate(text):
-    try:
-        start_text, end_text = text.split("To")
+def parse_coordinate(text):
+    coords = extract_all_coordinates(text)
 
-        start = parse_coordinate_pair(start_text.strip())
-        end = parse_coordinate_pair(end_text.strip())
-
-        if not start or not end:
-            return None
-
+    if len(coords) == 2:
+        lat, lon = coords
         return {
-            "awal": start,
-            "akhir": end
+            "type": "point",
+            "awal": f"{lat},{lon}",
+            "akhir": f"{lat},{lon}"
         }
 
-    except:
+    elif len(coords) == 4:
+        lat1, lon1, lat2, lon2 = coords
+
+        return {
+            "type": "route",
+            "awal": f"{lat1},{lon1}",
+            "akhir": f"{lat2},{lon2}"
+        }
+
+    else:
         return None
 
 # =========================
@@ -171,21 +167,16 @@ else:
     tanggal = st.date_input("Tanggal")
 
     koordinat_dms = st.text_area(
-        "Koordinat (format derajat dari surat)",
-        placeholder="1º 41' 36\" N-101º 28' 38\" E To 1º 11' 07\" N-103º 50' 06\" E"
+        "Koordinat (format bebas dari surat)",
+        placeholder="Bisa pakai berbagai format koordinat"
     )
 
     if st.button("Simpan Data Manual") and not st.session_state.manual_saved:
 
-        # VALIDASI FORMAT
-        if "-" not in koordinat_dms or "To" not in koordinat_dms:
-            st.error("Format harus: LAT-LON To LAT-LON")
-            st.stop()
-
-        parsed = parse_full_coordinate(koordinat_dms)
+        parsed = parse_coordinate(koordinat_dms)
 
         if parsed is None:
-            st.error("Format koordinat tidak valid")
+            st.error("Format koordinat tidak dikenali")
             st.stop()
 
         id_surat = generate_id()
@@ -200,8 +191,8 @@ else:
             "Informasi": "-",
             "Tanggal Koordinat": str(tanggal),
             "Koordinat": koordinat_dms,
-            "Koordinat Awal": koordinat_dms.split("To")[0],
-            "Koordinat Akhir": koordinat_dms.split("To")[1],
+            "Koordinat Awal": koordinat_dms,
+            "Koordinat Akhir": koordinat_dms,
             "Koordinat Awal (Desimal)": parsed["awal"],
             "Koordinat Akhir (Desimal)": parsed["akhir"],
             "Water Checker Awal": "",
@@ -392,7 +383,7 @@ if st.session_state.run_generate and st.session_state.results_module5:
     st.session_state.run_generate = False
 
 # =========================
-# DOWNLOAD (ASLI)
+# DOWNLOAD
 # =========================
 if st.session_state.doc_buffer:
     st.download_button(
