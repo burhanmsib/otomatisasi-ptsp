@@ -53,12 +53,13 @@ def init_state():
 
 init_state()
 
-if df_id is None or (isinstance(df_id, pd.DataFrame) and df_id.empty):
-    st.warning("Data ID belum tersedia")
-    st.stop()
+# =========================
+# 🔥 FIX WAJIB (INI YANG KAMU BUTUH)
+# =========================
+df_id = None
 
 # =========================
-# 🔥 SUPER FLEXIBLE PARSER
+# 🔥 SUPER FLEXIBLE PARSER (TETAP)
 # =========================
 def dms_to_decimal(match):
     deg = float(match.group(1))
@@ -116,8 +117,12 @@ mode = st.radio(
     ["Ambil dari Google Sheet", "Input Manual"]
 )
 
+# reset manual flag
+if mode == "Ambil dari Google Sheet":
+    st.session_state.manual_saved = False
+
 # =========================
-# MODE 1 – GOOGLE SHEET (ASLI)
+# MODE 1 – GOOGLE SHEET
 # =========================
 if mode == "Ambil dari Google Sheet":
 
@@ -159,7 +164,7 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
 # =========================
-# MODE 2 – INPUT MANUAL (UPDATED)
+# MODE 2 – INPUT MANUAL
 # =========================
 else:
 
@@ -216,16 +221,19 @@ else:
         st.stop()
 
 # =========================
-# MODULE 2 – ROUTE (ASLI)
+# 🔥 VALIDASI DIPINDAH KE SINI (FIX ERROR)
+# =========================
+if df_id is None or (isinstance(df_id, pd.DataFrame) and df_id.empty):
+    st.warning("Data ID belum tersedia")
+    st.stop()
+
+# =========================
+# MODULE 2 – ROUTE
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
-
-if df_id is None or len(df_id) == 0:
-    st.warning("Data ID belum tersedia")
-    st.stop()
 
 index_list = list(range(len(df_id)))
 
@@ -253,7 +261,7 @@ if len(st.session_state.results_module2_dict) == len(df_id):
     st.success("✅ Semua titik/rute sudah dibuat")
 
 # =========================
-# MODULE 3-4 (ASLI)
+# MODULE 3-4
 # =========================
 st.header("🟨 Ambil Data Cuaca")
 
@@ -336,7 +344,7 @@ if st.session_state.get("run_module34", False):
     st.session_state.run_module34 = False
 
 # =========================
-# MODULE 5 (ASLI)
+# MODULE 5
 # =========================
 st.header("🟧 Analisis Cuaca")
 
@@ -358,7 +366,7 @@ if st.session_state.run_module5 and st.session_state.results_module34:
     st.session_state.run_module5 = False
 
 # =========================
-# MODULE 6 (ASLI)
+# MODULE 6
 # =========================
 st.header("🟥 Generate Laporan")
 
