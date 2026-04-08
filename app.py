@@ -64,6 +64,16 @@ df_id = None
 # =========================
 # PARSER FLEXIBLE
 # =========================
+
+def normalize_coordinate_text(text):
+    text = text.replace("’", "'").replace("’’", '"')
+    text = text.replace("º", "°")
+
+    # 🔥 TAMBAHAN PENTING: kalau tidak ada ° → tambahkan
+    text = re.sub(r"(\d+)'", r"\1°", text, count=1)
+
+    return text
+
 def dms_to_decimal(match):
     deg = float(match.group(1))
     minute = match.group(2)
@@ -89,18 +99,16 @@ def dms_to_decimal(match):
 
 def extract_all_coordinates(text):
 
-    # 🔥 NORMALISASI SIMBOL
-    text = text.replace("’", "'").replace("’’", '"').replace("º", "°")
+    text = normalize_coordinate_text(text)
 
-    # 🔥 PATTERN BARU (SUPPORT DMS + DMM)
     pattern = r"""
-        (\d+(?:\.\d+)?)      # derajat
-        [°\s]*               # optional °
-        (\d+(?:\.\d+)?)?     # menit (opsional)
-        ['\s]*               # optional '
-        (\d+(?:\.\d+)?)?     # detik (opsional)
-        ["\s]*               # optional "
-        ([NSEW])             # arah
+        (\d+(?:\.\d+)?)      # degree
+        [°\s]*
+        (\d+(?:\.\d+)?)?     # minute
+        ['\s]*
+        (\d+(?:\.\d+)?)?     # second
+        ["\s]*
+        ([NSEW])
     """
 
     matches = re.finditer(pattern, text, re.VERBOSE)
@@ -113,7 +121,11 @@ def extract_all_coordinates(text):
         sec = float(m.group(3)) if m.group(3) else 0
         direction = m.group(4)
 
-        decimal = deg + (minute / 60) + (sec / 3600)
+        # 🔥 LOGIKA BENAR
+        if sec == 0 and minute != 0:
+            decimal = deg + (minute / 60)
+        else:
+            decimal = deg + (minute / 60) + (sec / 3600)
 
         if direction in ['S', 'W']:
             decimal *= -1
