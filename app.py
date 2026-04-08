@@ -48,6 +48,7 @@ def init_state():
         "ds_rain": None,
         "manual_saved": False,
         "preview_data": None,
+        "df_id_manual": None,   # 🔥 TAMBAHAN FIX
     }
     for k, v in keys.items():
         if k not in st.session_state:
@@ -61,7 +62,7 @@ init_state()
 df_id = None
 
 # =========================
-# PARSER FLEXIBLE (TETAP)
+# PARSER FLEXIBLE
 # =========================
 def dms_to_decimal(match):
     deg = float(match.group(1))
@@ -152,7 +153,7 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
 # =========================
-# MODE 2 – INPUT MANUAL (MULTI TITIK)
+# MODE 2 – INPUT MANUAL
 # =========================
 else:
 
@@ -178,7 +179,9 @@ else:
             "koordinat": koordinat_i
         })
 
-    # ===== PREVIEW =====
+    # =========================
+    # PREVIEW
+    # =========================
     if st.button("Preview Data"):
 
         parsed_rows = []
@@ -202,7 +205,9 @@ else:
 
         st.dataframe(df_preview)
 
-    # ===== SAVE =====
+    # =========================
+    # SAVE
+    # =========================
     if st.session_state.preview_data is not None:
 
         if st.button("Simpan Data Manual"):
@@ -237,21 +242,42 @@ else:
             st.success(f"Data tersimpan dengan ID: {id_surat}")
             st.code(id_surat)
 
-            df_id = st.session_state.preview_data.copy()
+            # 🔥 FIX UTAMA (JANGAN DIHAPUS)
+            df_id = pd.DataFrame([
+                {
+                    "Id": id_surat,
+                    "Tanggal Koordinat": row["Tanggal Koordinat"],
+                    "Koordinat": row["Koordinat"],
+                    "Koordinat Awal": row["Koordinat"],
+                    "Koordinat Akhir": row["Koordinat"],
+                    "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
+                    "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
+                }
+                for _, row in st.session_state.preview_data.iterrows()
+            ])
+
+            # 🔥 SIMPAN KE SESSION
+            st.session_state.df_id_manual = df_id
             st.session_state.manual_saved = True
 
     if not st.session_state.manual_saved:
         st.stop()
 
 # =========================
-# VALIDASI df_id (FIX ERROR)
+# 🔥 FIX STATE df_id (WAJIB)
+# =========================
+if df_id is None and st.session_state.df_id_manual is not None:
+    df_id = st.session_state.df_id_manual
+
+# =========================
+# VALIDASI df_id
 # =========================
 if df_id is None or df_id.empty:
     st.warning("Data belum siap")
     st.stop()
 
 # =========================
-# MODULE 2 – ROUTE (TETAP)
+# MODULE 2
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
@@ -284,7 +310,7 @@ if len(st.session_state.results_module2_dict) == len(df_id):
     st.success("✅ Semua titik/rute sudah dibuat")
 
 # =========================
-# MODULE 3-4 (TETAP)
+# MODULE 3-4
 # =========================
 st.header("🟨 Ambil Data Cuaca")
 
@@ -367,7 +393,7 @@ if st.session_state.get("run_module34", False):
     st.session_state.run_module34 = False
 
 # =========================
-# MODULE 5 (TETAP)
+# MODULE 5
 # =========================
 st.header("🟧 Analisis Cuaca")
 
@@ -389,7 +415,7 @@ if st.session_state.run_module5 and st.session_state.results_module34:
     st.session_state.run_module5 = False
 
 # =========================
-# MODULE 6 (TETAP)
+# MODULE 6
 # =========================
 st.header("🟥 Generate Laporan")
 
