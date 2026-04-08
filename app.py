@@ -96,19 +96,20 @@ def dms_to_decimal(match):
 
     return decimal
 
-
 def extract_all_coordinates(text):
 
-    text = normalize_coordinate_text(text)
+    # 🔥 NORMALISASI
+    text = text.replace("’", "'").replace("’’", '"').replace("º", "°")
 
+    # 🔥 PATTERN KHUSUS LAT/LON PAIR
     pattern = r"""
-        (\d+(?:\.\d+)?)      # degree
-        [°\s]*
-        (\d+(?:\.\d+)?)?     # minute
-        ['\s]*
-        (\d+(?:\.\d+)?)?     # second
-        ["\s]*
-        ([NSEW])
+        (\d{1,3})[°']      # degree lat/lon
+        (\d+(?:\.\d+)?)['"]?
+        \s*([NS])
+        \s*/\s*
+        (\d{1,3})[°']      # degree lon
+        (\d+(?:\.\d+)?)['"]?
+        \s*([EW])
     """
 
     matches = re.finditer(pattern, text, re.VERBOSE)
@@ -116,21 +117,25 @@ def extract_all_coordinates(text):
     coords = []
 
     for m in matches:
-        deg = float(m.group(1))
-        minute = float(m.group(2)) if m.group(2) else 0
-        sec = float(m.group(3)) if m.group(3) else 0
-        direction = m.group(4)
+        lat_deg = float(m.group(1))
+        lat_min = float(m.group(2))
+        lat_dir = m.group(3)
 
-        # 🔥 LOGIKA BENAR
-        if sec == 0 and minute != 0:
-            decimal = deg + (minute / 60)
-        else:
-            decimal = deg + (minute / 60) + (sec / 3600)
+        lon_deg = float(m.group(4))
+        lon_min = float(m.group(5))
+        lon_dir = m.group(6)
 
-        if direction in ['S', 'W']:
-            decimal *= -1
+        # 🔥 DMM conversion
+        lat = lat_deg + (lat_min / 60)
+        lon = lon_deg + (lon_min / 60)
 
-        coords.append(decimal)
+        if lat_dir == "S":
+            lat *= -1
+        if lon_dir == "W":
+            lon *= -1
+
+        coords.append(lat)
+        coords.append(lon)
 
     return coords
 
