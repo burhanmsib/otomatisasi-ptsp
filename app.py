@@ -47,6 +47,7 @@ def init_state():
         "ds_cur": None,
         "ds_rain": None,
         "manual_saved": False,
+        "preview_data": None,
     }
     for k, v in keys.items():
         if k not in st.session_state:
@@ -60,7 +61,7 @@ init_state()
 df_id = None
 
 # =========================
-# PARSER FLEXIBLE
+# PARSER FLEXIBLE (TETAP)
 # =========================
 def dms_to_decimal(match):
     deg = float(match.group(1))
@@ -105,12 +106,11 @@ mode = st.radio(
     ["Ambil dari Google Sheet", "Input Manual"]
 )
 
-# reset manual flag
 if mode == "Ambil dari Google Sheet":
     st.session_state.manual_saved = False
 
 # =========================
-# MODE GOOGLE SHEET
+# MODE 1 – GOOGLE SHEET
 # =========================
 if mode == "Ambil dari Google Sheet":
 
@@ -152,7 +152,7 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
 # =========================
-# MODE MANUAL
+# MODE 2 – INPUT MANUAL (MULTI TITIK)
 # =========================
 else:
 
@@ -162,67 +162,96 @@ else:
     nama = st.text_input("Nama Perusahaan")
     alamat = st.text_input("Alamat Perusahaan")
     nomor = st.text_input("Nomor Surat")
-    tanggal = st.date_input("Tanggal")
 
-    koordinat_dms = st.text_area(
-        "Koordinat (format bebas dari surat)",
-        placeholder="Bisa pakai berbagai format koordinat"
-    )
+    jumlah = st.number_input("Jumlah Titik Permintaan", min_value=1, step=1)
 
-    if st.button("Simpan Data Manual") and not st.session_state.manual_saved:
+    data_list = []
 
-        parsed = parse_coordinate(koordinat_dms)
+    for i in range(jumlah):
+        st.subheader(f"Titik {i+1}")
 
-        if parsed is None:
-            st.error("Format koordinat tidak dikenali")
-            st.stop()
+        tanggal_i = st.date_input(f"Tanggal {i+1}", key=f"tgl_{i}")
+        koordinat_i = st.text_area(f"Koordinat {i+1}", key=f"coord_{i}")
 
-        # WIB TIME
-        jakarta_tz = pytz.timezone("Asia/Jakarta")
-        now_wib = datetime.datetime.now(jakarta_tz)
+        data_list.append({
+            "tanggal": tanggal_i,
+            "koordinat": koordinat_i
+        })
 
-        id_surat = generate_id()
+    # ===== PREVIEW =====
+    if st.button("Preview Data"):
 
-        data = {
-            "Id": id_surat,
-            "Requester": requester or "unknown",
-            "Timestamp": now_wib.strftime("%Y-%m-%d %H:%M:%S"),
-            "Nama Perusahaan": nama or "-",
-            "Alamat Perusahaan": alamat or "-",
-            "Nomor Surat": nomor or "-",
-            "Informasi": "-",
-            "Tanggal Koordinat": str(tanggal),
-            "Koordinat": koordinat_dms,
-            "Koordinat Awal": koordinat_dms,
-            "Koordinat Akhir": koordinat_dms,
-            "Koordinat Awal (Desimal)": parsed["awal"],
-            "Koordinat Akhir (Desimal)": parsed["akhir"],
-            "Water Checker Awal": "",
-            "Water Checker Akhir": ""
-        }
+        parsed_rows = []
 
-        save_manual_input(data)
+        for d in data_list:
+            parsed = parse_coordinate(d["koordinat"])
 
-        st.session_state.manual_saved = True
+            if parsed is None:
+                st.error(f"Koordinat tidak valid: {d['koordinat']}")
+                st.stop()
 
-        st.success(f"Data tersimpan dengan ID: {id_surat}")
-        st.code(id_surat)
+            parsed_rows.append({
+                "Tanggal Koordinat": str(d["tanggal"]),
+                "Koordinat": d["koordinat"],
+                "Koordinat Awal (Desimal)": parsed["awal"],
+                "Koordinat Akhir (Desimal)": parsed["akhir"]
+            })
 
-        df_id = pd.DataFrame([data])
-        st.dataframe(df_id)
+        df_preview = pd.DataFrame(parsed_rows)
+        st.session_state.preview_data = df_preview
+
+        st.dataframe(df_preview)
+
+    # ===== SAVE =====
+    if st.session_state.preview_data is not None:
+
+        if st.button("Simpan Data Manual"):
+
+            jakarta_tz = pytz.timezone("Asia/Jakarta")
+            now_wib = datetime.datetime.now(jakarta_tz)
+
+            id_surat = generate_id()
+
+            for _, row in st.session_state.preview_data.iterrows():
+
+                data = {
+                    "Id": id_surat,
+                    "Requester": requester or "unknown",
+                    "Timestamp": now_wib.strftime("%Y-%m-%d %H:%M:%S"),
+                    "Nama Perusahaan": nama or "-",
+                    "Alamat Perusahaan": alamat or "-",
+                    "Nomor Surat": nomor or "-",
+                    "Informasi": "-",
+                    "Tanggal Koordinat": row["Tanggal Koordinat"],
+                    "Koordinat": row["Koordinat"],
+                    "Koordinat Awal": row["Koordinat"],
+                    "Koordinat Akhir": row["Koordinat"],
+                    "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
+                    "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
+                    "Water Checker Awal": "",
+                    "Water Checker Akhir": ""
+                }
+
+                save_manual_input(data)
+
+            st.success(f"Data tersimpan dengan ID: {id_surat}")
+            st.code(id_surat)
+
+            df_id = st.session_state.preview_data.copy()
+            st.session_state.manual_saved = True
 
     if not st.session_state.manual_saved:
         st.stop()
 
 # =========================
-# VALIDASI df_id
+# VALIDASI df_id (FIX ERROR)
 # =========================
 if df_id is None or df_id.empty:
     st.warning("Data belum siap")
     st.stop()
 
 # =========================
-# MODULE 2 – ROUTE
+# MODULE 2 – ROUTE (TETAP)
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
@@ -255,7 +284,7 @@ if len(st.session_state.results_module2_dict) == len(df_id):
     st.success("✅ Semua titik/rute sudah dibuat")
 
 # =========================
-# MODULE 3-4
+# MODULE 3-4 (TETAP)
 # =========================
 st.header("🟨 Ambil Data Cuaca")
 
@@ -338,7 +367,7 @@ if st.session_state.get("run_module34", False):
     st.session_state.run_module34 = False
 
 # =========================
-# MODULE 5
+# MODULE 5 (TETAP)
 # =========================
 st.header("🟧 Analisis Cuaca")
 
@@ -360,7 +389,7 @@ if st.session_state.run_module5 and st.session_state.results_module34:
     st.session_state.run_module5 = False
 
 # =========================
-# MODULE 6
+# MODULE 6 (TETAP)
 # =========================
 st.header("🟥 Generate Laporan")
 
