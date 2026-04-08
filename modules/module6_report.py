@@ -194,15 +194,12 @@ def build_title(doc, row):
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
     t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
 
-    ka = row.get("Koordinat Awal", "")
-    kb = row.get("Koordinat Akhir", "")
+    coord = str(row.get("Koordinat", "") or "").strip()
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports").bold = True
-    p.add_run("\nCoordinate: From ").bold = True
-    p.add_run(f"{ka} ")
-    p.add_run("To ").bold = True
-    p.add_run(f"{kb}\n")
+    p.add_run("\nCoordinate: ").bold = True
+    p.add_run(coord + "\n")
     p.add_run(f"for {t_str}")
 
     style_paragraph(p, bold=True, align="center")
