@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import datetime
 import re
+import pytz
 
 # =========================
 # IMPORT MODULE
@@ -54,12 +55,12 @@ def init_state():
 init_state()
 
 # =========================
-# 🔥 FIX WAJIB (INI YANG KAMU BUTUH)
+# FIX df_id
 # =========================
 df_id = None
 
 # =========================
-# 🔥 SUPER FLEXIBLE PARSER (TETAP)
+# PARSER FLEXIBLE
 # =========================
 def dms_to_decimal(match):
     deg = float(match.group(1))
@@ -78,10 +79,7 @@ def dms_to_decimal(match):
 def extract_all_coordinates(text):
     pattern = r"(\d+)[°º]\s*(\d+(?:\.\d+)?)'?\s*(\d+(?:\.\d+)?)?\"?\s*([NSEW])"
     matches = list(re.finditer(pattern, text))
-
-    coords = [dms_to_decimal(m) for m in matches]
-
-    return coords
+    return [dms_to_decimal(m) for m in matches]
 
 
 def parse_coordinate(text):
@@ -89,23 +87,13 @@ def parse_coordinate(text):
 
     if len(coords) == 2:
         lat, lon = coords
-        return {
-            "type": "point",
-            "awal": f"{lat},{lon}",
-            "akhir": f"{lat},{lon}"
-        }
+        return {"awal": f"{lat},{lon}", "akhir": f"{lat},{lon}"}
 
     elif len(coords) == 4:
         lat1, lon1, lat2, lon2 = coords
+        return {"awal": f"{lat1},{lon1}", "akhir": f"{lat2},{lon2}"}
 
-        return {
-            "type": "route",
-            "awal": f"{lat1},{lon1}",
-            "akhir": f"{lat2},{lon2}"
-        }
-
-    else:
-        return None
+    return None
 
 # =========================
 # MODE INPUT
@@ -122,7 +110,7 @@ if mode == "Ambil dari Google Sheet":
     st.session_state.manual_saved = False
 
 # =========================
-# MODE 1 – GOOGLE SHEET
+# MODE GOOGLE SHEET
 # =========================
 if mode == "Ambil dari Google Sheet":
 
@@ -164,12 +152,13 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
 # =========================
-# MODE 2 – INPUT MANUAL
+# MODE MANUAL
 # =========================
 else:
 
     st.header("📝 Input Manual Data Permintaan")
 
+    requester = st.text_input("Nama Prakirawan")
     nama = st.text_input("Nama Perusahaan")
     alamat = st.text_input("Alamat Perusahaan")
     nomor = st.text_input("Nomor Surat")
@@ -188,12 +177,16 @@ else:
             st.error("Format koordinat tidak dikenali")
             st.stop()
 
+        # WIB TIME
+        jakarta_tz = pytz.timezone("Asia/Jakarta")
+        now_wib = datetime.datetime.now(jakarta_tz)
+
         id_surat = generate_id()
 
         data = {
             "Id": id_surat,
-            "Requester": "manual",
-            "Timestamp": str(datetime.datetime.now()),
+            "Requester": requester or "unknown",
+            "Timestamp": now_wib.strftime("%Y-%m-%d %H:%M:%S"),
             "Nama Perusahaan": nama or "-",
             "Alamat Perusahaan": alamat or "-",
             "Nomor Surat": nomor or "-",
@@ -213,6 +206,7 @@ else:
         st.session_state.manual_saved = True
 
         st.success(f"Data tersimpan dengan ID: {id_surat}")
+        st.code(id_surat)
 
         df_id = pd.DataFrame([data])
         st.dataframe(df_id)
@@ -221,10 +215,10 @@ else:
         st.stop()
 
 # =========================
-# 🔥 VALIDASI DIPINDAH KE SINI (FIX ERROR)
+# VALIDASI df_id
 # =========================
-if df_id is None or (isinstance(df_id, pd.DataFrame) and df_id.empty):
-    st.warning("Data ID belum tersedia")
+if df_id is None or df_id.empty:
+    st.warning("Data belum siap")
     st.stop()
 
 # =========================
