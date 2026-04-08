@@ -79,10 +79,39 @@ def dms_to_decimal(match):
 
 
 def extract_all_coordinates(text):
-    pattern = r"(\d+)[°º]\s*(\d+(?:\.\d+)?)'?\s*(\d+(?:\.\d+)?)?\"?\s*([NSEW])"
-    matches = list(re.finditer(pattern, text))
-    return [dms_to_decimal(m) for m in matches]
 
+    # 🔥 NORMALISASI SIMBOL
+    text = text.replace("’", "'").replace("’’", '"').replace("º", "°")
+
+    # 🔥 PATTERN BARU (SUPPORT DMS + DMM)
+    pattern = r"""
+        (\d+(?:\.\d+)?)      # derajat
+        [°\s]*               # optional °
+        (\d+(?:\.\d+)?)?     # menit (opsional)
+        ['\s]*               # optional '
+        (\d+(?:\.\d+)?)?     # detik (opsional)
+        ["\s]*               # optional "
+        ([NSEW])             # arah
+    """
+
+    matches = re.finditer(pattern, text, re.VERBOSE)
+
+    coords = []
+
+    for m in matches:
+        deg = float(m.group(1))
+        minute = float(m.group(2)) if m.group(2) else 0
+        sec = float(m.group(3)) if m.group(3) else 0
+        direction = m.group(4)
+
+        decimal = deg + (minute / 60) + (sec / 3600)
+
+        if direction in ['S', 'W']:
+            decimal *= -1
+
+        coords.append(decimal)
+
+    return coords
 
 def parse_coordinate(text):
     coords = extract_all_coordinates(text)
