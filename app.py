@@ -65,26 +65,6 @@ df_id = None
 # PARSER FLEXIBLE
 # =========================
 
-def normalize_coordinate_text(text):
-    text = text.upper()
-
-    # 🔥 normalisasi simbol
-    text = text.replace("’", "'").replace("‘‘", '"').replace("’’", '"')
-    text = text.replace("º", "°")
-
-    # 🔥 hapus tanda kurung
-    text = text.replace("(", "").replace(")", "")
-
-    # 🔥 rapikan separator
-    text = text.replace(" / ", "/")
-    text = text.replace(" /", "/")
-    text = text.replace("/ ", "/")
-
-    text = text.replace(" TO ", "|")
-    text = text.replace("-", "|")
-
-    return text
-
 def dms_to_decimal(match):
     deg = float(match.group(1))
     minute = match.group(2)
@@ -109,37 +89,54 @@ def dms_to_decimal(match):
 
 def extract_all_coordinates(text):
 
-    text = normalize_coordinate_text(text)
+    import re
 
-    # 🔥 split rute jadi beberapa segmen
-    segments = text.split("|")
+    # =========================
+    # 1. NORMALISASI
+    # =========================
+    text = text.upper()
+
+    text = text.replace("’", "'").replace("’’", '"')
+    text = text.replace("º", "°")
+
+    # hapus tanda kurung
+    text = text.replace("(", "").replace(")", "")
+
+    # rapikan separator
+    text = text.replace(" / ", "/").replace("/ ", "/").replace(" /", "/")
+    text = text.replace(" TO ", "|").replace("-", "|")
+
+    # =========================
+    # 2. AMBIL SEMUA PASANGAN LAT/LON
+    # =========================
+    pattern = r"(\d+)'(\d+(?:\.\d+)?)\"?([NS])/(\d+)'(\d+(?:\.\d+)?)\"?([EW])"
+
+    matches = re.findall(pattern, text)
 
     coords = []
 
-    pattern = r"(\d+)'(\d+(?:\.\d+)?)\"?([NS])/(\d+)'(\d+(?:\.\d+)?)\"?([EW])"
+    for m in matches:
+        lat_deg = float(m[0])
+        lat_min = float(m[1])
+        lat_dir = m[2]
 
-    for seg in segments:
-        matches = re.findall(pattern, seg)
+        lon_deg = float(m[3])
+        lon_min = float(m[4])
+        lon_dir = m[5]
 
-        for m in matches:
-            lat_deg = float(m[0])
-            lat_min = float(m[1])
-            lat_dir = m[2]
+        # =========================
+        # 3. KONVERSI DMM → DECIMAL
+        # =========================
+        lat = lat_deg + (lat_min / 60)
+        lon = lon_deg + (lon_min / 60)
 
-            lon_deg = float(m[3])
-            lon_min = float(m[4])
-            lon_dir = m[5]
+        if lat_dir == "S":
+            lat *= -1
+        if lon_dir == "W":
+            lon *= -1
 
-            lat = lat_deg + (lat_min / 60)
-            lon = lon_deg + (lon_min / 60)
-
-            if lat_dir == "S":
-                lat *= -1
-            if lon_dir == "W":
-                lon *= -1
-
-            coords.append(lat)
-            coords.append(lon)
+        coords.append(lat)
+        coords.append(lon)
 
     return coords
 
