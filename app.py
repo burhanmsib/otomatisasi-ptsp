@@ -66,11 +66,22 @@ df_id = None
 # =========================
 
 def normalize_coordinate_text(text):
-    text = text.replace("’", "'").replace("’’", '"')
+    text = text.upper()
+
+    # 🔥 normalisasi simbol
+    text = text.replace("’", "'").replace("‘‘", '"').replace("’’", '"')
     text = text.replace("º", "°")
 
-    # 🔥 TAMBAHAN PENTING: kalau tidak ada ° → tambahkan
-    text = re.sub(r"(\d+)'", r"\1°", text, count=1)
+    # 🔥 hapus tanda kurung
+    text = text.replace("(", "").replace(")", "")
+
+    # 🔥 rapikan separator
+    text = text.replace(" / ", "/")
+    text = text.replace(" /", "/")
+    text = text.replace("/ ", "/")
+
+    text = text.replace(" TO ", "|")
+    text = text.replace("-", "|")
 
     return text
 
@@ -98,44 +109,37 @@ def dms_to_decimal(match):
 
 def extract_all_coordinates(text):
 
-    # 🔥 NORMALISASI
-    text = text.replace("’", "'").replace("’’", '"').replace("º", "°")
+    text = normalize_coordinate_text(text)
 
-    # 🔥 PATTERN KHUSUS LAT/LON PAIR
-    pattern = r"""
-        (\d{1,3})[°']      # degree lat/lon
-        (\d+(?:\.\d+)?)['"]?
-        \s*([NS])
-        \s*/\s*
-        (\d{1,3})[°']      # degree lon
-        (\d+(?:\.\d+)?)['"]?
-        \s*([EW])
-    """
-
-    matches = re.finditer(pattern, text, re.VERBOSE)
+    # 🔥 split rute jadi beberapa segmen
+    segments = text.split("|")
 
     coords = []
 
-    for m in matches:
-        lat_deg = float(m.group(1))
-        lat_min = float(m.group(2))
-        lat_dir = m.group(3)
+    pattern = r"(\d+)'(\d+(?:\.\d+)?)\"?([NS])/(\d+)'(\d+(?:\.\d+)?)\"?([EW])"
 
-        lon_deg = float(m.group(4))
-        lon_min = float(m.group(5))
-        lon_dir = m.group(6)
+    for seg in segments:
+        matches = re.findall(pattern, seg)
 
-        # 🔥 DMM conversion
-        lat = lat_deg + (lat_min / 60)
-        lon = lon_deg + (lon_min / 60)
+        for m in matches:
+            lat_deg = float(m[0])
+            lat_min = float(m[1])
+            lat_dir = m[2]
 
-        if lat_dir == "S":
-            lat *= -1
-        if lon_dir == "W":
-            lon *= -1
+            lon_deg = float(m[3])
+            lon_min = float(m[4])
+            lon_dir = m[5]
 
-        coords.append(lat)
-        coords.append(lon)
+            lat = lat_deg + (lat_min / 60)
+            lon = lon_deg + (lon_min / 60)
+
+            if lat_dir == "S":
+                lat *= -1
+            if lon_dir == "W":
+                lon *= -1
+
+            coords.append(lat)
+            coords.append(lon)
 
     return coords
 
