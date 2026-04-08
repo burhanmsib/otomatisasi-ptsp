@@ -66,11 +66,20 @@ df_id = None
 # =========================
 def dms_to_decimal(match):
     deg = float(match.group(1))
-    minute = float(match.group(2)) if match.group(2) else 0
-    sec = float(match.group(3)) if match.group(3) else 0
+    minute = match.group(2)
+    sec = match.group(3)
     direction = match.group(4)
 
-    decimal = deg + (minute / 60) + (sec / 3600)
+    minute = float(minute) if minute else 0
+    sec = float(sec) if sec else 0
+
+    # 🔥 DETEKSI DMM vs DMS
+    if sec == 0 and minute != 0:
+        # 👉 kemungkinan besar DMM
+        decimal = deg + (minute / 60)
+    else:
+        # 👉 DMS normal
+        decimal = deg + (minute / 60) + (sec / 3600)
 
     if direction in ['S', 'W']:
         decimal *= -1
