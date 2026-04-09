@@ -331,9 +331,15 @@ def build_satellite_image_table(doc, tanggal_str):
 # =========================
 # FIRST PAGE PLACEHOLDER REPLACER
 # =========================
+# =========================
+# FIRST PAGE PLACEHOLDER REPLACER (FIXED)
+# =========================
 def replace_first_page_placeholders(doc, module1_rows, module5_rows):
     first = module1_rows[0]
     ref_no = str(first.get("Nomor Surat", "") or "").strip()
+
+    nama = str(first.get("Nama Perusahaan", "") or "").strip()
+    alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
 
     valid_report_count = sum(
         1
@@ -344,73 +350,46 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
     )
 
     replacements = {
-        "$nama_perusahaan": str(first.get("Nama Perusahaan", "") or ""),
-        "$alamat_perusahaan": str(first.get("Alamat Perusahaan", "") or ""),
+        "$nama_perusahaan": nama,
+        "$alamat_perusahaan": alamat,
         "$no_surat": ref_no,
         "$tanggal_hari_ini": format_date_id(datetime.now()),
         "$jumlah_laporan_section": str(valid_report_count),
     }
 
-    paragraphs_to_delete = []
-
-    # 🔥 PAKAI ENUMERATE (AMAN)
+    # 🔥 LOOP AMAN (TANPA DELETE)
     for i, p in enumerate(doc.paragraphs):
         text = p.text.strip()
 
         # =========================
-        # 🔥 FIX FINAL "TO :" (TANPA ERROR)
+        # 🔥 FIX "TO :"
         # =========================
         if "to" in text.lower():
 
-            nama = str(first.get("Nama Perusahaan", "") or "").strip()
-            alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
-
-            # isi paragraf berikutnya (nama)
             if i + 1 < len(doc.paragraphs):
                 p1 = doc.paragraphs[i + 1]
                 clear_paragraph(p1)
                 p1.add_run(nama)
+                style_paragraph(p1, size=12, align="left")
 
-                style_paragraph(
-                    p1,
-                    size=12,
-                    align="left",
-                    space_before=0,
-                    space_after=0
-                )
-
-            # isi paragraf berikutnya lagi (alamat)
             if i + 2 < len(doc.paragraphs):
                 p2 = doc.paragraphs[i + 2]
                 clear_paragraph(p2)
                 p2.add_run(alamat)
-
-                style_paragraph(
-                    p2,
-                    size=12,
-                    align="left",
-                    space_before=0,
-                    space_after=6
-                )
+                style_paragraph(p2, size=12, align="left")
 
         # =========================
-        # EXISTING LOGIC (TIDAK DIUBAH)
+        # 🔥 FIX PARAGRAF UTAMA (TANPA HAPUS)
         # =========================
-        if text.startswith("Responding to your letter") and "$LIST_KOORDINAT" not in text:
-            paragraphs_to_delete.append(p)
-            continue
+        if "responding to your letter" in text.lower():
 
-        if "here with we enclose the meteorological analysis" in text.lower():
-            paragraphs_to_delete.append(p)
-            continue
-
-        if "$LIST_KOORDINAT" in text:
             clear_paragraph(p)
 
             intro_text = (
                 f"Responding to your letter with Ref. {ref_no if ref_no else '______'} "
                 f"on the subject of marine meteorological analysis with coordinate :"
             )
+
             p.add_run(intro_text)
 
             style_paragraph(
@@ -424,6 +403,9 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
             current_p = p
 
+            # =========================
+            # LIST KOORDINAT
+            # =========================
             for row in module1_rows:
                 coord = str(row.get("Koordinat", "") or "").strip()
 
@@ -449,9 +431,14 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
                 current_p = new_p
 
+            # =========================
+            # PENUTUP
+            # =========================
             end_p = insert_paragraph_after(current_p)
             clear_paragraph(end_p)
-            end_p.add_run("here with we enclose the meteorological analysis in attachments sheets.")
+            end_p.add_run(
+                "here with we enclose the meteorological analysis in attachments sheets."
+            )
 
             style_paragraph(
                 end_p,
@@ -462,15 +449,13 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 line_spacing=1.0
             )
 
-            continue
-
+        # =========================
+        # FIX PLACEHOLDER
+        # =========================
         for k, v in replacements.items():
             if k in p.text:
                 p.text = p.text.replace(k, str(v))
                 style_paragraph(p)
-
-    for p in reversed(paragraphs_to_delete):
-        delete_paragraph(p)
 
 # =========================
 # MAIN ENTRY
