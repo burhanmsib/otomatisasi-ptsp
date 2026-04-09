@@ -357,38 +357,43 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
         text = p.text.strip()
 
         # =========================
-        # 🔥 FIX BAGIAN "TO :"
+        # 🔥 FIX SUPER ROBUST "TO :"
         # =========================
-        if text.lower() == "to :":
-
+        full_text = p.text.replace(" ", "").lower()
+        
+        if "to:" in full_text or "to:" in full_text or "to" in full_text:
+        
             nama = str(first.get("Nama Perusahaan", "") or "").strip()
             alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
-
-            # baris nama perusahaan
-            p1 = insert_paragraph_after(p)
-            clear_paragraph(p1)
-            p1.add_run(nama)
-
-            style_paragraph(
-                p1,
-                size=12,
-                align="left",
-                space_before=0,
-                space_after=0
-            )
-
-            # baris alamat
-            p2 = insert_paragraph_after(p1)
-            clear_paragraph(p2)
-            p2.add_run(alamat)
-
-            style_paragraph(
-                p2,
-                size=12,
-                align="left",
-                space_before=0,
-                space_after=6
-            )
+        
+            # debug (opsional)
+            # print("DEBUG TO:", nama, alamat)
+        
+            if nama:
+                p1 = insert_paragraph_after(p)
+                clear_paragraph(p1)
+                p1.add_run(nama)
+        
+                style_paragraph(
+                    p1,
+                    size=12,
+                    align="left",
+                    space_before=0,
+                    space_after=0
+                )
+        
+                if alamat:
+                    p2 = insert_paragraph_after(p1)
+                    clear_paragraph(p2)
+                    p2.add_run(alamat)
+        
+                    style_paragraph(
+                        p2,
+                        size=12,
+                        align="left",
+                        space_before=0,
+                        space_after=6
+                    )
 
         # =========================
         # EXISTING LOGIC (TIDAK DIUBAH)
