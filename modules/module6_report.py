@@ -186,30 +186,45 @@ def remove_template_markers(doc):
     for p in reversed(paragraphs_to_delete):
         delete_paragraph(p)
 
+# =========================
+# 🔥 NORMALIZE COORD
+# =========================
+def normalize_coord(c):
+    if not c:
+        return ""
+    c = str(c)
+    c = re.sub(r"\s+", " ", c)
+    c = c.replace("’", "'").replace("`", "'")
+    c = c.replace(" / ", " - ").replace("/", " - ")
+    return c.strip()
+
 
 # =========================
 # SECTION BUILDERS
 # =========================
 def build_title(doc, row):
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-    t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
+    t_str = format_date_id(dt) if dt else ""
 
-    ka = str(row.get("Koordinat Awal", "") or "").strip()
-    kb = str(row.get("Koordinat Akhir", "") or "").strip()
-    coord = str(row.get("Koordinat", "") or "").strip()
-    
-    dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-    dt_str = format_date_en(dt) if dt else ""
-    
-    # 🔥 LOGIC CERDAS
+    ka = normalize_coord(row.get("Koordinat Awal", ""))
+    kb = normalize_coord(row.get("Koordinat Akhir", ""))
+    coord = normalize_coord(row.get("Koordinat", ""))
+
+    p = doc.add_paragraph()
+    p.add_run("Meteorological Reports").bold = True
+    p.add_run("\nCoordinate: ").bold = True
+
     if ka and kb:
-        if ka == kb:
-            # kalau sama → jangan pakai from-to
-            bullet_text = f"• {ka} for {dt_str}"
+        if ka.lower() == kb.lower():
+            p.add_run(f"{ka}\n")
         else:
-            bullet_text = f"• from {ka} to {kb} for {dt_str}"
+            p.add_run(f"From {ka} To {kb}\n")
     else:
-        bullet_text = f"• {coord} for {dt_str}"
+        p.add_run(coord + "\n")
+
+    p.add_run(f"for {t_str}")
+    style_paragraph(p, bold=True, align="center")
+    doc.add_paragraph("")
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports").bold = True
