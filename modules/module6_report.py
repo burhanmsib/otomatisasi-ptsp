@@ -357,20 +357,19 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
         text = p.text.strip()
 
         # =========================
-        # 🔥 FIX SUPER ROBUST "TO :"
+        # 🔥 FIX FINAL "TO :" (ISI PARAGRAF KOSONG)
         # =========================
-        full_text = p.text.replace(" ", "").lower()
-        
-        if "to:" in full_text or "to:" in full_text or "to" in full_text:
+        if "to" in text.lower():
         
             nama = str(first.get("Nama Perusahaan", "") or "").strip()
             alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
         
-            # debug (opsional)
-            # print("DEBUG TO:", nama, alamat)
+            # cari index paragraf "To :"
+            idx = doc.paragraphs.index(p)
         
-            if nama:
-                p1 = insert_paragraph_after(p)
+            # isi paragraf berikutnya (yang kosong)
+            if idx + 1 < len(doc.paragraphs):
+                p1 = doc.paragraphs[idx + 1]
                 clear_paragraph(p1)
                 p1.add_run(nama)
         
@@ -382,18 +381,19 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                     space_after=0
                 )
         
-                if alamat:
-                    p2 = insert_paragraph_after(p1)
-                    clear_paragraph(p2)
-                    p2.add_run(alamat)
+            # isi paragraf berikutnya lagi (alamat)
+            if idx + 2 < len(doc.paragraphs):
+                p2 = doc.paragraphs[idx + 2]
+                clear_paragraph(p2)
+                p2.add_run(alamat)
         
-                    style_paragraph(
-                        p2,
-                        size=12,
-                        align="left",
-                        space_before=0,
-                        space_after=6
-                    )
+                style_paragraph(
+                    p2,
+                    size=12,
+                    align="left",
+                    space_before=0,
+                    space_after=6
+                )
 
         # =========================
         # EXISTING LOGIC (TIDAK DIUBAH)
