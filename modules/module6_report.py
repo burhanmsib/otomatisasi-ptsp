@@ -356,6 +356,43 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
     for p in doc.paragraphs:
         text = p.text.strip()
 
+        # =========================
+        # 🔥 FIX BAGIAN "TO :"
+        # =========================
+        if text.lower() == "to :":
+
+            nama = str(first.get("Nama Perusahaan", "") or "").strip()
+            alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
+
+            # baris nama perusahaan
+            p1 = insert_paragraph_after(p)
+            clear_paragraph(p1)
+            p1.add_run(nama)
+
+            style_paragraph(
+                p1,
+                size=12,
+                align="left",
+                space_before=0,
+                space_after=0
+            )
+
+            # baris alamat
+            p2 = insert_paragraph_after(p1)
+            clear_paragraph(p2)
+            p2.add_run(alamat)
+
+            style_paragraph(
+                p2,
+                size=12,
+                align="left",
+                space_before=0,
+                space_after=6
+            )
+
+        # =========================
+        # EXISTING LOGIC (TIDAK DIUBAH)
+        # =========================
         if text.startswith("Responding to your letter") and "$LIST_KOORDINAT" not in text:
             paragraphs_to_delete.append(p)
             continue
@@ -364,9 +401,6 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             paragraphs_to_delete.append(p)
             continue
 
-        # =========================
-        # 🔥 FIX DI SINI (KOORDINAT)
-        # =========================
         if "$LIST_KOORDINAT" in text:
             clear_paragraph(p)
 
@@ -388,13 +422,11 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             current_p = p
 
             for row in module1_rows:
-                # 🔥 PAKAI KOORDINAT ASLI (BUKAN AWAL/AKHIR)
                 coord = str(row.get("Koordinat", "") or "").strip()
 
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
                 dt_str = format_date_en(dt) if dt else str(row.get("Tanggal Koordinat", "") or "").strip()
 
-                # 🔥 FORMAT BERSIH (NO DUPLIKAT)
                 bullet_text = f"• {coord} for {dt_str}"
 
                 new_p = insert_paragraph_after(current_p)
