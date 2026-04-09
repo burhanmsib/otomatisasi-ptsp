@@ -194,8 +194,22 @@ def build_title(doc, row):
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
     t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
 
-    ka = row.get("Koordinat Awal", "")
-    kb = row.get("Koordinat Akhir", "")
+    ka = str(row.get("Koordinat Awal", "") or "").strip()
+    kb = str(row.get("Koordinat Akhir", "") or "").strip()
+    coord = str(row.get("Koordinat", "") or "").strip()
+    
+    dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
+    dt_str = format_date_en(dt) if dt else ""
+    
+    # 🔥 LOGIC CERDAS
+    if ka and kb:
+        if ka == kb:
+            # kalau sama → jangan pakai from-to
+            bullet_text = f"• {ka} for {dt_str}"
+        else:
+            bullet_text = f"• from {ka} to {kb} for {dt_str}"
+    else:
+        bullet_text = f"• {coord} for {dt_str}"
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports").bold = True
