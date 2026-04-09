@@ -353,26 +353,24 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
     paragraphs_to_delete = []
 
-    for p in doc.paragraphs:
+    # 🔥 PAKAI ENUMERATE (AMAN)
+    for i, p in enumerate(doc.paragraphs):
         text = p.text.strip()
 
         # =========================
-        # 🔥 FIX FINAL "TO :" (ISI PARAGRAF KOSONG)
+        # 🔥 FIX FINAL "TO :" (TANPA ERROR)
         # =========================
         if "to" in text.lower():
-        
+
             nama = str(first.get("Nama Perusahaan", "") or "").strip()
             alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
-        
-            # cari index paragraf "To :"
-            idx = doc.paragraphs.index(p)
-        
-            # isi paragraf berikutnya (yang kosong)
-            if idx + 1 < len(doc.paragraphs):
-                p1 = doc.paragraphs[idx + 1]
+
+            # isi paragraf berikutnya (nama)
+            if i + 1 < len(doc.paragraphs):
+                p1 = doc.paragraphs[i + 1]
                 clear_paragraph(p1)
                 p1.add_run(nama)
-        
+
                 style_paragraph(
                     p1,
                     size=12,
@@ -380,13 +378,13 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                     space_before=0,
                     space_after=0
                 )
-        
+
             # isi paragraf berikutnya lagi (alamat)
-            if idx + 2 < len(doc.paragraphs):
-                p2 = doc.paragraphs[idx + 2]
+            if i + 2 < len(doc.paragraphs):
+                p2 = doc.paragraphs[i + 2]
                 clear_paragraph(p2)
                 p2.add_run(alamat)
-        
+
                 style_paragraph(
                     p2,
                     size=12,
@@ -473,7 +471,6 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
     for p in reversed(paragraphs_to_delete):
         delete_paragraph(p)
-
 
 # =========================
 # MAIN ENTRY
