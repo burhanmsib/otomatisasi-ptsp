@@ -55,14 +55,6 @@ def parse_date_flexible(date_str: str):
         except:
             pass
 
-    m2 = re.search(r"(\d{4})[./-](\d{1,2})[./-](\d{1,2})", s)
-    if m2:
-        y, mn, d = m2.groups()
-        try:
-            return datetime.strptime(f"{d}-{mn}-{y}", "%d-%m-%Y")
-        except:
-            pass
-
     return None
 
 
@@ -176,15 +168,9 @@ def remove_template_markers(doc):
         "$Laporan_Section_End",
     }
 
-    paragraphs_to_delete = []
-
-    for p in doc.paragraphs:
-        text = p.text.strip()
-        if text in markers:
-            paragraphs_to_delete.append(p)
-
-    for p in reversed(paragraphs_to_delete):
-        delete_paragraph(p)
+    for p in reversed(doc.paragraphs):
+        if p.text.strip() in markers:
+            delete_paragraph(p)
 
 
 # =========================
@@ -194,16 +180,23 @@ def build_title(doc, row):
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
     t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
 
+    ka = str(row.get("Koordinat Awal", "") or "").strip()
+    kb = str(row.get("Koordinat Akhir", "") or "").strip()
     coord = str(row.get("Koordinat", "") or "").strip()
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports").bold = True
     p.add_run("\nCoordinate: ").bold = True
-    p.add_run(coord + "\n")
-    p.add_run(f"for {t_str}")
 
+    if ka and kb:
+        p.add_run(f"From {ka} To {kb}\n")
+    else:
+        p.add_run(coord + "\n")
+
+    p.add_run(f"for {t_str}")
     style_paragraph(p, bold=True, align="center")
     doc.add_paragraph("")
+
 
 def build_interval_table(doc, intervals, tz="WIB"):
     headers = [
@@ -215,22 +208,17 @@ def build_interval_table(doc, intervals, tz="WIB"):
     table = doc.add_table(rows=1, cols=7)
     set_table_border(table)
 
-    # HEADER
     for i, h in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = h
         style_paragraph(cell.paragraphs[0], bold=True, align="center")
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-    # =========================
-    # ADD DATA ROWS
-    # =========================
     for j in range(4):
         data = intervals[j] if j < len(intervals) else {}
         row = table.add_row().cells
 
         values = [
-            "",  # DATE dikosongkan dulu
+            "",
             data.get("LOCAL TIME", ""),
             data.get("WEATHER", ""),
             data.get("WIND", ""),
@@ -243,34 +231,15 @@ def build_interval_table(doc, intervals, tz="WIB"):
             cell = row[i]
             cell.text = str(v)
             style_paragraph(cell.paragraphs[0], align="center")
-            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-            # =========================
-            # MERGE DATE + CENTER (SAFE)
-            # =========================
-            if intervals and len(table.rows) > 1:
-            
-                date_text = intervals[0].get("DATE", "")
-            
-                # row pertama setelah header = index 1
-                start_row = 1
-                end_row = len(table.rows) - 1  # terakhir
-            
-                start_cell = table.cell(start_row, 0)
-                end_cell = table.cell(end_row, 0)
-            
-                merged_cell = start_cell.merge(end_cell)
-                merged_cell.text = date_text
-            
-                # Center horizontal
-                style_paragraph(merged_cell.paragraphs[0], align="center")
-            
-                # Bold
-                if merged_cell.paragraphs[0].runs:
-                    merged_cell.paragraphs[0].runs[0].bold = True
-            
-                # Center vertical
-                merged_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    # merge date
+    if intervals:
+        date_text = intervals[0].get("DATE", "")
+        start_cell = table.cell(1, 0)
+        end_cell = table.cell(len(table.rows) - 1, 0)
+        merged = start_cell.merge(end_cell)
+        merged.text = date_text
+        style_paragraph(merged.paragraphs[0], bold=True, align="center")
 
 
 def build_notes_primary(doc):
@@ -299,10 +268,6 @@ def build_wave_category_table(doc):
         cells = t.add_row().cells
         cells[0].text = label
         cells[1].text = val
-        style_paragraph(cells[0].paragraphs[0], size=11, align="center")
-        style_paragraph(cells[1].paragraphs[0], size=11, align="center")
-
-    doc.add_paragraph("")
 
 
 def build_satellite_image_table(doc, tanggal_str):
@@ -314,151 +279,71 @@ def build_satellite_image_table(doc, tanggal_str):
 
     hdr = table.rows[0].cells[0]
     hdr.merge(table.rows[0].cells[1])
+    hdr.text = f"Weather Satellite Image on {tanggal_fmt} at ______"
 
-    p = hdr.paragraphs[0]
-    p.add_run(f"Weather Satellite Image on {tanggal_fmt} at ______")
-    style_paragraph(p, bold=True, align="center")
-
-    table.rows[1].cells[0].paragraphs[0].add_run("[Insert Satellite Image Here]")
-    table.rows[1].cells[1].paragraphs[0].add_run("[Insert Legend Here]")
-
-    style_paragraph(table.rows[1].cells[0].paragraphs[0], italic=True, align="center")
-    style_paragraph(table.rows[1].cells[1].paragraphs[0], italic=True, align="center")
-
-    doc.add_paragraph("")
+    table.rows[1].cells[0].text = "[Insert Satellite Image Here]"
+    table.rows[1].cells[1].text = "[Insert Legend Here]"
 
 
 # =========================
-# FIRST PAGE PLACEHOLDER REPLACER
-# =========================
-# =========================
-# FIRST PAGE PLACEHOLDER REPLACER (FIXED)
+# 🔥 FIXED COVER
 # =========================
 def replace_first_page_placeholders(doc, module1_rows, module5_rows):
     first = module1_rows[0]
-    ref_no = str(first.get("Nomor Surat", "") or "").strip()
 
     nama = str(first.get("Nama Perusahaan", "") or "").strip()
     alamat = str(first.get("Alamat Perusahaan", "") or "").strip()
+    ref_no = str(first.get("Nomor Surat", "") or "").strip()
 
-    valid_report_count = sum(
-        1
-        for idx in range(len(module1_rows))
-        if idx < len(module5_rows)
-        and module5_rows[idx]
-        and "intervals" in module5_rows[idx]
-    )
-
-    replacements = {
-        "$nama_perusahaan": nama,
-        "$alamat_perusahaan": alamat,
-        "$no_surat": ref_no,
-        "$tanggal_hari_ini": format_date_id(datetime.now()),
-        "$jumlah_laporan_section": str(valid_report_count),
-    }
-
-    # 🔥 LOOP AMAN (TANPA DELETE)
+    # TO:
     for i, p in enumerate(doc.paragraphs):
-        text = p.text.strip()
-
-        # =========================
-        # 🔥 FIX "TO :"
-        # =========================
-        if "to" in text.lower():
-
+        if p.text.strip().lower() in ["to :", "to:"]:
             if i + 1 < len(doc.paragraphs):
-                p1 = doc.paragraphs[i + 1]
-                clear_paragraph(p1)
-                p1.add_run(nama)
-                style_paragraph(p1, size=12, align="left")
-
+                clear_paragraph(doc.paragraphs[i + 1])
+                doc.paragraphs[i + 1].add_run(nama)
             if i + 2 < len(doc.paragraphs):
-                p2 = doc.paragraphs[i + 2]
-                clear_paragraph(p2)
-                p2.add_run(alamat)
-                style_paragraph(p2, size=12, align="left")
+                clear_paragraph(doc.paragraphs[i + 2])
+                doc.paragraphs[i + 2].add_run(alamat)
 
-        # =========================
-        # 🔥 FIX PARAGRAF UTAMA (TANPA HAPUS)
-        # =========================
-        if "responding to your letter" in text.lower():
+    # MAIN PARAGRAPH
+    for p in doc.paragraphs:
+        if "responding to your letter" in p.text.lower():
 
             clear_paragraph(p)
 
-            intro_text = (
+            p.add_run(
                 f"Responding to your letter with Ref. {ref_no if ref_no else '______'} "
                 f"on the subject of marine meteorological analysis with coordinate :"
             )
 
-            p.add_run(intro_text)
-
-            style_paragraph(
-                p,
-                size=12,
-                align="justify",
-                space_before=0,
-                space_after=2,
-                line_spacing=1.0
-            )
-
             current_p = p
 
-            # =========================
-            # LIST KOORDINAT
-            # =========================
             for row in module1_rows:
+                ka = str(row.get("Koordinat Awal", "") or "").strip()
+                kb = str(row.get("Koordinat Akhir", "") or "").strip()
                 coord = str(row.get("Koordinat", "") or "").strip()
 
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-                dt_str = format_date_en(dt) if dt else str(row.get("Tanggal Koordinat", "") or "").strip()
+                dt_str = format_date_en(dt) if dt else ""
 
-                bullet_text = f"• {coord} for {dt_str}"
+                if ka and kb:
+                    text = f"• from {ka} to {kb} for {dt_str}"
+                else:
+                    text = f"• {coord} for {dt_str}"
 
                 new_p = insert_paragraph_after(current_p)
                 clear_paragraph(new_p)
-                new_p.add_run(bullet_text)
-
-                style_paragraph(
-                    new_p,
-                    size=11,
-                    align="justify",
-                    space_before=0,
-                    space_after=0,
-                    line_spacing=1.0,
-                    left_indent_cm=0.5,
-                    first_line_indent_cm=-0.3
-                )
+                new_p.add_run(text)
 
                 current_p = new_p
 
-            # =========================
-            # PENUTUP
-            # =========================
             end_p = insert_paragraph_after(current_p)
             clear_paragraph(end_p)
-            end_p.add_run(
-                "here with we enclose the meteorological analysis in attachments sheets."
-            )
+            end_p.add_run("here with we enclose the meteorological analysis in attachments sheets.")
 
-            style_paragraph(
-                end_p,
-                size=12,
-                align="justify",
-                space_before=2,
-                space_after=0,
-                line_spacing=1.0
-            )
-
-        # =========================
-        # FIX PLACEHOLDER
-        # =========================
-        for k, v in replacements.items():
-            if k in p.text:
-                p.text = p.text.replace(k, str(v))
-                style_paragraph(p)
 
 # =========================
-# MAIN ENTRY
+# MAIN
 # =========================
 def generate_final_docx_streamlit(module1_rows, module5_rows, template_path):
     doc = Document(template_path)
@@ -466,23 +351,15 @@ def generate_final_docx_streamlit(module1_rows, module5_rows, template_path):
     replace_first_page_placeholders(doc, module1_rows, module5_rows)
 
     for idx, row in enumerate(module1_rows):
-        if not module5_rows:
-            continue
         if idx >= len(module5_rows):
             continue
 
-        module5_item = module5_rows[idx]
-        if module5_item is None:
-            continue
-        if "intervals" not in module5_item:
+        item = module5_rows[idx]
+        if not item or "intervals" not in item:
             continue
 
         build_title(doc, row)
-
-        intervals = module5_item["intervals"]
-        tz = module5_item.get("tz", "WIB")
-
-        build_interval_table(doc, intervals, tz)
+        build_interval_table(doc, item["intervals"], item.get("tz", "WIB"))
         build_notes_primary(doc)
         build_wave_category_table(doc)
         build_satellite_image_table(doc, row.get("Tanggal Koordinat", ""))
