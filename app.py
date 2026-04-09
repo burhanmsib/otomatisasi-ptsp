@@ -229,7 +229,7 @@ else:
 
     st.header("📝 Input Manual Data Permintaan")
 
-    requester = st.text_input("Nama Prakirawan")
+    requester = st.text_input("Nama FOD")
     nama = st.text_input("Nama Perusahaan")
     alamat = st.text_input("Alamat Perusahaan")
     nomor = st.text_input("Nomor Surat")
