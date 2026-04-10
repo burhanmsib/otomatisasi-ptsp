@@ -152,7 +152,10 @@ def build_weather_range(samples):
 @st.cache_resource(ttl=1800)
 def load_gsmap_cached(dt):
     try:
-        import ftplib, tempfile, os, xarray as xr
+        import ftplib
+        import tempfile
+        import os
+        import xarray as xr
 
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
@@ -175,14 +178,17 @@ def load_gsmap_cached(dt):
             ftp.quit()
             return None
 
-        # ambil jam dari nama file
         def extract_hour(fname):
             try:
                 return int(fname.split(".")[-2][:2])
             except:
                 return -1
 
-        files_with_hour = [(f, extract_hour(f)) for f in files if extract_hour(f) >= 0]
+        files_with_hour = []
+        for f in files:
+            h = extract_hour(f)
+            if h >= 0:
+                files_with_hour.append((f, h))
 
         if not files_with_hour:
             ftp.quit()
@@ -325,34 +331,43 @@ def get_current_smart(ds_cur, t, lat, lon):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    st.write(f"DEBUG ds_rain: {ds_rain}")
     # =========================
     # 🔥 RAIN FINAL (FIX GSMAP)
     # =========================
     rain_val = 0.0
-    
+
     if ds_rain is not None:
-    
-        datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
+        if isinstance(ds_rain, list):
+            datasets = ds_rain
+        else:
+            datasets = [ds_rain]
     
         for ds in datasets:
             try:
                 for var in ds.data_vars:
     
-                    # 🔥 FIX UTAMA DI SINI
-                    if var in ["hourlyPrecipRate", "hourlyPrecipRateGC"]:
+                    if var == "hourlyPrecipRate" or var == "hourlyPrecipRateGC":
     
                         da = ds[var]
     
-                        # handle time
                         if "time" in da.dims:
                             try:
                                 da = da.sel(time=t, method="nearest")
                             except:
                                 pass
     
-                        lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
-                        lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
+                        lat_name = None
+                        lon_name = None
+    
+                        for n in ["lat", "latitude", "y"]:
+                            if n in da.coords:
+                                lat_name = n
+                                break
+    
+                        for n in ["lon", "longitude", "x"]:
+                            if n in da.coords:
+                                lon_name = n
+                                break
     
                         if lat_name and lon_name:
     
@@ -362,12 +377,11 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
                             lat_idx = np.abs(lat_vals - lat).argmin()
                             lon_idx = np.abs(lon_vals - lon).argmin()
     
-                            # 🔥 SPATIAL WINDOW (5x5)
                             lat_start = max(0, lat_idx - 2)
-                            lat_end   = lat_idx + 3
+                            lat_end = lat_idx + 3
     
                             lon_start = max(0, lon_idx - 2)
-                            lon_end   = lon_idx + 3
+                            lon_end = lon_idx + 3
     
                             window = da.isel({
                                 lat_name: slice(lat_start, lat_end),
@@ -441,7 +455,6 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         for j, (lat, lon) in enumerate(sample_points):
             t = t0 + timedelta(hours=j * 3)
         
-            # 🔥 MULTI TIME
             times_to_check = [
                 t - timedelta(hours=3),
                 t,
@@ -452,7 +465,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         
             for tt in times_to_check:
                 ds_tmp = load_gsmap_cached(tt)
-                if ds_tmp:
+                if ds_tmp is not None:
                     rain_datasets.append(ds_tmp)
         
             samples.append(
