@@ -339,52 +339,54 @@ def get_current_smart(ds_cur, t, lat, lon):
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     # =========================
-    # 🔥 RAIN FINAL (SAFE VERSION)
+    # 🔥 RAIN FINAL (SUPER ROBUST)
     # =========================
     rain_val = 0.0
     
     if ds_rain is not None:
+    
         datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
     
         for ds in datasets:
             try:
                 for var in ds.data_vars:
-                    if "rain" in var.lower() or "precip" in var.lower():
+                    name = var.lower()
+    
+                    if "rain" in name or "precip" in name:
     
                         da = ds[var]
     
-                        # handle time
+                        # =========================
+                        # HANDLE TIME (±3 JAM)
+                        # =========================
                         if "time" in da.dims:
                             try:
                                 da = da.sel(time=t, method="nearest")
                             except:
                                 pass
     
-                        lat_name = None
-                        lon_name = None
-    
-                        for n in ["lat", "latitude", "y"]:
-                            if n in da.coords:
-                                lat_name = n
-                                break
-    
-                        for n in ["lon", "longitude", "x"]:
-                            if n in da.coords:
-                                lon_name = n
-                                break
+                        # =========================
+                        # DETEKSI KOORDINAT
+                        # =========================
+                        lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
+                        lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
     
                         if lat_name and lon_name:
+    
                             lat_vals = da[lat_name].values
                             lon_vals = da[lon_name].values
     
                             lat_idx = np.abs(lat_vals - lat).argmin()
                             lon_idx = np.abs(lon_vals - lon).argmin()
     
-                            lat_start = max(0, lat_idx - 1)
-                            lat_end = lat_idx + 2
+                            # =========================
+                            # 🔥 WINDOW BESAR (5x5 GRID)
+                            # =========================
+                            lat_start = max(0, lat_idx - 2)
+                            lat_end   = lat_idx + 3
     
-                            lon_start = max(0, lon_idx - 1)
-                            lon_end = lon_idx + 2
+                            lon_start = max(0, lon_idx - 2)
+                            lon_end   = lon_idx + 3
     
                             window = da.isel({
                                 lat_name: slice(lat_start, lat_end),
@@ -462,9 +464,9 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
             # 🔥 AMBIL MULTI TIME (KUNCI UTAMA)
             # =========================
             times_to_check = [
-                t - timedelta(hours=1),
+                t - timedelta(hours=3),
                 t,
-                t + timedelta(hours=1)
+                t + timedelta(hours=3)
             ]
         
             rain_datasets = []
