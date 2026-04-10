@@ -172,7 +172,7 @@ def load_gsmap_cached(dt):
         ftp.cwd(base_dir)
 
         # =========================
-        # 🔥 FILTER HANYA FOLDER JAM
+        # FILTER FOLDER JAM
         # =========================
         folders = [f for f in ftp.nlst() if f.isdigit()]
         folders = sorted(folders)
@@ -185,7 +185,7 @@ def load_gsmap_cached(dt):
         ftp.cwd(latest_folder)
 
         # =========================
-        # AMBIL FILE
+        # AMBIL SEMUA FILE (00 & 30)
         # =========================
         files = sorted([f for f in ftp.nlst() if f.endswith(".nc")])
 
@@ -193,24 +193,28 @@ def load_gsmap_cached(dt):
             ftp.quit()
             return None
 
-        best_file = files[-1]
+        datasets = []
 
-        # =========================
-        # DOWNLOAD
-        # =========================
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
-        tmp_path = tmp.name
-        tmp.close()
+        for f_name in files:
+            try:
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
+                tmp_path = tmp.name
+                tmp.close()
 
-        with open(tmp_path, "wb") as f:
-            ftp.retrbinary(f"RETR {best_file}", f.write)
+                with open(tmp_path, "wb") as f:
+                    ftp.retrbinary(f"RETR {f_name}", f.write)
+
+                ds = xr.open_dataset(tmp_path, decode_times=False)
+                os.remove(tmp_path)
+
+                datasets.append(ds)
+
+            except:
+                continue
 
         ftp.quit()
 
-        ds = xr.open_dataset(tmp_path, decode_times=False)
-        os.remove(tmp_path)
-
-        return ds
+        return datasets  # 🔥 sekarang LIST dataset
 
     except Exception as e:
         st.warning(f"GSMAP gagal load: {e}")
@@ -333,55 +337,41 @@ def get_current_smart(ds_cur, t, lat, lon):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    rain_val = 0.0  # default
-
     # =========================
-    # 🔥 FIX GSMAP FINAL (ANTI UNKNOWN)
+    # 🔥 RAIN FINAL (MULTI FILE)
     # =========================
+    rain_val = 0.0
+    
     if ds_rain is not None:
-        try:
-            # ambil semua variabel kandidat
-            rain_candidates = []
-
-            for var in ds_rain.data_vars:
-                name = var.lower()
-                if "rain" in name or "precip" in name:
-                    rain_candidates.append(ds_rain[var])
-
-            # kalau tidak ketemu → pakai semua variabel
-            if not rain_candidates:
-                rain_candidates = [ds_rain[v] for v in ds_rain.data_vars]
-
-            for da in rain_candidates:
-
-                try:
-                    # handle time
-                    if "time" in da.dims:
-                        da = da.sel(time=t, method="nearest")
-
-                    # cari koordinat
-                    lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
-                    lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
-
-                    if lat_name and lon_name:
-                        lat_vals = da[lat_name].values
-                        lon_vals = da[lon_name].values
-
-                        lat_idx = np.abs(lat_vals - lat).argmin()
-                        lon_idx = np.abs(lon_vals - lon).argmin()
-
-                        val = float(
-                            da.isel({lat_name: lat_idx, lon_name: lon_idx}).values
-                        )
-
-                        if not np.isnan(val):
-                            rain_val = max(rain_val, val)
-
-                except:
-                    continue
-
-        except:
-            rain_val = 0.0
+    
+        datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
+    
+        for ds in datasets:
+            try:
+                for var in ds.data_vars:
+                    name = var.lower()
+    
+                    if "rain" in name or "precip" in name:
+    
+                        da = ds[var]
+    
+                        lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
+                        lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
+    
+                        if lat_name and lon_name:
+                            lat_vals = da[lat_name].values
+                            lon_vals = da[lon_name].values
+    
+                            lat_idx = np.abs(lat_vals - lat).argmin()
+                            lon_idx = np.abs(lon_vals - lon).argmin()
+    
+                            val = float(da.isel({lat_name: lat_idx, lon_name: lon_idx}).values)
+    
+                            if not np.isnan(val):
+                                rain_val = max(rain_val, val)
+    
+            except:
+                continue
 
     # =========================
     # CURRENT
