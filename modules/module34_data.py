@@ -149,7 +149,7 @@ def build_weather_range(samples):
 # =========================
 # GSMAP (CACHE)
 # =========================
-@st.cache_resource(ttl=3600)
+@st.cache_resource(ttl=1800)
 def load_gsmap_cached(dt):
     try:
         import ftplib, tempfile, os, xarray as xr
@@ -158,25 +158,55 @@ def load_gsmap_cached(dt):
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
-        Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
-
-        remote_path = f"/now/netcdf/{Y}/{M}/{D}/{H}/gsmap_now_rain.{Y}{M}{D}.{H}00.nc"
-
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
-        tmp_path = tmp.name
-        tmp.close()
+        Y = dt.strftime("%Y")
+        M = dt.strftime("%m")
+        D = dt.strftime("%d")
 
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
 
+        # =========================
+        # MASUK FOLDER TANGGAL
+        # =========================
+        base_dir = f"/now/netcdf/{Y}/{M}/{D}"
+        ftp.cwd(base_dir)
+
+        # =========================
+        # AMBIL FOLDER JAM TERAKHIR
+        # =========================
+        folders = sorted(ftp.nlst())
+
+        if not folders:
+            ftp.quit()
+            return None
+
+        latest_folder = folders[-1]
+        ftp.cwd(latest_folder)
+
+        # =========================
+        # AMBIL FILE TERAKHIR
+        # =========================
+        files = sorted([f for f in ftp.nlst() if f.endswith(".nc")])
+
+        if not files:
+            ftp.quit()
+            return None
+
+        best_file = files[-1]
+
+        # =========================
+        # DOWNLOAD
+        # =========================
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
+        tmp_path = tmp.name
+        tmp.close()
+
         with open(tmp_path, "wb") as f:
-            ftp.retrbinary(f"RETR {remote_path}", f.write)
+            ftp.retrbinary(f"RETR {best_file}", f.write)
 
         ftp.quit()
 
-        # 🔥 FIX DI SINI
         ds = xr.open_dataset(tmp_path, decode_times=False)
-
         os.remove(tmp_path)
 
         return ds
