@@ -92,77 +92,56 @@ def extract_all_coordinates(text):
     import re
 
     # =========================
-    # 🔥 NORMALISASI SUPER (FIX SEMUA FORMAT)
+    # NORMALISASI TOTAL
     # =========================
     text = text.upper()
 
-    # simbol aneh → normal
     text = text.replace("̊", "°")
     text = text.replace("º", "°")
     text = text.replace("’", "'")
     text = text.replace("’’", '"')
 
-    # hapus kurung
     text = text.replace("(", "").replace(")", "")
 
-    # separator jadi standar
+    # separator
     text = text.replace(" TO ", "|")
     text = text.replace("–", "|")
     text = text.replace("-", "|")
 
-    # rapihin slash
+    # =========================
+    # 🔥 FIX FORMAT INTI
+    # =========================
+
+    # LAT–LON tanpa slash → tambahkan
+    text = re.sub(r'([NS])\s*(\d)', r'\1/\2', text)
+
+    # ubah 42'068 → 42.068
+    text = re.sub(r"(\d{1,2})'(\d{2,3})", lambda m: f"{m.group(1)}.{m.group(2)}", text)
+
+    # pastikan ada slash
     text = text.replace(" / ", "/").replace("/ ", "/").replace(" /", "/")
 
     # =========================
-    # 🔥 FIX FORMAT KACAU (PENTING)
+    # AMBIL SEMUA KOORDINAT (PAIR BASED)
     # =========================
+    pattern = r'(\d{1,2})°(\d+(?:\.\d+)?)\'?([NS])\s*/?\s*(\d{2,3})°(\d+(?:\.\d+)?)\'?([EW])'
 
-    # LAT–LON tanpa "/" → tambahkan
-    text = re.sub(r'([NS])\s*(\d)', r'\1/\2', text)
-
-    # contoh: 42'068 → 42.068
-    text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
-
-    # =========================
-    # SPLIT SEGMENT
-    # =========================
-    segments = text.split("|")
+    matches = re.findall(pattern, text)
 
     coords = []
 
-    for seg in segments:
-
-        seg = seg.strip()
-
-        if "/" not in seg:
-            continue
-
+    for m in matches:
         try:
-            lat_str, lon_str = seg.split("/")
+            lat_deg = float(m[0])
+            lat_min = float(m[1])
+            lat_dir = m[2]
+
+            lon_deg = float(m[3])
+            lon_min = float(m[4])
+            lon_dir = m[5]
 
             # =========================
-            # AMBIL ANGKA
-            # =========================
-            lat_nums = re.findall(r"\d+(?:\.\d+)?", lat_str)
-            lon_nums = re.findall(r"\d+(?:\.\d+)?", lon_str)
-
-            if len(lat_nums) < 2 or len(lon_nums) < 2:
-                continue
-
-            lat_deg = float(lat_nums[0])
-            lat_min = float(lat_nums[1])
-
-            lon_deg = float(lon_nums[0])
-            lon_min = float(lon_nums[1])
-
-            # =========================
-            # ARAH
-            # =========================
-            lat_dir = lat_str.strip()[-1]
-            lon_dir = lon_str.strip()[-1]
-
-            # =========================
-            # KONVERSI DMM → DECIMAL
+            # KONVERSI
             # =========================
             lat = lat_deg + (lat_min / 60)
             lon = lon_deg + (lon_min / 60)
