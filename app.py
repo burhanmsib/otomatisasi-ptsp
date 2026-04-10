@@ -92,7 +92,9 @@ import re
 def normalize_text(text):
     text = text.upper()
 
-    # normalisasi simbol
+    # =========================
+    # NORMALISASI SIMBOL
+    # =========================
     text = text.replace("̊", "°")
     text = text.replace("º", "°")
     text = text.replace("’", "'")
@@ -100,7 +102,21 @@ def normalize_text(text):
     text = text.replace("”", '"')
     text = text.replace("“", '"')
 
-    # hilangkan kata pengganggu
+    # =========================
+    # 🔥 FIX KHUSUS KASUS INI
+    # =========================
+
+    # contoh: 42'068 → 42.068
+    text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
+
+    # tambahkan separator antar koordinat
+    text = re.sub(r"([EW])\s+(\d)", r"\1 | \2", text)
+
+    # dash jadi separator
+    text = text.replace("–", " | ")
+    text = text.replace("-", " ")
+
+    # hilangkan kata tidak penting
     text = text.replace("FROM", "")
     text = text.replace("TO", "")
 
