@@ -397,13 +397,14 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     
                             if not np.isnan(val):
                                 rain_val = max(rain_val, val)
+                            # =========================
+                            # 🔥 DEBUG
+                            # =========================
+                            st.write(f"DEBUG RAIN @ {lat},{lon} :", rain_val)
     
             except Exception:
                 continue
-# =========================
-# 🔥 DEBUG
-# =========================
-st.write(f"DEBUG RAIN @ {lat},{lon} :", rain_val)
+
 
     # =========================
     # CURRENT
