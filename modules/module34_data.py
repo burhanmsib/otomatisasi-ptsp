@@ -400,6 +400,10 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     
             except Exception:
                 continue
+# =========================
+# 🔥 DEBUG
+# =========================
+st.write(f"DEBUG RAIN @ {lat},{lon} :", rain_val)
 
     # =========================
     # CURRENT
