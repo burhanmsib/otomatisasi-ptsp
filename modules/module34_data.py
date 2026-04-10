@@ -338,6 +338,7 @@ def get_current_smart(ds_cur, t, lat, lon):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
+    st.write("DEBUG ds_rain:", type(ds_rain))
     # =========================
     # 🔥 RAIN FINAL (SUPER ROBUST)
     # =========================
@@ -397,10 +398,6 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     
                             if not np.isnan(val):
                                 rain_val = max(rain_val, val)
-                            # =========================
-                            # 🔥 DEBUG
-                            # =========================
-                            st.write(f"DEBUG RAIN @ {lat},{lon} :", rain_val)
     
             except Exception:
                 continue
