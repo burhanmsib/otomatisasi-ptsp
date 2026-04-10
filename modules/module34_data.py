@@ -172,17 +172,31 @@ def load_gsmap_cached(dt):
         ftp.cwd(base_dir)
 
         # =========================
-        # PILIH FOLDER SESUAI JAM
+        # AMBIL LIST
         # =========================
-        folders = [f for f in ftp.nlst() if f.isdigit()]
+        items = ftp.nlst()
+        
+        # ambil folder angka saja
+        folders = [f for f in items if f.isdigit()]
         folders = sorted(folders)
         
-        target_hour = int(dt.strftime("%H"))
+        # =========================
+        # 🔥 KALAU ADA FOLDER JAM
+        # =========================
+        if folders:
+            target_hour = int(dt.strftime("%H"))
         
-        folders_int = [int(f) for f in folders]
-        closest = min(folders_int, key=lambda x: abs(x - target_hour))
+            folders_int = [int(f) for f in folders]
+            closest = min(folders_int, key=lambda x: abs(x - target_hour))
         
-        ftp.cwd(f"{closest:02d}")
+            ftp.cwd(f"{closest:02d}")
+
+# =========================
+# 🔥 KALAU TIDAK ADA FOLDER (FALLBACK)
+# =========================
+else:
+    # tetap di base_dir
+    pass
 
         # =========================
         # AMBIL SEMUA FILE (00 & 30)
