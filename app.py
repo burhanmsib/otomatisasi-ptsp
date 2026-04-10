@@ -87,111 +87,96 @@ def dms_to_decimal(match):
 
     return decimal
 
-def extract_all_coordinates(text):
+import re
 
-    import re
-
-    # =========================
-    # 🔥 NORMALISASI SUPER (FIX SEMUA FORMAT)
-    # =========================
+def normalize_text(text):
     text = text.upper()
 
-    # simbol aneh → normal
+    # normalisasi simbol
     text = text.replace("̊", "°")
     text = text.replace("º", "°")
     text = text.replace("’", "'")
-    text = text.replace("’’", '"')
+    text = text.replace("‘", "'")
+    text = text.replace("”", '"')
+    text = text.replace("“", '"')
 
-    # hapus kurung
-    text = text.replace("(", "").replace(")", "")
+    # hilangkan kata pengganggu
+    text = text.replace("FROM", "")
+    text = text.replace("TO", "")
 
-    # separator jadi standar
-    text = text.replace(" TO ", "|")
-    text = text.replace("–", "|")
-    text = text.replace("-", "|")
+    return text
 
-    # rapihin slash
-    text = text.replace(" / ", "/").replace("/ ", "/").replace(" /", "/")
+
+def dms_to_decimal(deg, minute=0, second=0, direction="N"):
+    val = float(deg) + float(minute)/60 + float(second)/3600
+    if direction in ["S", "W"]:
+        val *= -1
+    return val
+
+
+def extract_coordinates(text):
+    text = normalize_text(text)
+
+    results = []
 
     # =========================
-    # 🔥 FIX FORMAT KACAU (PENTING)
+    # 1. FORMAT DECIMAL
     # =========================
-
-    # LAT–LON tanpa "/" → tambahkan
-    text = re.sub(r'([NS])\s*(\d)', r'\1/\2', text)
-
-    # contoh: 42'068 → 42.068
-    text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
+    decimal_matches = re.findall(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)', text)
+    for lat, lon in decimal_matches:
+        results.append((float(lat), float(lon)))
 
     # =========================
-    # SPLIT SEGMENT
+    # 2. FORMAT DMS / DMM / CAMPUR
     # =========================
-    segments = text.split("|")
+    pattern = re.findall(
+        r'(\d{1,3})[°\s-]*(\d{1,2}(?:\.\d+)?)?\'?\s*(\d{1,2}(?:\.\d+)?)?"?\s*([NS])'
+        r'.{0,10}?'
+        r'(\d{1,3})[°\s-]*(\d{1,2}(?:\.\d+)?)?\'?\s*(\d{1,2}(?:\.\d+)?)?"?\s*([EW])',
+        text
+    )
 
-    coords = []
+    for m in pattern:
+        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
 
-    for seg in segments:
+        lat = dms_to_decimal(
+            lat_deg,
+            lat_min or 0,
+            lat_sec or 0,
+            lat_dir
+        )
 
-        seg = seg.strip()
+        lon = dms_to_decimal(
+            lon_deg,
+            lon_min or 0,
+            lon_sec or 0,
+            lon_dir
+        )
 
-        if "/" not in seg:
-            continue
+        results.append((lat, lon))
 
-        try:
-            lat_str, lon_str = seg.split("/")
+    return results
 
-            # =========================
-            # AMBIL ANGKA
-            # =========================
-            lat_nums = re.findall(r"\d+(?:\.\d+)?", lat_str)
-            lon_nums = re.findall(r"\d+(?:\.\d+)?", lon_str)
-
-            if len(lat_nums) < 2 or len(lon_nums) < 2:
-                continue
-
-            lat_deg = float(lat_nums[0])
-            lat_min = float(lat_nums[1])
-
-            lon_deg = float(lon_nums[0])
-            lon_min = float(lon_nums[1])
-
-            # =========================
-            # ARAH
-            # =========================
-            lat_dir = lat_str.strip()[-1]
-            lon_dir = lon_str.strip()[-1]
-
-            # =========================
-            # KONVERSI DMM → DECIMAL
-            # =========================
-            lat = lat_deg + (lat_min / 60)
-            lon = lon_deg + (lon_min / 60)
-
-            if lat_dir == "S":
-                lat *= -1
-            if lon_dir == "W":
-                lon *= -1
-
-            coords.append(lat)
-            coords.append(lon)
-
-        except:
-            continue
-
-    return coords
 
 def parse_coordinate(text):
-    coords = extract_all_coordinates(text)
+    coords = extract_coordinates(text)
 
-    if len(coords) == 2:
-        lat, lon = coords
-        return {"awal": f"{lat},{lon}", "akhir": f"{lat},{lon}"}
+    if not coords:
+        return None
 
-    elif len(coords) == 4:
-        lat1, lon1, lat2, lon2 = coords
-        return {"awal": f"{lat1},{lon1}", "akhir": f"{lat2},{lon2}"}
+    # minimal 1 titik
+    if len(coords) == 1:
+        return {
+            "awal": f"{coords[0][0]},{coords[0][1]}",
+            "akhir": f"{coords[0][0]},{coords[0][1]}",
+            "all": coords
+        }
 
-    return None
+    return {
+        "awal": f"{coords[0][0]},{coords[0][1]}",
+        "akhir": f"{coords[-1][0]},{coords[-1][1]}",
+        "all": coords
+    }
 
 # =========================
 # MODE INPUT
