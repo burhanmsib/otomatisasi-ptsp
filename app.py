@@ -220,7 +220,7 @@ if mode == "Ambil dari Google Sheet":
         st.error("Gagal load data")
         st.stop()
 
-    st.session_state.df_requests = df_requestshttps://github.com/burhanmsib/otomatisasi-ptsp/blob/main/app.py
+    st.session_state.df_requests = df_requests
 
     st.header("🆔 Pilih ID Surat")
 
