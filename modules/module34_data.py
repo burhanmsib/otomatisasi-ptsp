@@ -161,74 +161,61 @@ def load_gsmap_cached(dt):
         Y = dt.strftime("%Y")
         M = dt.strftime("%m")
         D = dt.strftime("%d")
+        H = int(dt.strftime("%H"))
 
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
 
         # =========================
-        # MASUK FOLDER TANGGAL
+        # MASUK FOLDER TANGGAL SAJA
         # =========================
         base_dir = f"/now/netcdf/{Y}/{M}/{D}"
         ftp.cwd(base_dir)
 
         # =========================
-        # AMBIL LIST
+        # AMBIL SEMUA FILE .nc
         # =========================
-        items = ftp.nlst()
-        
-        # ambil folder angka saja
-        folders = [f for f in items if f.isdigit()]
-        folders = sorted(folders)
-        
-        # =========================
-        # 🔥 KALAU ADA FOLDER JAM
-        # =========================
-        if folders:
-            target_hour = int(dt.strftime("%H"))
-        
-            folders_int = [int(f) for f in folders]
-            closest = min(folders_int, key=lambda x: abs(x - target_hour))
-        
-            ftp.cwd(f"{closest:02d}")
-
-# =========================
-# 🔥 KALAU TIDAK ADA FOLDER (FALLBACK)
-# =========================
-else:
-    # tetap di base_dir
-    pass
-
-        # =========================
-        # AMBIL SEMUA FILE (00 & 30)
-        # =========================
-        files = sorted([f for f in ftp.nlst() if f.endswith(".nc")])
+        files = [f for f in ftp.nlst() if f.endswith(".nc")]
 
         if not files:
             ftp.quit()
             return None
 
-        datasets = []
-
-        for f_name in files:
+        # =========================
+        # PILIH FILE TERDEKAT DENGAN JAM
+        # =========================
+        def extract_hour(fname):
             try:
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
-                tmp_path = tmp.name
-                tmp.close()
-
-                with open(tmp_path, "wb") as f:
-                    ftp.retrbinary(f"RETR {f_name}", f.write)
-
-                ds = xr.open_dataset(tmp_path, decode_times=False)
-                os.remove(tmp_path)
-
-                datasets.append(ds)
-
+                # contoh: gsmap_now_rain.20250907.2330.nc
+                return int(fname.split(".")[-2][:2])
             except:
-                continue
+                return -1
+
+        files_with_hour = [(f, extract_hour(f)) for f in files if extract_hour(f) >= 0]
+
+        if not files_with_hour:
+            ftp.quit()
+            return None
+
+        # 🔥 ambil file paling dekat dengan jam target
+        best_file = min(files_with_hour, key=lambda x: abs(x[1] - H))[0]
+
+        # =========================
+        # DOWNLOAD
+        # =========================
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
+        tmp_path = tmp.name
+        tmp.close()
+
+        with open(tmp_path, "wb") as f:
+            ftp.retrbinary(f"RETR {best_file}", f.write)
 
         ftp.quit()
 
-        return datasets  # 🔥 sekarang LIST dataset
+        ds = xr.open_dataset(tmp_path, decode_times=False)
+        os.remove(tmp_path)
+
+        return ds
 
     except Exception as e:
         st.warning(f"GSMAP gagal load: {e}")
