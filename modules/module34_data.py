@@ -158,7 +158,7 @@ def load_gsmap_cached(dt):
 
         Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
 
-        remote_path = f"/now/netcdf/{Y}/{M}/{D}/gsmap_now_rain.{Y}{M}{D}{H}.00.nc"
+        remote_path = f"/now/netcdf/{Y}/{M}/{D}/gsmap_now_rain.{Y}{M}{D}.{H}00.nc"
 
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
         tmp_path = tmp.name
