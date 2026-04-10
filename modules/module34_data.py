@@ -152,13 +152,15 @@ def build_weather_range(samples):
 @st.cache_resource(ttl=3600)
 def load_gsmap_cached(dt):
     try:
+        import ftplib, tempfile, os, xarray as xr
+
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
         Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
 
-        remote_path = f"/now/netcdf/{Y}/{M}/{D}/gsmap_now_rain.{Y}{M}{D}.{H}00.nc"
+        remote_path = f"/now/netcdf/{Y}/{M}/{D}/{H}/gsmap_now_rain.{Y}{M}{D}.{H}00.nc"
 
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
         tmp_path = tmp.name
@@ -172,7 +174,9 @@ def load_gsmap_cached(dt):
 
         ftp.quit()
 
-        ds = xr.open_dataset(tmp_path)
+        # 🔥 FIX DI SINI
+        ds = xr.open_dataset(tmp_path, decode_times=False)
+
         os.remove(tmp_path)
 
         return ds
@@ -180,7 +184,7 @@ def load_gsmap_cached(dt):
     except Exception as e:
         st.warning(f"GSMAP gagal load: {e}")
         return None
-
+        
 # =========================
 # LOAD DATASET
 # =========================
