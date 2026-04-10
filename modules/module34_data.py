@@ -456,7 +456,29 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         samples = []
         for j, (lat, lon) in enumerate(sample_points):
             t = t0 + timedelta(hours=j * 3)
-            samples.append(extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon))
+        
+            # =========================
+            # 🔥 AMBIL MULTI TIME (KUNCI UTAMA)
+            # =========================
+            times_to_check = [
+                t - timedelta(hours=1),
+                t,
+                t + timedelta(hours=1)
+            ]
+        
+            rain_datasets = []
+        
+            for tt in times_to_check:
+                ds_tmp = load_gsmap_cached(tt)
+                if ds_tmp:
+                    if isinstance(ds_tmp, list):
+                        rain_datasets.extend(ds_tmp)
+                    else:
+                        rain_datasets.append(ds_tmp)
+        
+            samples.append(
+                extract_hourly_weather(ds_wave, ds_cur, rain_datasets, t, lat, lon)
+            )
 
         segments.append({
             "interval": f"T{i*6}-T{(i+1)*6}",
