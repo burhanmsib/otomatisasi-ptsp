@@ -333,53 +333,58 @@ def get_current_smart(ds_cur, t, lat, lon):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    rain_val = None
+    rain_val = 0.0  # default
 
     # =========================
-    # 🔥 FIX GSMAP RAIN (FINAL)
+    # 🔥 FIX GSMAP FINAL (ANTI UNKNOWN)
     # =========================
     if ds_rain is not None:
         try:
-            # 🔥 cari variabel rain yang benar
-            def get_rain_var(ds):
-                for v in ds.data_vars:
-                    name = v.lower()
-                    if "rain" in name or "precip" in name:
-                        return ds[v]
-                return None
+            # ambil semua variabel kandidat
+            rain_candidates = []
 
-            da = get_rain_var(ds_rain)
+            for var in ds_rain.data_vars:
+                name = var.lower()
+                if "rain" in name or "precip" in name:
+                    rain_candidates.append(ds_rain[var])
 
-            if da is not None:
+            # kalau tidak ketemu → pakai semua variabel
+            if not rain_candidates:
+                rain_candidates = [ds_rain[v] for v in ds_rain.data_vars]
 
-                # handle time (kalau ada)
-                if "time" in da.dims:
-                    da = da.sel(time=t, method="nearest")
+            for da in rain_candidates:
 
-                # cari nama koordinat
-                lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
-                lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
+                try:
+                    # handle time
+                    if "time" in da.dims:
+                        da = da.sel(time=t, method="nearest")
 
-                if lat_name and lon_name:
-                    lat_vals = da[lat_name].values
-                    lon_vals = da[lon_name].values
+                    # cari koordinat
+                    lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
+                    lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
 
-                    lat_idx = np.abs(lat_vals - lat).argmin()
-                    lon_idx = np.abs(lon_vals - lon).argmin()
+                    if lat_name and lon_name:
+                        lat_vals = da[lat_name].values
+                        lon_vals = da[lon_name].values
 
-                    rain_val = float(
-                        da.isel({lat_name: lat_idx, lon_name: lon_idx}).values
-                    )
+                        lat_idx = np.abs(lat_vals - lat).argmin()
+                        lon_idx = np.abs(lon_vals - lon).argmin()
 
-                    # 🔥 kalau NaN → jadikan 0 (biar tidak Unknown)
-                    if np.isnan(rain_val):
-                        rain_val = 0.0
+                        val = float(
+                            da.isel({lat_name: lat_idx, lon_name: lon_idx}).values
+                        )
 
-        except Exception as e:
-            rain_val = 0.0  # fallback aman
+                        if not np.isnan(val):
+                            rain_val = max(rain_val, val)
+
+                except:
+                    continue
+
+        except:
+            rain_val = 0.0
 
     # =========================
-    # 🔥 CURRENT (TETAP)
+    # CURRENT
     # =========================
     u_cur, v_cur = get_current_smart(ds_cur, t, lat, lon)
 
