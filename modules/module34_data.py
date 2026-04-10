@@ -148,7 +148,7 @@ def build_weather_range(samples):
 
 
 # =========================
-# GSMAP (CACHE) - VERSION BARU (JAXA FTP)
+# GSMAP (CACHE) - FINAL FIX TOTAL (JAXA NEW FORMAT)
 # =========================
 @st.cache_resource(ttl=1800)
 def load_gsmap_cached(dt):
@@ -160,28 +160,22 @@ def load_gsmap_cached(dt):
         import xarray as xr
 
         # =========================
-        # CONFIG FTP (SECRETS)
+        # CONFIG FTP
         # =========================
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
-        # =========================
-        # FORMAT TANGGAL
-        # =========================
         Y = dt.strftime("%Y")
         M = dt.strftime("%m")
         D = dt.strftime("%d")
         H = dt.strftime("%H")
 
-        # =========================
-        # CONNECT FTP
-        # =========================
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
 
         # =========================
-        # MASUK KE FOLDER HARIAN
+        # MASUK KE FOLDER TANGGAL
         # =========================
         base_dir = f"/now/netcdf/{Y}/{M}/{D}"
         ftp.cwd(base_dir)
@@ -193,12 +187,20 @@ def load_gsmap_cached(dt):
             return None
 
         # =========================
-        # AMBIL FOLDER TERBARU
+        # PILIH FOLDER JAM TERDEKAT
         # =========================
-        folders = sorted(folders)
-        latest_folder = folders[-1]
+        def closest_folder(folders, target_hour):
+            try:
+                folders_int = [int(f) for f in folders if f.isdigit()]
+                return str(min(folders_int, key=lambda x: abs(x - int(target_hour))))
+            except:
+                return folders[-1]
 
-        ftp.cwd(latest_folder)
+        if H in folders:
+            ftp.cwd(H)
+        else:
+            closest = closest_folder(folders, H)
+            ftp.cwd(closest)
 
         # =========================
         # LIST FILE NC
@@ -211,20 +213,26 @@ def load_gsmap_cached(dt):
             return None
 
         # =========================
-        # PILIH FILE TERDEKAT DENGAN WAKTU
+        # EXTRACT TIME (FORMAT BARU)
+        # gsmap_now_rain.YYYYMMDD.HHMM.nc
         # =========================
         def extract_time(f):
-            m = re.search(r'(\d{10})', f)  # YYYYMMDDHH
-            return m.group(1) if m else None
+            m = re.search(r'(\d{8})\.(\d{4})', f)
+            if not m:
+                return None
+            return m.group(1) + m.group(2)  # YYYYMMDDHHMM
 
-        target_time = dt.strftime("%Y%m%d%H")
+        target_time = dt.strftime("%Y%m%d%H%M")
 
         def time_diff(f):
             t = extract_time(f)
             if t is None:
-                return 999999
+                return 999999999
             return abs(int(t) - int(target_time))
 
+        # =========================
+        # PILIH FILE TERDEKAT (00 / 30)
+        # =========================
         best_file = sorted(nc_files, key=time_diff)[0]
 
         # =========================
@@ -250,7 +258,6 @@ def load_gsmap_cached(dt):
     except Exception as e:
         st.warning(f"GSMAP gagal load: {e}")
         return None
-
 
 # =========================
 # LOAD DATASET
