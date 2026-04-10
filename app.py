@@ -315,19 +315,16 @@ if st.session_state.preview_data is not None:
     st.dataframe(df_preview)
 
     # =========================
-    # PREVIEW MAP
+    # 🗺️ PREVIEW MAP (HANYA 1 TITIK)
     # =========================
-    import folium
-    from streamlit_folium import st_folium
+    if len(df_preview) == 1:
 
-    st.subheader("🗺️ Preview Lokasi")
+        import folium
+        from streamlit_folium import st_folium
 
-    try:
-        # =========================
-        # 1 TITIK
-        # =========================
-        if len(df_preview) == 1:
+        st.subheader("🗺️ Preview Lokasi")
 
+        try:
             latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
             lat, lon = map(float, latlon.split(","))
 
@@ -342,38 +339,9 @@ if st.session_state.preview_data is not None:
 
             st_folium(m, height=500)
 
-        # =========================
-        # MULTI TITIK
-        # =========================
-        else:
-            all_points = []
-
-            for _, row in df_preview.iterrows():
-                coords = row.get("All Points", [])
-                for lat, lon in coords:
-                    all_points.append((lat, lon))
-
-            if all_points:
-
-                center_lat = sum(p[0] for p in all_points) / len(all_points)
-                center_lon = sum(p[1] for p in all_points) / len(all_points)
-
-                m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
-
-                for i, (lat, lon) in enumerate(all_points, start=1):
-                    folium.Marker(
-                        [lat, lon],
-                        tooltip=f"Titik {i}"
-                    ).add_to(m)
-
-                if len(all_points) > 1:
-                    folium.PolyLine(all_points, color="blue").add_to(m)
-
-                st_folium(m, height=500)
-
-    except Exception as e:
-        st.warning("Gagal menampilkan peta")
-        st.exception(e)
+        except Exception as e:
+            st.warning("Gagal menampilkan peta")
+            st.exception(e)
 
     # =========================
     # SAVE
