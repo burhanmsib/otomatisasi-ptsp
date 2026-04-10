@@ -172,17 +172,17 @@ def load_gsmap_cached(dt):
         ftp.cwd(base_dir)
 
         # =========================
-        # FILTER FOLDER JAM
+        # PILIH FOLDER SESUAI JAM
         # =========================
         folders = [f for f in ftp.nlst() if f.isdigit()]
         folders = sorted(folders)
-
-        if not folders:
-            ftp.quit()
-            return None
-
-        latest_folder = folders[-1]
-        ftp.cwd(latest_folder)
+        
+        target_hour = int(dt.strftime("%H"))
+        
+        folders_int = [int(f) for f in folders]
+        closest = min(folders_int, key=lambda x: abs(x - target_hour))
+        
+        ftp.cwd(f"{closest:02d}")
 
         # =========================
         # AMBIL SEMUA FILE (00 & 30)
