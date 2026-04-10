@@ -166,27 +166,18 @@ def load_gsmap_cached(dt):
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
 
-        # =========================
-        # MASUK FOLDER TANGGAL SAJA
-        # =========================
         base_dir = f"/now/netcdf/{Y}/{M}/{D}"
         ftp.cwd(base_dir)
 
-        # =========================
-        # AMBIL SEMUA FILE .nc
-        # =========================
         files = [f for f in ftp.nlst() if f.endswith(".nc")]
 
         if not files:
             ftp.quit()
             return None
 
-        # =========================
-        # PILIH FILE TERDEKAT DENGAN JAM
-        # =========================
+        # ambil jam dari nama file
         def extract_hour(fname):
             try:
-                # contoh: gsmap_now_rain.20250907.2330.nc
                 return int(fname.split(".")[-2][:2])
             except:
                 return -1
@@ -197,12 +188,8 @@ def load_gsmap_cached(dt):
             ftp.quit()
             return None
 
-        # 🔥 ambil file paling dekat dengan jam target
         best_file = min(files_with_hour, key=lambda x: abs(x[1] - H))[0]
 
-        # =========================
-        # DOWNLOAD
-        # =========================
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
         tmp_path = tmp.name
         tmp.close()
@@ -340,7 +327,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     st.write(f"DEBUG ds_rain: {ds_rain}")
     # =========================
-    # 🔥 RAIN FINAL (SUPER ROBUST)
+    # 🔥 RAIN FINAL (FIX GSMAP)
     # =========================
     rain_val = 0.0
     
@@ -351,24 +338,19 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         for ds in datasets:
             try:
                 for var in ds.data_vars:
-                    name = var.lower()
     
-                    if "rain" in name or "precip" in name:
+                    # 🔥 FIX UTAMA DI SINI
+                    if var in ["hourlyPrecipRate", "hourlyPrecipRateGC"]:
     
                         da = ds[var]
     
-                        # =========================
-                        # HANDLE TIME (±3 JAM)
-                        # =========================
+                        # handle time
                         if "time" in da.dims:
                             try:
                                 da = da.sel(time=t, method="nearest")
                             except:
                                 pass
     
-                        # =========================
-                        # DETEKSI KOORDINAT
-                        # =========================
                         lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
                         lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
     
@@ -380,9 +362,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
                             lat_idx = np.abs(lat_vals - lat).argmin()
                             lon_idx = np.abs(lon_vals - lon).argmin()
     
-                            # =========================
-                            # 🔥 WINDOW BESAR (5x5 GRID)
-                            # =========================
+                            # 🔥 SPATIAL WINDOW (5x5)
                             lat_start = max(0, lat_idx - 2)
                             lat_end   = lat_idx + 3
     
@@ -401,7 +381,6 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     
             except Exception:
                 continue
-
 
     # =========================
     # CURRENT
@@ -462,9 +441,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         for j, (lat, lon) in enumerate(sample_points):
             t = t0 + timedelta(hours=j * 3)
         
-            # =========================
-            # 🔥 AMBIL MULTI TIME (KUNCI UTAMA)
-            # =========================
+            # 🔥 MULTI TIME
             times_to_check = [
                 t - timedelta(hours=3),
                 t,
@@ -476,20 +453,17 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
             for tt in times_to_check:
                 ds_tmp = load_gsmap_cached(tt)
                 if ds_tmp:
-                    if isinstance(ds_tmp, list):
-                        rain_datasets.extend(ds_tmp)
-                    else:
-                        rain_datasets.append(ds_tmp)
+                    rain_datasets.append(ds_tmp)
         
             samples.append(
                 extract_hourly_weather(ds_wave, ds_cur, rain_datasets, t, lat, lon)
             )
-
-        segments.append({
-            "interval": f"T{i*6}-T{(i+1)*6}",
-            "samples": samples,
-            "weather": build_weather_range(samples)
-        })
+        
+                segments.append({
+                    "interval": f"T{i*6}-T{(i+1)*6}",
+                    "samples": samples,
+                    "weather": build_weather_range(samples)
+                })
 
     return {
         "tanggal": dt_local,
