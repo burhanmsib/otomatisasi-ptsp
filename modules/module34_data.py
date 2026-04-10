@@ -148,31 +148,100 @@ def build_weather_range(samples):
 
 
 # =========================
-# GSMAP (CACHE)
+# GSMAP (CACHE) - VERSION BARU (JAXA FTP)
 # =========================
-@st.cache_resource(ttl=3600)
+@st.cache_resource(ttl=1800)
 def load_gsmap_cached(dt):
     try:
+        import ftplib
+        import tempfile
+        import os
+        import re
+        import xarray as xr
+
+        # =========================
+        # CONFIG FTP (SECRETS)
+        # =========================
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
-        Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
+        # =========================
+        # FORMAT TANGGAL
+        # =========================
+        Y = dt.strftime("%Y")
+        M = dt.strftime("%m")
+        D = dt.strftime("%d")
+        H = dt.strftime("%H")
 
-        remote_path = f"/himawari6/GSMaP/netcdf/{Y}/{M}/{D}/GSMaP_{Y}{M}{D}{H}00.nc"
+        # =========================
+        # CONNECT FTP
+        # =========================
+        ftp = ftplib.FTP(ftp_host, timeout=20)
+        ftp.login(ftp_user, ftp_pass)
 
+        # =========================
+        # MASUK KE FOLDER HARIAN
+        # =========================
+        base_dir = f"/now/netcdf/{Y}/{M}/{D}"
+        ftp.cwd(base_dir)
+
+        folders = ftp.nlst()
+
+        if not folders:
+            ftp.quit()
+            return None
+
+        # =========================
+        # AMBIL FOLDER TERBARU
+        # =========================
+        folders = sorted(folders)
+        latest_folder = folders[-1]
+
+        ftp.cwd(latest_folder)
+
+        # =========================
+        # LIST FILE NC
+        # =========================
+        files = ftp.nlst()
+        nc_files = [f for f in files if f.endswith(".nc")]
+
+        if not nc_files:
+            ftp.quit()
+            return None
+
+        # =========================
+        # PILIH FILE TERDEKAT DENGAN WAKTU
+        # =========================
+        def extract_time(f):
+            m = re.search(r'(\d{10})', f)  # YYYYMMDDHH
+            return m.group(1) if m else None
+
+        target_time = dt.strftime("%Y%m%d%H")
+
+        def time_diff(f):
+            t = extract_time(f)
+            if t is None:
+                return 999999
+            return abs(int(t) - int(target_time))
+
+        best_file = sorted(nc_files, key=time_diff)[0]
+
+        # =========================
+        # DOWNLOAD FILE
+        # =========================
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
         tmp_path = tmp.name
         tmp.close()
 
-        ftp = ftplib.FTP(ftp_host, timeout=20)
-        ftp.login(ftp_user, ftp_pass)
-
         with open(tmp_path, "wb") as f:
-            ftp.retrbinary(f"RETR {remote_path}", f.write)
+            ftp.retrbinary(f"RETR {best_file}", f.write)
 
         ftp.quit()
 
+        # =========================
+        # LOAD DATASET
+        # =========================
         ds = xr.open_dataset(tmp_path)
         os.remove(tmp_path)
 
