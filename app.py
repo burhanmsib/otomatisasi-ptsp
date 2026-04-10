@@ -277,104 +277,100 @@ else:
         })
 
     # =========================
-    # PREVIEW
+# PREVIEW BUTTON
+# =========================
+if st.button("Preview Data"):
+
+    parsed_rows = []
+
+    for d in data_list:
+        parsed = parse_coordinate(d["koordinat"])
+
+        if parsed is None:
+            st.error(f"Koordinat tidak valid: {d['koordinat']}")
+            st.stop()
+
+        parsed_rows.append({
+            "Tanggal Koordinat": str(d["tanggal"]),
+            "Koordinat": d["koordinat"],
+            "Koordinat Awal (Desimal)": parsed["awal"],
+            "Koordinat Akhir (Desimal)": parsed["akhir"],
+            "All Points": parsed.get("all", [])
+        })
+
+    df_preview = pd.DataFrame(parsed_rows)
+
+    # 🔥 SIMPAN KE SESSION
+    st.session_state.preview_data = df_preview
+
+
+# =========================
+# 🔥 TAMPILKAN PREVIEW (PERSIST)
+# =========================
+if st.session_state.preview_data is not None:
+
+    df_preview = st.session_state.preview_data
+
+    st.success("✅ Data berhasil diparsing")
+    st.dataframe(df_preview)
+
     # =========================
-    if st.button("Preview Data"):
-    
-        parsed_rows = []
-    
-        for d in data_list:
-            parsed = parse_coordinate(d["koordinat"])
-    
-            if parsed is None:
-                st.error(f"Koordinat tidak valid: {d['koordinat']}")
-                st.stop()
-    
-            parsed_rows.append({
-                "Tanggal Koordinat": str(d["tanggal"]),
-                "Koordinat": d["koordinat"],
-                "Koordinat Awal (Desimal)": parsed["awal"],
-                "Koordinat Akhir (Desimal)": parsed["akhir"],
-                "All Points": parsed.get("all", [])
-            })
-    
-        df_preview = pd.DataFrame(parsed_rows)
-        st.session_state.preview_data = df_preview
-    
-        st.success("✅ Data berhasil diparsing")
-        st.dataframe(df_preview)
-    
+    # 🗺️ PREVIEW MAP
+    # =========================
+    import folium
+    from streamlit_folium import st_folium
+
+    st.subheader("🗺️ Preview Lokasi")
+
+    try:
         # =========================
-        # 🗺️ PREVIEW MAP
+        # 🔵 1 TITIK
         # =========================
-        import folium
-        from streamlit_folium import st_folium
-    
-        st.subheader("🗺️ Preview Lokasi")
-    
-        try:
-            # =========================
-            # 🔵 KASUS 1 TITIK
-            # =========================
-            if len(df_preview) == 1:
-    
-                latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
-                lat, lon = map(float, latlon.split(","))
-    
-                m = folium.Map(
-                    location=[lat, lon],
-                    zoom_start=7
-                )
-    
-                folium.Marker(
-                    [lat, lon],
-                    tooltip=f"Lat: {lat}, Lon: {lon}",
-                    popup=f"Koordinat:\n{lat}, {lon}",
-                    icon=folium.Icon(color="blue", icon="info-sign")
-                ).add_to(m)
-    
-                st_folium(m, height=500, width=None)
-    
-            # =========================
-            # 🟢 KASUS MULTI TITIK
-            # =========================
-            else:
-                all_points = []
-    
-                for _, row in df_preview.iterrows():
-                    coords = row.get("All Points", [])
-    
-                    for lat, lon in coords:
-                        all_points.append((lat, lon))
-    
-                if all_points:
-    
-                    center_lat = sum([p[0] for p in all_points]) / len(all_points)
-                    center_lon = sum([p[1] for p in all_points]) / len(all_points)
-    
-                    m = folium.Map(
-                        location=[center_lat, center_lon],
-                        zoom_start=6
-                    )
-    
-                    # marker semua titik
-                    for i, (lat, lon) in enumerate(all_points, start=1):
-                        folium.Marker(
-                            [lat, lon],
-                            tooltip=f"Titik {i}",
-                            icon=folium.Icon(color="blue")
-                        ).add_to(m)
-    
-                    # garis kalau lebih dari 1 titik
-                    if len(all_points) > 1:
-                        folium.PolyLine(
-                            locations=all_points,
-                            color="blue",
-                            weight=3
-                        ).add_to(m)
-    
-                    st_folium(m, height=500, width=None)
-    
+        if len(df_preview) == 1:
+
+            latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
+            lat, lon = map(float, latlon.split(","))
+
+            m = folium.Map(location=[lat, lon], zoom_start=7)
+
+            folium.Marker(
+                [lat, lon],
+                tooltip=f"Lat: {lat}, Lon: {lon}",
+                popup=f"{lat}, {lon}",
+                icon=folium.Icon(color="blue")
+            ).add_to(m)
+
+            st_folium(m, height=500)
+
+        # =========================
+        # 🟢 MULTI TITIK
+        # =========================
+        else:
+            all_points = []
+
+            for _, row in df_preview.iterrows():
+                coords = row.get("All Points", [])
+                for lat, lon in coords:
+                    all_points.append((lat, lon))
+
+            if all_points:
+
+                center_lat = sum(p[0] for p in all_points) / len(all_points)
+                center_lon = sum(p[1] for p in all_points) / len(all_points)
+
+                m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
+
+                for i, (lat, lon) in enumerate(all_points, start=1):
+                    folium.Marker(
+                        [lat, lon],
+                        tooltip=f"Titik {i}"
+                    ).add_to(m)
+
+                if len(all_points) > 1:
+                    folium.PolyLine(all_points, color="blue").add_to(m)
+
+                st_folium(m, height=500)
+
         except Exception as e:
             st.warning("Gagal menampilkan peta")
             st.exception(e)
