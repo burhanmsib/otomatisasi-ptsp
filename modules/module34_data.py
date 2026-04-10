@@ -146,110 +146,32 @@ def build_weather_range(samples):
 
     return f"{order[min_idx]} to {order[max_idx]}"
 
-
 # =========================
-# GSMAP (CACHE) - FINAL FIX TOTAL (JAXA NEW FORMAT)
+# GSMAP (CACHE)
 # =========================
-@st.cache_resource(ttl=1800)
+@st.cache_resource(ttl=3600)
 def load_gsmap_cached(dt):
     try:
-        import ftplib
-        import tempfile
-        import os
-        import re
-        import xarray as xr
-
-        # =========================
-        # CONFIG FTP
-        # =========================
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
-        Y = dt.strftime("%Y")
-        M = dt.strftime("%m")
-        D = dt.strftime("%d")
-        H = dt.strftime("%H")
+        Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
 
-        ftp = ftplib.FTP(ftp_host, timeout=20)
-        ftp.login(ftp_user, ftp_pass)
+        remote_path = f"/now/netcdf/{Y}/{M}/{D}/gsmap_now_rain.{Y}{M}{D}{H}.00.nc"
 
-        # =========================
-        # MASUK KE FOLDER TANGGAL
-        # =========================
-        base_dir = f"/now/netcdf/{Y}/{M}/{D}"
-        ftp.cwd(base_dir)
-
-        folders = ftp.nlst()
-
-        if not folders:
-            ftp.quit()
-            return None
-
-        # =========================
-        # PILIH FOLDER JAM TERDEKAT
-        # =========================
-        def closest_folder(folders, target_hour):
-            try:
-                folders_int = [int(f) for f in folders if f.isdigit()]
-                return str(min(folders_int, key=lambda x: abs(x - int(target_hour))))
-            except:
-                return folders[-1]
-
-        if H in folders:
-            ftp.cwd(H)
-        else:
-            closest = closest_folder(folders, H)
-            ftp.cwd(closest)
-
-        # =========================
-        # LIST FILE NC
-        # =========================
-        files = ftp.nlst()
-        nc_files = [f for f in files if f.endswith(".nc")]
-
-        if not nc_files:
-            ftp.quit()
-            return None
-
-        # =========================
-        # EXTRACT TIME (FORMAT BARU)
-        # gsmap_now_rain.YYYYMMDD.HHMM.nc
-        # =========================
-        def extract_time(f):
-            m = re.search(r'(\d{8})\.(\d{4})', f)
-            if not m:
-                return None
-            return m.group(1) + m.group(2)  # YYYYMMDDHHMM
-
-        target_time = dt.strftime("%Y%m%d%H%M")
-
-        def time_diff(f):
-            t = extract_time(f)
-            if t is None:
-                return 999999999
-            return abs(int(t) - int(target_time))
-
-        # =========================
-        # PILIH FILE TERDEKAT (00 / 30)
-        # =========================
-        best_file = sorted(nc_files, key=time_diff)[0]
-
-        # =========================
-        # DOWNLOAD FILE
-        # =========================
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
         tmp_path = tmp.name
         tmp.close()
 
+        ftp = ftplib.FTP(ftp_host, timeout=20)
+        ftp.login(ftp_user, ftp_pass)
+
         with open(tmp_path, "wb") as f:
-            ftp.retrbinary(f"RETR {best_file}", f.write)
+            ftp.retrbinary(f"RETR {remote_path}", f.write)
 
         ftp.quit()
 
-        # =========================
-        # LOAD DATASET
-        # =========================
         ds = xr.open_dataset(tmp_path)
         os.remove(tmp_path)
 
