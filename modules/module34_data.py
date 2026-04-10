@@ -172,9 +172,10 @@ def load_gsmap_cached(dt):
         ftp.cwd(base_dir)
 
         # =========================
-        # AMBIL FOLDER JAM TERAKHIR
+        # 🔥 FILTER HANYA FOLDER JAM
         # =========================
-        folders = sorted(ftp.nlst())
+        folders = [f for f in ftp.nlst() if f.isdigit()]
+        folders = sorted(folders)
 
         if not folders:
             ftp.quit()
@@ -184,7 +185,7 @@ def load_gsmap_cached(dt):
         ftp.cwd(latest_folder)
 
         # =========================
-        # AMBIL FILE TERAKHIR
+        # AMBIL FILE
         # =========================
         files = sorted([f for f in ftp.nlst() if f.endswith(".nc")])
 
