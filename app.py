@@ -92,20 +92,39 @@ def extract_all_coordinates(text):
     import re
 
     # =========================
-    # NORMALISASI (TETAP DIPAKAI)
+    # 🔥 NORMALISASI SUPER (FIX SEMUA FORMAT)
     # =========================
     text = text.upper()
 
-    text = text.replace("’", "'").replace("’’", '"')
+    # simbol aneh → normal
+    text = text.replace("̊", "°")
     text = text.replace("º", "°")
+    text = text.replace("’", "'")
+    text = text.replace("’’", '"')
 
+    # hapus kurung
     text = text.replace("(", "").replace(")", "")
 
+    # separator jadi standar
+    text = text.replace(" TO ", "|")
+    text = text.replace("–", "|")
+    text = text.replace("-", "|")
+
+    # rapihin slash
     text = text.replace(" / ", "/").replace("/ ", "/").replace(" /", "/")
-    text = text.replace(" TO ", "|").replace("-", "|")
 
     # =========================
-    # 🔥 PARSING BARU (AMAN 100%)
+    # 🔥 FIX FORMAT KACAU (PENTING)
+    # =========================
+
+    # LAT–LON tanpa "/" → tambahkan
+    text = re.sub(r'([NS])\s*(\d)', r'\1/\2', text)
+
+    # contoh: 42'068 → 42.068
+    text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
+
+    # =========================
+    # SPLIT SEGMENT
     # =========================
     segments = text.split("|")
 
@@ -113,13 +132,17 @@ def extract_all_coordinates(text):
 
     for seg in segments:
 
+        seg = seg.strip()
+
         if "/" not in seg:
             continue
 
         try:
             lat_str, lon_str = seg.split("/")
 
-            # ambil angka LAT
+            # =========================
+            # AMBIL ANGKA
+            # =========================
             lat_nums = re.findall(r"\d+(?:\.\d+)?", lat_str)
             lon_nums = re.findall(r"\d+(?:\.\d+)?", lon_str)
 
@@ -132,6 +155,9 @@ def extract_all_coordinates(text):
             lon_deg = float(lon_nums[0])
             lon_min = float(lon_nums[1])
 
+            # =========================
+            # ARAH
+            # =========================
             lat_dir = lat_str.strip()[-1]
             lon_dir = lon_str.strip()[-1]
 
