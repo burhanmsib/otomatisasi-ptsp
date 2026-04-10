@@ -452,6 +452,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         sample_points = generate_3_points_along_route(segment_route)
 
         samples = []
+
         for j, (lat, lon) in enumerate(sample_points):
             t = t0 + timedelta(hours=j * 3)
         
@@ -472,11 +473,12 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
                 extract_hourly_weather(ds_wave, ds_cur, rain_datasets, t, lat, lon)
             )
         
-                segments.append({
-                    "interval": f"T{i*6}-T{(i+1)*6}",
-                    "samples": samples,
-                    "weather": build_weather_range(samples)
-                })
+        # 🔥 PINDAH KE LUAR LOOP (INI KUNCI)
+        segments.append({
+            "interval": f"T{i*6}-T{(i+1)*6}",
+            "samples": samples,
+            "weather": build_weather_range(samples)
+        })
 
     return {
         "tanggal": dt_local,
