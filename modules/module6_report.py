@@ -367,6 +367,9 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             paragraphs_to_delete.append(p)
             continue
 
+        # =========================
+        # 🔥 FIX DI SINI (KOORDINAT)
+        # =========================
         if "$LIST_KOORDINAT" in text:
             clear_paragraph(p)
 
@@ -375,6 +378,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 f"on the subject of marine meteorological analysis with coordinate :"
             )
             p.add_run(intro_text)
+
             style_paragraph(
                 p,
                 size=12,
@@ -387,12 +391,15 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             current_p = p
 
             for row in module1_rows:
-                ka = str(row.get("Koordinat Awal", "") or "").strip()
-                kb = str(row.get("Koordinat Akhir", "") or "").strip()
+                # 🔥 PAKAI KOORDINAT ASLI (BUKAN AWAL/AKHIR)
+                coord = str(row.get("Koordinat", "") or "").strip()
+
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
                 dt_str = format_date_en(dt) if dt else str(row.get("Tanggal Koordinat", "") or "").strip()
 
-                bullet_text = f"• from {ka} to {kb} for {dt_str}"
+                # 🔥 FORMAT BERSIH (NO DUPLIKAT)
+                bullet_text = f"• {coord} for {dt_str}"
+
                 new_p = insert_paragraph_after(current_p)
                 clear_paragraph(new_p)
                 new_p.add_run(bullet_text)
@@ -407,11 +414,13 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                     left_indent_cm=0.5,
                     first_line_indent_cm=-0.3
                 )
+
                 current_p = new_p
 
             end_p = insert_paragraph_after(current_p)
             clear_paragraph(end_p)
             end_p.add_run("here with we enclose the meteorological analysis in attachments sheets.")
+
             style_paragraph(
                 end_p,
                 size=12,
@@ -420,6 +429,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 space_after=0,
                 line_spacing=1.0
             )
+
             continue
 
         for k, v in replacements.items():
@@ -427,10 +437,8 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 p.text = p.text.replace(k, str(v))
                 style_paragraph(p)
 
-
     for p in reversed(paragraphs_to_delete):
         delete_paragraph(p)
-
 
 # =========================
 # MAIN ENTRY
