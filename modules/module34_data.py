@@ -335,30 +335,52 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     rain_val = None
 
+    # =========================
+    # 🔥 FIX GSMAP RAIN (FINAL)
+    # =========================
     if ds_rain is not None:
         try:
-            var = list(ds_rain.data_vars)[0]
-            da = ds_rain[var]
+            # 🔥 cari variabel rain yang benar
+            def get_rain_var(ds):
+                for v in ds.data_vars:
+                    name = v.lower()
+                    if "rain" in name or "precip" in name:
+                        return ds[v]
+                return None
 
-            if "time" in da.dims:
-                da = da.sel(time=t, method="nearest")
+            da = get_rain_var(ds_rain)
 
-            lat_name = next((n for n in ["lat","latitude"] if n in da.coords), None)
-            lon_name = next((n for n in ["lon","longitude"] if n in da.coords), None)
+            if da is not None:
 
-            if lat_name and lon_name:
-                lat_idx = np.abs(da[lat_name].values - lat).argmin()
-                lon_idx = np.abs(da[lon_name].values - lon).argmin()
+                # handle time (kalau ada)
+                if "time" in da.dims:
+                    da = da.sel(time=t, method="nearest")
 
-                rain_val = float(da.isel({lat_name: lat_idx, lon_name: lon_idx}).values)
+                # cari nama koordinat
+                lat_name = next((n for n in ["lat","latitude","y"] if n in da.coords), None)
+                lon_name = next((n for n in ["lon","longitude","x"] if n in da.coords), None)
 
-                if np.isnan(rain_val):
-                    rain_val = None
+                if lat_name and lon_name:
+                    lat_vals = da[lat_name].values
+                    lon_vals = da[lon_name].values
 
-        except:
-            rain_val = None
+                    lat_idx = np.abs(lat_vals - lat).argmin()
+                    lon_idx = np.abs(lon_vals - lon).argmin()
 
-    # 🔥 SMART CURRENT
+                    rain_val = float(
+                        da.isel({lat_name: lat_idx, lon_name: lon_idx}).values
+                    )
+
+                    # 🔥 kalau NaN → jadikan 0 (biar tidak Unknown)
+                    if np.isnan(rain_val):
+                        rain_val = 0.0
+
+        except Exception as e:
+            rain_val = 0.0  # fallback aman
+
+    # =========================
+    # 🔥 CURRENT (TETAP)
+    # =========================
     u_cur, v_cur = get_current_smart(ds_cur, t, lat, lon)
 
     return {
@@ -379,6 +401,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             "precip": rain_val
         }
     }
+    
 # =========================
 # MAIN PROCESS
 # =========================
