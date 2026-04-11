@@ -164,7 +164,6 @@ def load_gsmap_cached(dt):
         Y = dt.strftime("%Y")
         M = dt.strftime("%m")
         D = dt.strftime("%d")
-        H = int(dt.strftime("%H"))
 
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
@@ -178,37 +177,29 @@ def load_gsmap_cached(dt):
             ftp.quit()
             return None
 
-        def extract_hour(fname):
+        datasets = []
+
+        # 🔥 ambil maksimal 8 file (biar cepat tapi representatif)
+        for f in sorted(files)[-8:]:
             try:
-                return int(fname.split(".")[-2][:2])
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
+                tmp_path = tmp.name
+                tmp.close()
+
+                with open(tmp_path, "wb") as out:
+                    ftp.retrbinary(f"RETR {f}", out.write)
+
+                ds = xr.open_dataset(tmp_path, decode_times=False)
+                os.remove(tmp_path)
+
+                datasets.append(ds)
+
             except:
-                return -1
-
-        files_with_hour = []
-        for f in files:
-            h = extract_hour(f)
-            if h >= 0:
-                files_with_hour.append((f, h))
-
-        if not files_with_hour:
-            ftp.quit()
-            return None
-
-        best_file = min(files_with_hour, key=lambda x: abs(x[1] - H))[0]
-
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
-        tmp_path = tmp.name
-        tmp.close()
-
-        with open(tmp_path, "wb") as f:
-            ftp.retrbinary(f"RETR {best_file}", f.write)
+                continue
 
         ftp.quit()
 
-        ds = xr.open_dataset(tmp_path, decode_times=False)
-        os.remove(tmp_path)
-
-        return ds
+        return datasets if datasets else None
 
     except Exception as e:
         st.warning(f"GSMAP gagal load: {e}")
@@ -336,65 +327,32 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     # =========================
     rain_val = 0.0
 
-    if ds_rain is not None:
-        if isinstance(ds_rain, list):
-            datasets = ds_rain
-        else:
-            datasets = [ds_rain]
-    
-        for ds in datasets:
-            try:
-                for var in ds.data_vars:
-    
-                    if var == "hourlyPrecipRate" or var == "hourlyPrecipRateGC":
-    
-                        da = ds[var]
-    
-                        if "time" in da.dims:
-                            try:
-                                da = da.sel(time=t, method="nearest")
-                            except:
-                                pass
-    
-                        lat_name = None
-                        lon_name = None
-    
-                        for n in ["lat", "latitude", "y"]:
-                            if n in da.coords:
-                                lat_name = n
-                                break
-    
-                        for n in ["lon", "longitude", "x"]:
-                            if n in da.coords:
-                                lon_name = n
-                                break
-    
-                        if lat_name and lon_name:
-    
-                            lat_vals = da[lat_name].values
-                            lon_vals = da[lon_name].values
-    
-                            lat_idx = np.abs(lat_vals - lat).argmin()
-                            lon_idx = np.abs(lon_vals - lon).argmin()
-    
-                            lat_start = max(0, lat_idx - 2)
-                            lat_end = lat_idx + 3
-    
-                            lon_start = max(0, lon_idx - 2)
-                            lon_end = lon_idx + 3
-    
-                            window = da.isel({
-                                lat_name: slice(lat_start, lat_end),
-                                lon_name: slice(lon_start, lon_end)
-                            })
-    
-                            val = float(window.max().values)
-    
-                            if not np.isnan(val):
-                                rain_val = max(rain_val, val)
-    
-            except Exception:
-                continue
+        if ds_rain is not None:
+            datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
+        
+            for ds in datasets:
+                try:
+                    if "hourlyPrecipRate" in ds:
+                        da = ds["hourlyPrecipRate"]
+        
+                        lat_vals = da["latitude"].values
+                        lon_vals = da["longitude"].values
+        
+                        lat_idx = np.abs(lat_vals - lat).argmin()
+                        lon_idx = np.abs(lon_vals - lon).argmin()
+        
+                        window = da.isel(
+                            latitude=slice(max(0,lat_idx-2), lat_idx+3),
+                            longitude=slice(max(0,lon_idx-2), lon_idx+3)
+                        )
+        
+                        val = float(window.max().values)
+        
+                        if not np.isnan(val):
+                            rain_val = max(rain_val, val)
+        
+                except:
+                    continue
 
     # =========================
     # CURRENT
@@ -452,28 +410,16 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         sample_points = generate_3_points_along_route(segment_route)
 
         samples = []
-
+        # 🔥 ambil 1x saja (sudah 1 hari full)
+        rain_datasets = load_gsmap_cached(t0)
+        
         for j, (lat, lon) in enumerate(sample_points):
             t = t0 + timedelta(hours=j * 3)
-        
-            times_to_check = [
-                t - timedelta(hours=3),
-                t,
-                t + timedelta(hours=3)
-            ]
-        
-            rain_datasets = []
-        
-            for tt in times_to_check:
-                ds_tmp = load_gsmap_cached(tt)
-                if ds_tmp is not None:
-                    rain_datasets.append(ds_tmp)
         
             samples.append(
                 extract_hourly_weather(ds_wave, ds_cur, rain_datasets, t, lat, lon)
             )
         
-        # 🔥 PINDAH KE LUAR LOOP (INI KUNCI)
         segments.append({
             "interval": f"T{i*6}-T{(i+1)*6}",
             "samples": samples,
