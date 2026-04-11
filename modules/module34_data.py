@@ -321,33 +321,39 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     if ds_rain is not None:
         datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
-
+    
         for ds in datasets:
             try:
                 if "hourlyPrecipRate" in ds:
-
+    
                     da = ds["hourlyPrecipRate"]
-
+    
                     lat_vals = da["latitude"].values
                     lon_vals = da["longitude"].values
-
+    
                     lat_idx = np.abs(lat_vals - lat).argmin()
                     lon_idx = np.abs(lon_vals - lon).argmin()
-
+    
+                    lat_start = max(0, lat_idx - 5)
+                    lat_end   = lat_idx + 6
+    
+                    lon_start = max(0, lon_idx - 5)
+                    lon_end   = lon_idx + 6
+    
                     window = da.isel(
-                        latitude=slice(max(0, lat_idx-2), lat_idx+3),
-                        longitude=slice(max(0, lon_idx-2), lon_idx+3)
+                        latitude=slice(lat_start, lat_end),
+                        longitude=slice(lon_start, lon_end)
                     )
-
+    
                     val = float(window.max().values)
-
+    
                     if not np.isnan(val):
                         rain_val = max(rain_val, val)
-                
-
+    
             except:
                 continue
-         # 🔥 KONVERSI KE BMKG SCALE
+    
+    # 🔥 INI POSISI YANG BENAR (SETELAH SEMUA LOOP SELESAI)
     rain_val = rain_val * 6
 
     u_cur, v_cur = get_current_smart(ds_cur, t, lat, lon)
