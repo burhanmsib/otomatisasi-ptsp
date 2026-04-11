@@ -152,10 +152,7 @@ def build_weather_range(samples):
 @st.cache_resource(ttl=1800)
 def load_gsmap_cached(dt):
     try:
-        import ftplib
-        import tempfile
-        import os
-        import xarray as xr
+        import ftplib, tempfile, os, xarray as xr
 
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
@@ -168,10 +165,9 @@ def load_gsmap_cached(dt):
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
 
-        base_dir = f"/now/netcdf/{Y}/{M}/{D}"
-        ftp.cwd(base_dir)
+        ftp.cwd(f"/now/netcdf/{Y}/{M}/{D}")
 
-        files = [f for f in ftp.nlst() if f.endswith(".nc")]
+        files = sorted([f for f in ftp.nlst() if f.endswith(".nc")])
 
         if not files:
             ftp.quit()
@@ -179,15 +175,15 @@ def load_gsmap_cached(dt):
 
         datasets = []
 
-        # 🔥 ambil maksimal 8 file (biar cepat tapi representatif)
-        for f in sorted(files)[-8:]:
+        # ambil beberapa file terakhir (representatif)
+        for fname in files[-6:]:
             try:
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
                 tmp_path = tmp.name
                 tmp.close()
 
-                with open(tmp_path, "wb") as out:
-                    ftp.retrbinary(f"RETR {f}", out.write)
+                with open(tmp_path, "wb") as f:
+                    ftp.retrbinary(f"RETR {fname}", f.write)
 
                 ds = xr.open_dataset(tmp_path, decode_times=False)
                 os.remove(tmp_path)
@@ -198,7 +194,6 @@ def load_gsmap_cached(dt):
                 continue
 
         ftp.quit()
-
         return datasets if datasets else None
 
     except Exception as e:
@@ -322,41 +317,36 @@ def get_current_smart(ds_cur, t, lat, lon):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    # =========================
-    # 🔥 RAIN FINAL (FIX GSMAP)
-    # =========================
     rain_val = 0.0
 
-        if ds_rain is not None:
-            datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
-        
-            for ds in datasets:
-                try:
-                    if "hourlyPrecipRate" in ds:
-                        da = ds["hourlyPrecipRate"]
-        
-                        lat_vals = da["latitude"].values
-                        lon_vals = da["longitude"].values
-        
-                        lat_idx = np.abs(lat_vals - lat).argmin()
-                        lon_idx = np.abs(lon_vals - lon).argmin()
-        
-                        window = da.isel(
-                            latitude=slice(max(0,lat_idx-2), lat_idx+3),
-                            longitude=slice(max(0,lon_idx-2), lon_idx+3)
-                        )
-        
-                        val = float(window.max().values)
-        
-                        if not np.isnan(val):
-                            rain_val = max(rain_val, val)
-        
-                except:
-                    continue
+    if ds_rain is not None:
+        datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
 
-    # =========================
-    # CURRENT
-    # =========================
+        for ds in datasets:
+            try:
+                if "hourlyPrecipRate" in ds:
+
+                    da = ds["hourlyPrecipRate"]
+
+                    lat_vals = da["latitude"].values
+                    lon_vals = da["longitude"].values
+
+                    lat_idx = np.abs(lat_vals - lat).argmin()
+                    lon_idx = np.abs(lon_vals - lon).argmin()
+
+                    window = da.isel(
+                        latitude=slice(max(0, lat_idx-2), lat_idx+3),
+                        longitude=slice(max(0, lon_idx-2), lon_idx+3)
+                    )
+
+                    val = float(window.max().values)
+
+                    if not np.isnan(val):
+                        rain_val = max(rain_val, val)
+
+            except:
+                continue
+
     u_cur, v_cur = get_current_smart(ds_cur, t, lat, lon)
 
     return {
@@ -377,7 +367,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             "precip": rain_val
         }
     }
-    
+
 # =========================
 # MAIN PROCESS
 # =========================
@@ -410,7 +400,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         sample_points = generate_3_points_along_route(segment_route)
 
         samples = []
-        # 🔥 ambil 1x saja (sudah 1 hari full)
+        # ambil data hujan SEKALI (1 hari penuh)
         rain_datasets = load_gsmap_cached(t0)
         
         for j, (lat, lon) in enumerate(sample_points):
