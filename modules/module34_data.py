@@ -344,11 +344,11 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
                     if not np.isnan(val):
                         rain_val = max(rain_val, val)
                 
-                    # 🔥 KONVERSI KE BMKG SCALE
-                    rain_val = rain_val * 6
 
             except:
                 continue
+         # 🔥 KONVERSI KE BMKG SCALE
+    rain_val = rain_val * 6
 
     u_cur, v_cur = get_current_smart(ds_cur, t, lat, lon)
 
