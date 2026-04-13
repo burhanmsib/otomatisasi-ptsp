@@ -80,7 +80,8 @@ def normalize_text(text):
     text = text.replace("”", '"').replace("“", '"')
 
     # ubah DMM (42'068 → 42.068)
-    text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
+    # hanya convert kalau TIDAK ADA titik (biar tidak merusak DMM)
+    text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
     # pisahin angka & arah
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
@@ -193,12 +194,12 @@ def extract_coordinates(text):
     # contoh: 06’05.584’’S
     # =========================
     pattern_dmm_no_deg = re.findall(
-        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]?\s*([NS])'
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([NS])'
         r'.{0,10}?'
-        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]?\s*([EW])',
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([EW])',
         text
     )
-
+    
     for m in pattern_dmm_no_deg:
         lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
     
