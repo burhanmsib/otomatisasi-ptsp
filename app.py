@@ -89,98 +89,113 @@ def dms_to_decimal(match):
 
 import re
 
+# =========================
+# NORMALIZE TEXT (SUPER FLEX)
+# =========================
 def normalize_text(text):
     text = text.upper()
 
-    # =========================
-    # NORMALISASI SIMBOL
-    # =========================
-    text = text.replace("̊", "°")
+    # simbol derajat
+    text = text.replace("O", "°")
     text = text.replace("º", "°")
-    text = text.replace("’", "'")
-    text = text.replace("‘", "'")
-    text = text.replace("”", '"')
-    text = text.replace("“", '"')
+    text = text.replace("˚", "°")
+    text = text.replace("̊", "°")
 
-    # =========================
-    # 🔥 FIX KHUSUS KASUS INI
-    # =========================
+    # petik
+    text = text.replace("’", "'").replace("‘", "'")
+    text = text.replace("”", '"').replace("“", '"')
 
-    # contoh: 42'068 → 42.068
+    # ubah DMM (42'068 → 42.068)
     text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
 
-    # tambahkan separator antar koordinat
-    text = re.sub(r"([EW])\s+(\d)", r"\1 | \2", text)
-
-    # dash jadi separator
+    # separator
+    text = text.replace(" TO ", " | ")
     text = text.replace("–", " | ")
     text = text.replace("-", " ")
+    text = text.replace("/", " ")
+    text = text.replace(",", " ")
 
-    # hilangkan kata tidak penting
+    # bersihin kata
     text = text.replace("FROM", "")
-    text = text.replace("TO", "")
+    text = text.replace("KE", "")
+    text = text.replace("DARI", "")
+
+    # rapihin spasi
+    text = " ".join(text.split())
 
     return text
 
 
+# =========================
+# DMS → DECIMAL (SMART)
+# =========================
 def dms_to_decimal(deg, minute=0, second=0, direction="N"):
-    val = float(deg) + float(minute)/60 + float(second)/3600
+    deg = float(deg)
+    minute = float(minute) if minute else 0
+    second = float(second) if second else 0
+
+    # auto detect DMM
+    if second == 0 and minute != 0:
+        decimal = deg + (minute / 60)
+    else:
+        decimal = deg + (minute / 60) + (second / 3600)
+
     if direction in ["S", "W"]:
-        val *= -1
-    return val
+        decimal *= -1
+
+    return decimal
 
 
+# =========================
+# EXTRACT ALL FORMAT
+# =========================
 def extract_coordinates(text):
     text = normalize_text(text)
-
     results = []
 
     # =========================
-    # 1. FORMAT DECIMAL
+    # 1. DECIMAL FORMAT
     # =========================
-    decimal_matches = re.findall(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)', text)
+    decimal_matches = re.findall(r'(-?\d+\.\d+)\s+(-?\d+\.\d+)', text)
     for lat, lon in decimal_matches:
         results.append((float(lat), float(lon)))
 
     # =========================
-    # 2. FORMAT DMS / DMM / CAMPUR
+    # 2. DMS / DMM FLEX
     # =========================
     pattern = re.findall(
-        r'(\d{1,3})[°\s-]*(\d{1,2}(?:\.\d+)?)?\'?\s*(\d{1,2}(?:\.\d+)?)?"?\s*([NS])'
-        r'.{0,10}?'
-        r'(\d{1,3})[°\s-]*(\d{1,2}(?:\.\d+)?)?\'?\s*(\d{1,2}(?:\.\d+)?)?"?\s*([EW])',
+        r'(\d{1,3})\s*°?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?\'?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?"?\s*'
+        r'([NS])'
+        r'.{0,15}?'
+        r'(\d{1,3})\s*°?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?\'?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?"?\s*'
+        r'([EW])',
         text
     )
 
     for m in pattern:
         lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
 
-        lat = dms_to_decimal(
-            lat_deg,
-            lat_min or 0,
-            lat_sec or 0,
-            lat_dir
-        )
-
-        lon = dms_to_decimal(
-            lon_deg,
-            lon_min or 0,
-            lon_sec or 0,
-            lon_dir
-        )
+        lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
+        lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
 
         results.append((lat, lon))
 
     return results
 
 
+# =========================
+# MAIN PARSER
+# =========================
 def parse_coordinate(text):
     coords = extract_coordinates(text)
 
     if not coords:
         return None
 
-    # minimal 1 titik
     if len(coords) == 1:
         return {
             "awal": f"{coords[0][0]},{coords[0][1]}",
