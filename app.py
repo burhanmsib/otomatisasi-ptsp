@@ -92,6 +92,9 @@ def normalize_text(text):
     text = text.replace("–", " | ")
     text = text.replace("-", " ")
     text = text.replace("/", " ")
+    # ubah double petik aneh
+    text = text.replace("’’", '"')
+    text = text.replace("''", '"')
 
     # JANGAN hapus koma → penting untuk decimal
     # text = text.replace(",", " ")
@@ -184,6 +187,25 @@ def extract_coordinates(text):
         lat = dms_to_decimal(m[0], m[1], m[2], m[3])
         lon = dms_to_decimal(m[4], m[5], m[6], m[7])
         results.append((lat, lon))
+
+    # =========================
+    # 4. FORMAT DMM TANPA °
+    # contoh: 06’05.584’’S
+    # =========================
+    pattern_dmm_no_deg = re.findall(
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]?\s*([NS])'
+        r'.{0,10}?'
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]?\s*([EW])',
+        text
+    )
+
+for m in pattern_dmm_no_deg:
+    lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
+
+    lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
+    lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
+
+    results.append((lat, lon))
 
     # =========================
     # VALIDASI KOORDINAT
