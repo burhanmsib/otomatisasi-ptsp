@@ -395,11 +395,17 @@ else:
                 st.error(f"Koordinat tidak valid: {d['koordinat']}")
                 st.stop()
 
+            # simpan parsed terakhir (PENTING)
             st.session_state.last_parsed = parsed
 
             parsed_rows.append({
-                "Tanggal": str(d["tanggal"]),
-                "Koordinat": d["koordinat"],
+                "Tanggal Koordinat": str(
+                    row.get("Tanggal Koordinat") 
+                    or row.get("Tanggal") 
+                    or row.get("Date") 
+                    or ""
+                ),
+                "Koordinat": koordinat,
                 "Awal": parsed.get("awal"),
                 "Akhir": parsed.get("akhir"),
                 "Mode": parsed.get("mode"),
