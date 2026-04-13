@@ -383,7 +383,7 @@ if st.button("Preview Data"):
     st.dataframe(df_preview)
 
 # =========================
-# TAMPILKAN PREVIEW (PERSIST)
+# 🔥 TAMPILKAN PREVIEW (PERSIST)
 # =========================
 if st.session_state.preview_data is not None:
 
@@ -393,16 +393,17 @@ if st.session_state.preview_data is not None:
     st.dataframe(df_preview)
 
     # =========================
-    # 🗺️ PREVIEW MAP (HANYA 1 TITIK)
+    # 🗺️ AUTO MAP
     # =========================
-    if len(df_preview) == 1:
+    import folium
+    from streamlit_folium import st_folium
 
-        import folium
-        from streamlit_folium import st_folium
+    st.subheader("🗺️ Preview Lokasi")
 
-        st.subheader("🗺️ Preview Lokasi")
+    try:
+        # 🔵 MODE TITIK
+        if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
 
-        try:
             latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
             lat, lon = map(float, latlon.split(","))
 
@@ -410,16 +411,41 @@ if st.session_state.preview_data is not None:
 
             folium.Marker(
                 [lat, lon],
-                tooltip=f"Lat: {lat}, Lon: {lon}",
-                popup=f"{lat}, {lon}",
+                tooltip=f"{lat}, {lon}",
                 icon=folium.Icon(color="blue")
             ).add_to(m)
 
             st_folium(m, height=500)
 
-        except Exception as e:
-            st.warning("Gagal menampilkan peta")
-            st.exception(e)
+        # 🟢 MODE RUTE
+        else:
+            all_points = []
+
+            for _, row in df_preview.iterrows():
+                coords = row.get("All Points", [])
+                for lat, lon in coords:
+                    all_points.append((lat, lon))
+
+            if all_points:
+                center_lat = sum(p[0] for p in all_points) / len(all_points)
+                center_lon = sum(p[1] for p in all_points) / len(all_points)
+
+                m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
+
+                for i, (lat, lon) in enumerate(all_points, start=1):
+                    folium.Marker(
+                        [lat, lon],
+                        tooltip=f"Titik {i}"
+                    ).add_to(m)
+
+                if len(all_points) > 1:
+                    folium.PolyLine(all_points, color="blue").add_to(m)
+
+                st_folium(m, height=500)
+
+    except Exception as e:
+        st.warning("Gagal menampilkan peta")
+        st.exception(e)
 
     # =========================
     # SAVE
