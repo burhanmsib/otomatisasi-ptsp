@@ -313,6 +313,36 @@ if mode == "Ambil dari Google Sheet":
     st.success(f"{len(df_id)} data ditemukan")
     st.dataframe(df_id)
 
+    # =========================
+    # 🔥 PARSE OTOMATIS (INI TAMBAHAN)
+    # =========================
+    if st.button("Preview Data"):
+
+        parsed_rows = []
+
+        for _, row in df_id.iterrows():
+
+            parsed = parse_coordinate(row["Koordinat"])
+
+            if parsed is None:
+                st.error(f"Koordinat tidak valid: {row['Koordinat']}")
+                st.stop()
+
+            # simpan parsed terakhir (PENTING)
+            st.session_state.last_parsed = parsed
+
+            parsed_rows.append({
+                "Tanggal": row.get("Tanggal Koordinat", ""),
+                "Koordinat": row["Koordinat"],
+                "Awal": parsed.get("awal"),
+                "Akhir": parsed.get("akhir"),
+                "Mode": parsed.get("mode"),
+                "All": parsed.get("all", [])
+            })
+
+        df_preview = pd.DataFrame(parsed_rows)
+        st.session_state.preview_data = df_preview
+
 # =========================
 # MODE 2 – INPUT MANUAL
 # =========================
@@ -340,90 +370,71 @@ else:
             "koordinat": koordinat_i
         })
 
-# =========================
-# PREVIEW BUTTON
-# =========================
-if st.button("Preview Data"):
-
-    parsed_rows = []
-
-    for d in data_list:
-        parsed = parse_coordinate(d["koordinat"])
-
-        if parsed is None:
-            st.error(f"Koordinat tidak valid: {d['koordinat']}")
-            st.stop()
-
-        # =========================
-        # 🔥 DETEKSI MODE (TITIK / RUTE)
-        # =========================
-        if parsed.get("mode") == "titik":
-            lat = parsed.get("lat")
-            lon = parsed.get("lon")
-
-            st.info(f"📍 Titik terdeteksi otomatis: {lat}, {lon}")
-
-        parsed_rows.append({
-            "Tanggal Koordinat": str(d["tanggal"]),
-            "Koordinat": d["koordinat"],
-            "Koordinat Awal (Desimal)": parsed.get("awal"),
-            "Koordinat Akhir (Desimal)": parsed.get("akhir"),
-            "All Points": parsed.get("all", []),
-            "Mode": parsed.get("mode", "unknown")  # 🔥 tambahan biar jelas
-        })
-
-    df_preview = pd.DataFrame(parsed_rows)
-
     # =========================
-    # 🔥 SIMPAN KE SESSION (ANTI HILANG)
+    # 🔥 PREVIEW (TAMBAHAN)
     # =========================
-    st.session_state.preview_data = df_preview
+    if st.button("Preview Data"):
 
-    st.success("✅ Data berhasil diparsing")
-    st.dataframe(df_preview)
+        parsed_rows = []
+
+        for d in data_list:
+            parsed = parse_coordinate(d["koordinat"])
+
+            if parsed is None:
+                st.error(f"Koordinat tidak valid: {d['koordinat']}")
+                st.stop()
+
+            st.session_state.last_parsed = parsed
+
+            parsed_rows.append({
+                "Tanggal": str(d["tanggal"]),
+                "Koordinat": d["koordinat"],
+                "Awal": parsed.get("awal"),
+                "Akhir": parsed.get("akhir"),
+                "Mode": parsed.get("mode"),
+                "All": parsed.get("all", [])
+            })
+
+        df_preview = pd.DataFrame(parsed_rows)
+        st.session_state.preview_data = df_preview
+
+        st.success("✅ Data berhasil diparsing")
+        st.dataframe(df_preview)
 
 # =========================
-# 🔥 TAMPILKAN PREVIEW (PERSIST)
+# 🔥 PREVIEW + MAP (GLOBAL)
 # =========================
-if st.session_state.preview_data is not None:
+if st.session_state.get("preview_data") is not None:
 
     df_preview = st.session_state.preview_data
 
     st.success("✅ Data berhasil diparsing")
     st.dataframe(df_preview)
 
-    # =========================
-    # 🗺️ AUTO MAP
-    # =========================
     import folium
     from streamlit_folium import st_folium
 
     st.subheader("🗺️ Preview Lokasi")
 
     try:
-        # 🔵 MODE TITIK
         if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
 
-            latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
+            latlon = df_preview.iloc[0]["Awal"]
             lat, lon = map(float, latlon.split(","))
+
+            st.success(f"📍 Titik otomatis: {lat}, {lon}")
 
             m = folium.Map(location=[lat, lon], zoom_start=7)
 
-            folium.Marker(
-                [lat, lon],
-                tooltip=f"{lat}, {lon}",
-                icon=folium.Icon(color="blue")
-            ).add_to(m)
+            folium.Marker([lat, lon]).add_to(m)
 
-            st_folium(m, height=500)
+            st_folium(m, height=400)
 
-        # 🟢 MODE RUTE
         else:
             all_points = []
 
             for _, row in df_preview.iterrows():
-                coords = row.get("All Points", [])
-                for lat, lon in coords:
+                for lat, lon in row.get("All", []):
                     all_points.append((lat, lon))
 
             if all_points:
@@ -432,19 +443,15 @@ if st.session_state.preview_data is not None:
 
                 m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
 
-                for i, (lat, lon) in enumerate(all_points, start=1):
-                    folium.Marker(
-                        [lat, lon],
-                        tooltip=f"Titik {i}"
-                    ).add_to(m)
+                for lat, lon in all_points:
+                    folium.Marker([lat, lon]).add_to(m)
 
-                if len(all_points) > 1:
-                    folium.PolyLine(all_points, color="blue").add_to(m)
+                folium.PolyLine(all_points).add_to(m)
 
-                st_folium(m, height=500)
+                st_folium(m, height=400)
 
     except Exception as e:
-        st.warning("Gagal menampilkan peta")
+        st.warning("Map error")
         st.exception(e)
 
     # =========================
