@@ -107,6 +107,8 @@ def normalize_text(text):
 
     # ubah DMM (42'068 → 42.068)
     text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
+    text = re.sub(r"(\d)([NS])", r"\1 \2", text)
+    text = re.sub(r"(\d)([EW])", r"\1 \2", text)
 
     # separator
     text = text.replace(" TO ", " | ")
@@ -119,6 +121,7 @@ def normalize_text(text):
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
+    
 
     # rapihin spasi
     text = " ".join(text.split())
@@ -134,8 +137,8 @@ def dms_to_decimal(deg, minute=0, second=0, direction="N"):
     minute = float(minute) if minute else 0
     second = float(second) if second else 0
 
-    # auto detect DMM
-    if second == 0 and minute != 0:
+    # FIX: hanya DMM kalau memang tidak ada detik sama sekali
+    if second == 0 and '.' in str(minute):
         decimal = deg + (minute / 60)
     else:
         decimal = deg + (minute / 60) + (second / 3600)
@@ -156,7 +159,7 @@ def extract_coordinates(text):
     # =========================
     # 1. DECIMAL FORMAT
     # =========================
-    decimal_matches = re.findall(r'(-?\d+\.\d+)\s+(-?\d+\.\d+)', text)
+    decimal_matches = re.findall(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)', text)
     for lat, lon in decimal_matches:
         results.append((float(lat), float(lon)))
 
