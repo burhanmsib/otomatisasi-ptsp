@@ -126,6 +126,16 @@ def normalize_text(text):
     # rapihin spasi
     text = " ".join(text.split())
 
+    # pisahin angka + huruf
+    text = re.sub(r"([0-9])([NSEW])", r"\1 \2", text)
+    text = re.sub(r"([NSEW])([0-9])", r"\1 \2", text)
+    
+    # pisahin angka nempel
+    text = re.sub(r"(\d{2,})(\d{2})", r"\1 \2", text)
+    
+    # jaga-jaga double separator
+    text = text.replace("||", "|")
+
     return text
 
 
@@ -187,7 +197,32 @@ def extract_coordinates(text):
 
         results.append((lat, lon))
 
+    # =========================
+    # 3. FALLBACK SIMPLE (angka + arah)
+    # =========================
+    fallback = re.findall(
+        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([NS])\s+'
+        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([EW])',
+        text
+    )
+    
+    for m in fallback:
+        lat = dms_to_decimal(m[0], m[1], m[2], m[3])
+        lon = dms_to_decimal(m[4], m[5], m[6], m[7])
+        results.append((lat, lon))
+
     return results
+
+    # =========================
+    # VALIDASI KOORDINAT
+    # =========================
+    clean_results = []
+    
+    for lat, lon in results:
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            clean_results.append((lat, lon))
+    
+    return clean_results
 
 
 # =========================
