@@ -233,14 +233,26 @@ def parse_coordinate(text):
     if not coords:
         return None
 
+    # =========================
+    # 🔵 MODE TITIK (AUTO)
+    # =========================
     if len(coords) == 1:
+        lat, lon = coords[0]
+
         return {
-            "awal": f"{coords[0][0]},{coords[0][1]}",
-            "akhir": f"{coords[0][0]},{coords[0][1]}",
-            "all": coords
+            "mode": "titik",
+            "awal": f"{lat},{lon}",
+            "akhir": f"{lat},{lon}",
+            "all": coords,
+            "lat": lat,
+            "lon": lon
         }
 
+    # =========================
+    # 🟢 MODE RUTE
+    # =========================
     return {
+        "mode": "rute",
         "awal": f"{coords[0][0]},{coords[0][1]}",
         "akhir": f"{coords[-1][0]},{coords[-1][1]}",
         "all": coords
@@ -342,19 +354,33 @@ if st.button("Preview Data"):
             st.error(f"Koordinat tidak valid: {d['koordinat']}")
             st.stop()
 
+        # =========================
+        # 🔥 DETEKSI MODE (TITIK / RUTE)
+        # =========================
+        if parsed.get("mode") == "titik":
+            lat = parsed.get("lat")
+            lon = parsed.get("lon")
+
+            st.info(f"📍 Titik terdeteksi otomatis: {lat}, {lon}")
+
         parsed_rows.append({
             "Tanggal Koordinat": str(d["tanggal"]),
             "Koordinat": d["koordinat"],
-            "Koordinat Awal (Desimal)": parsed["awal"],
-            "Koordinat Akhir (Desimal)": parsed["akhir"],
-            "All Points": parsed.get("all", [])
+            "Koordinat Awal (Desimal)": parsed.get("awal"),
+            "Koordinat Akhir (Desimal)": parsed.get("akhir"),
+            "All Points": parsed.get("all", []),
+            "Mode": parsed.get("mode", "unknown")  # 🔥 tambahan biar jelas
         })
 
     df_preview = pd.DataFrame(parsed_rows)
 
-    # simpan ke session biar tidak hilang
+    # =========================
+    # 🔥 SIMPAN KE SESSION (ANTI HILANG)
+    # =========================
     st.session_state.preview_data = df_preview
 
+    st.success("✅ Data berhasil diparsing")
+    st.dataframe(df_preview)
 
 # =========================
 # TAMPILKAN PREVIEW (PERSIST)
