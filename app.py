@@ -61,32 +61,6 @@ init_state()
 # =========================
 df_id = None
 
-# =========================
-# PARSER FLEXIBLE
-# =========================
-
-def dms_to_decimal(match):
-    deg = float(match.group(1))
-    minute = match.group(2)
-    sec = match.group(3)
-    direction = match.group(4)
-
-    minute = float(minute) if minute else 0
-    sec = float(sec) if sec else 0
-
-    # 🔥 DETEKSI DMM vs DMS
-    if sec == 0 and minute != 0:
-        # 👉 kemungkinan besar DMM
-        decimal = deg + (minute / 60)
-    else:
-        # 👉 DMS normal
-        decimal = deg + (minute / 60) + (sec / 3600)
-
-    if direction in ['S', 'W']:
-        decimal *= -1
-
-    return decimal
-
 import re
 
 # =========================
@@ -107,33 +81,33 @@ def normalize_text(text):
 
     # ubah DMM (42'068 → 42.068)
     text = re.sub(r"(\d+)'(\d+)", r"\1.\2", text)
+
+    # pisahin angka & arah
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
+    text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
     # separator
     text = text.replace(" TO ", " | ")
     text = text.replace("–", " | ")
     text = text.replace("-", " ")
     text = text.replace("/", " ")
-    text = text.replace(",", " ")
+
+    # JANGAN hapus koma → penting untuk decimal
+    # text = text.replace(",", " ")
 
     # bersihin kata
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
-    
 
     # rapihin spasi
     text = " ".join(text.split())
 
-    # pisahin angka + huruf
-    text = re.sub(r"([0-9])([NSEW])", r"\1 \2", text)
-    text = re.sub(r"([NSEW])([0-9])", r"\1 \2", text)
-    
-    # pisahin angka nempel
-    text = re.sub(r"(\d{2,})(\d{2})", r"\1 \2", text)
-    
-    # jaga-jaga double separator
+    # pisahin angka besar (lebih aman)
+    text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
+
+    # jaga-jaga separator
     text = text.replace("||", "|")
 
     return text
@@ -147,7 +121,7 @@ def dms_to_decimal(deg, minute=0, second=0, direction="N"):
     minute = float(minute) if minute else 0
     second = float(second) if second else 0
 
-    # FIX: hanya DMM kalau memang tidak ada detik sama sekali
+    # deteksi DMM vs DMS
     if second == 0 and '.' in str(minute):
         decimal = deg + (minute / 60)
     else:
@@ -169,7 +143,7 @@ def extract_coordinates(text):
     # =========================
     # 1. DECIMAL FORMAT
     # =========================
-    decimal_matches = re.findall(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)', text)
+    decimal_matches = re.findall(r'(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)', text)
     for lat, lon in decimal_matches:
         results.append((float(lat), float(lon)))
 
@@ -198,30 +172,32 @@ def extract_coordinates(text):
         results.append((lat, lon))
 
     # =========================
-    # 3. FALLBACK SIMPLE (angka + arah)
+    # 3. FALLBACK FORMAT
     # =========================
     fallback = re.findall(
         r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([NS])\s+'
         r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([EW])',
         text
     )
-    
+
     for m in fallback:
         lat = dms_to_decimal(m[0], m[1], m[2], m[3])
         lon = dms_to_decimal(m[4], m[5], m[6], m[7])
         results.append((lat, lon))
 
-    return results
-
     # =========================
     # VALIDASI KOORDINAT
     # =========================
     clean_results = []
-    
+
     for lat, lon in results:
         if -90 <= lat <= 90 and -180 <= lon <= 180:
             clean_results.append((lat, lon))
-    
+
+    # debug kalau kosong
+    if len(clean_results) == 0:
+        print("⚠️ Koordinat tidak terbaca:", text)
+
     return clean_results
 
 
