@@ -314,7 +314,7 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
     # =========================
-    # 🔥 PARSE OTOMATIS (INI TAMBAHAN)
+    # 🔥 PARSE OTOMATIS
     # =========================
     if st.button("Preview Data"):
 
@@ -322,30 +322,25 @@ if mode == "Ambil dari Google Sheet":
 
         for _, row in df_id.iterrows():
 
-            parsed = parse_coordinate(row["Koordinat"])
+            koordinat = row.get("Koordinat", "")
+
+            parsed = parse_coordinate(koordinat)
 
             if parsed is None:
-                st.error(f"Koordinat tidak valid: {row['Koordinat']}")
+                st.error(f"Koordinat tidak valid: {koordinat}")
                 st.stop()
 
             # simpan parsed terakhir (PENTING)
             st.session_state.last_parsed = parsed
 
             parsed_rows.append({
-                parsed_rows.append({
-                    "Tanggal Koordinat": str(
-                        row.get("Tanggal Koordinat") 
-                        or row.get("Tanggal") 
-                        or row.get("Date") 
-                        or ""
-                    ),
-                    "Koordinat": row.get("Koordinat", ""),
-                    "Awal": parsed.get("awal"),
-                    "Akhir": parsed.get("akhir"),
-                    "Mode": parsed.get("mode"),
-                    "All": parsed.get("all", [])
-                })
-                "Koordinat": row["Koordinat"],
+                "Tanggal Koordinat": str(
+                    row.get("Tanggal Koordinat") 
+                    or row.get("Tanggal") 
+                    or row.get("Date") 
+                    or ""
+                ),
+                "Koordinat": koordinat,
                 "Awal": parsed.get("awal"),
                 "Akhir": parsed.get("akhir"),
                 "Mode": parsed.get("mode"),
@@ -353,7 +348,11 @@ if mode == "Ambil dari Google Sheet":
             })
 
         df_preview = pd.DataFrame(parsed_rows)
+
         st.session_state.preview_data = df_preview
+
+        st.success("✅ Data berhasil diparsing")
+        st.dataframe(df_preview)
 
 # =========================
 # MODE 2 – INPUT MANUAL
