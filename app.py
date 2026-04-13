@@ -199,13 +199,13 @@ def extract_coordinates(text):
         text
     )
 
-for m in pattern_dmm_no_deg:
-    lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
-
-    lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
-    lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
-
-    results.append((lat, lon))
+    for m in pattern_dmm_no_deg:
+        lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
+    
+        lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
+        lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
+    
+        results.append((lat, lon))
 
     # =========================
     # VALIDASI KOORDINAT
