@@ -233,29 +233,23 @@ def parse_coordinate(text):
     if not coords:
         return None
 
-    # =========================
-    # 🔵 MODE TITIK (AUTO)
-    # =========================
+    # 🔵 MODE TITIK
     if len(coords) == 1:
         lat, lon = coords[0]
 
         return {
             "mode": "titik",
-            "awal": f"{lat},{lon}",
-            "akhir": f"{lat},{lon}",
-            "all": coords,
-            "lat": lat,
-            "lon": lon
+            "Koordinat Awal (Desimal)": f"{lat},{lon}",
+            "Koordinat Akhir (Desimal)": f"{lat},{lon}",
+            "All Points": coords
         }
 
-    # =========================
     # 🟢 MODE RUTE
-    # =========================
     return {
         "mode": "rute",
-        "awal": f"{coords[0][0]},{coords[0][1]}",
-        "akhir": f"{coords[-1][0]},{coords[-1][1]}",
-        "all": coords
+        "Koordinat Awal (Desimal)": f"{coords[0][0]},{coords[0][1]}",
+        "Koordinat Akhir (Desimal)": f"{coords[-1][0]},{coords[-1][1]}",
+        "All Points": coords
     }
 
 # =========================
@@ -341,10 +335,16 @@ if mode == "Ambil dari Google Sheet":
                     or ""
                 ),
                 "Koordinat": koordinat,
-                "Awal": parsed.get("awal"),
-                "Akhir": parsed.get("akhir"),
+            
+                # 🔥 TAMBAHAN (BIAR SESUAI SHEET)
+                "Koordinat Awal": koordinat,
+                "Koordinat Akhir": koordinat,
+            
+                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+            
                 "Mode": parsed.get("mode"),
-                "All": parsed.get("all", [])
+                "All Points": parsed.get("All Points", [])
             })
 
         df_preview = pd.DataFrame(parsed_rows)
@@ -405,12 +405,17 @@ else:
             parsed_rows.append({
                 "Tanggal Koordinat": str(tanggal),
                 "Koordinat": koordinat,
-                "Awal": parsed.get("awal"),
-                "Akhir": parsed.get("akhir"),
+            
+                # 🔥 TAMBAHAN
+                "Koordinat Awal": koordinat,
+                "Koordinat Akhir": koordinat,
+            
+                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+            
                 "Mode": parsed.get("mode"),
-                "All": parsed.get("all", [])
+                "All Points": parsed.get("All Points", [])
             })
-
         df_preview = pd.DataFrame(parsed_rows)
         st.session_state.preview_data = df_preview
 
@@ -433,9 +438,12 @@ if st.session_state.get("preview_data") is not None:
     st.subheader("🗺️ Preview Lokasi")
 
     try:
+        # =========================
+        # 🔵 MODE TITIK
+        # =========================
         if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
 
-            latlon = df_preview.iloc[0]["Awal"]
+            latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
             lat, lon = map(float, latlon.split(","))
 
             st.success(f"📍 Titik otomatis: {lat}, {lon}")
@@ -446,11 +454,14 @@ if st.session_state.get("preview_data") is not None:
 
             st_folium(m, height=400)
 
+        # =========================
+        # 🟢 MODE RUTE
+        # =========================
         else:
             all_points = []
 
             for _, row in df_preview.iterrows():
-                for lat, lon in row.get("All", []):
+                for lat, lon in row.get("All Points", []):
                     all_points.append((lat, lon))
 
             if all_points:
@@ -462,7 +473,9 @@ if st.session_state.get("preview_data") is not None:
                 for lat, lon in all_points:
                     folium.Marker([lat, lon]).add_to(m)
 
-                folium.PolyLine(all_points).add_to(m)
+                # garis rute
+                if len(all_points) > 1:
+                    folium.PolyLine(all_points).add_to(m)
 
                 st_folium(m, height=400)
 
