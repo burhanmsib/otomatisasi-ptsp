@@ -332,7 +332,19 @@ if mode == "Ambil dari Google Sheet":
             st.session_state.last_parsed = parsed
 
             parsed_rows.append({
-                "Tanggal": row.get("Tanggal Koordinat", ""),
+                parsed_rows.append({
+                    "Tanggal Koordinat": str(
+                        row.get("Tanggal Koordinat") 
+                        or row.get("Tanggal") 
+                        or row.get("Date") 
+                        or ""
+                    ),
+                    "Koordinat": row.get("Koordinat", ""),
+                    "Awal": parsed.get("awal"),
+                    "Akhir": parsed.get("akhir"),
+                    "Mode": parsed.get("mode"),
+                    "All": parsed.get("all", [])
+                })
                 "Koordinat": row["Koordinat"],
                 "Awal": parsed.get("awal"),
                 "Akhir": parsed.get("akhir"),
