@@ -382,29 +382,28 @@ else:
         })
 
     # =========================
-    # 🔥 PREVIEW (TAMBAHAN)
+    # 🔥 PREVIEW
     # =========================
     if st.button("Preview Data"):
 
         parsed_rows = []
 
         for d in data_list:
-            parsed = parse_coordinate(d["koordinat"])
+
+            koordinat = d.get("koordinat", "")
+            tanggal = d.get("tanggal", "")
+
+            parsed = parse_coordinate(koordinat)
 
             if parsed is None:
-                st.error(f"Koordinat tidak valid: {d['koordinat']}")
+                st.error(f"Koordinat tidak valid: {koordinat}")
                 st.stop()
 
-            # simpan parsed terakhir (PENTING)
+            # simpan parsed terakhir
             st.session_state.last_parsed = parsed
 
             parsed_rows.append({
-                "Tanggal Koordinat": str(
-                    row.get("Tanggal Koordinat") 
-                    or row.get("Tanggal") 
-                    or row.get("Date") 
-                    or ""
-                ),
+                "Tanggal Koordinat": str(tanggal),
                 "Koordinat": koordinat,
                 "Awal": parsed.get("awal"),
                 "Akhir": parsed.get("akhir"),
