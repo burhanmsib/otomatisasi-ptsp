@@ -277,8 +277,6 @@ if mode == "Ambil dari Google Sheet":
         st.error("Gagal load data")
         st.stop()
 
-    st.session_state.df_requests = df_requests
-
     id_list = sorted(df_requests["Id"].astype(str).unique())
 
     col1, col2 = st.columns(2)
@@ -292,38 +290,41 @@ if mode == "Ambil dari Google Sheet":
     selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
 
     if not selected_id:
-        st.warning("Silakan pilih ID")
+        st.warning("Silakan pilih ID terlebih dahulu")
         st.stop()
 
     df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
 
+    if df_id.empty:
+        st.error("Data tidak ditemukan")
+        st.stop()
+
     st.success(f"{len(df_id)} data ditemukan")
     st.dataframe(df_id)
 
-    if st.button("Preview Data"):
+    # 🔥 LANGSUNG PARSE TANPA BUTTON
+    parsed_rows = []
 
-        parsed_rows = []
+    for _, row in df_id.iterrows():
 
-        for _, row in df_id.iterrows():
+        koordinat = row.get("Koordinat", "")
+        parsed = parse_coordinate(koordinat)
 
-            koordinat = row.get("Koordinat", "")
-            parsed = parse_coordinate(koordinat)
+        if parsed is None:
+            continue
 
-            if parsed is None:
-                continue
+        parsed_rows.append({
+            "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or ""),
+            "Koordinat": koordinat,
+            "Koordinat Awal": koordinat,
+            "Koordinat Akhir": koordinat,
+            "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+            "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+            "Mode": parsed.get("mode"),
+            "All Points": parsed.get("All Points", [])
+        })
 
-            parsed_rows.append({
-                "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or row.get("Tanggal") or ""),
-                "Koordinat": koordinat,
-                "Koordinat Awal": koordinat,
-                "Koordinat Akhir": koordinat,
-                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-                "Mode": parsed.get("mode"),
-                "All Points": parsed.get("All Points", [])
-            })
-
-        st.session_state.preview_data = pd.DataFrame(parsed_rows)
+    st.session_state.preview_data = pd.DataFrame(parsed_rows)
 
 
 # =========================
