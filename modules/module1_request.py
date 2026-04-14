@@ -1,5 +1,5 @@
 # =========================
-# MODULE 1 – GOOGLE SHEET VIA SERVICE ACCOUNT (FINAL)
+# MODULE 1 – GOOGLE SHEET VIA SERVICE ACCOUNT (FINAL FIXED)
 # =========================
 
 import streamlit as st
@@ -45,7 +45,7 @@ def validate_request_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =========================
-# AUTH CLIENT (REUSABLE)
+# AUTH CLIENT
 # =========================
 def get_gspread_client():
 
@@ -54,14 +54,11 @@ def get_gspread_client():
         "https://www.googleapis.com/auth/drive"
     ]
 
-    # LOCAL
     if Path("service_account.json").exists():
         creds = Credentials.from_service_account_file(
             "service_account.json",
             scopes=scopes,
         )
-
-    # STREAMLIT CLOUD
     else:
         creds = Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
@@ -72,7 +69,7 @@ def get_gspread_client():
 
 
 # =========================
-# GET CONFIG (SECRETS)
+# CONFIG
 # =========================
 def get_sheet_config():
     config = st.secrets["google_sheet"]
@@ -99,16 +96,17 @@ def load_sheet(sheet_name):
         df = pd.DataFrame(data)
 
         if df.empty:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
         return validate_request_dataframe(df)
 
     except Exception as e:
         st.warning(f"Gagal load sheet {sheet_name}: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
+
 
 # =========================
-# LOAD N8N SHEET
+# LOAD N8N (SURAT)
 # =========================
 @st.cache_data(show_spinner=False)
 def load_google_sheet():
@@ -117,27 +115,41 @@ def load_google_sheet():
 
 
 # =========================
-# LOAD MANUAL SHEET
+# LOAD MANUAL (INPUT_MANUAL)
 # =========================
 @st.cache_data(show_spinner=False)
 def load_manual_sheet():
     cfg = get_sheet_config()
     df = load_sheet(cfg["sheet_manual"])
 
-    if df is None or df.empty:
+    if df.empty:
         st.warning("Sheet Input_Manual kosong atau gagal dibaca")
 
     return df
 
+
 # =========================
-# GET DATA BY ID (DUAL SOURCE)
+# 🔥 NEW: GET LIST ID MANUAL (INI YANG DIPAKAI DI UI)
+# =========================
+def get_manual_id_list():
+
+    df = load_manual_sheet()
+
+    if df.empty or "Id" not in df.columns:
+        return []
+
+    return sorted(df["Id"].dropna().astype(str).unique())
+
+
+# =========================
+# GET DATA BY ID (PRIORITAS MANUAL)
 # =========================
 def get_data_by_id(id_surat):
 
     df_manual = load_manual_sheet()
     df_n8n = load_google_sheet()
 
-    # 🔥 PRIORITAS: MANUAL DULU
+    # 🔥 PRIORITAS MANUAL
     row = df_manual[df_manual["Id"].astype(str) == str(id_surat)]
     if not row.empty:
         return row.iloc[0].to_dict()
@@ -156,19 +168,9 @@ def get_data_by_id(id_surat):
 def generate_id():
 
     try:
-        client = get_gspread_client()
-        cfg = get_sheet_config()
+        df = load_manual_sheet()
 
-        sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(cfg["sheet_manual"])
-
-        data = sheet.get_all_records()
-
-        if not data:
-            return "PTSP-001"
-
-        df = pd.DataFrame(data)
-
-        if "Id" not in df.columns:
+        if df.empty or "Id" not in df.columns:
             return "PTSP-001"
 
         ids = df["Id"].dropna().astype(str)
@@ -178,8 +180,7 @@ def generate_id():
         for i in ids:
             if i.startswith("PTSP-"):
                 try:
-                    num = int(i.split("-")[1])
-                    numbers.append(num)
+                    numbers.append(int(i.split("-")[1]))
                 except:
                     continue
 
@@ -190,6 +191,7 @@ def generate_id():
     except Exception as e:
         st.warning(f"Gagal generate ID: {e}")
         return "PTSP-001"
+
 
 # =========================
 # SAVE MANUAL INPUT
@@ -221,11 +223,11 @@ def save_manual_input(data):
 
 
 # =========================
-# STREAMLIT WRAPPER (DISPLAY)
+# DISPLAY (N8N ONLY)
 # =========================
 def load_request_sheet_streamlit():
 
-    st.subheader("📄 Data Permintaan PTSP")
+    st.subheader("📄 Data Permintaan PTSP (Surat / Telegram)")
 
     try:
         df = load_google_sheet()
