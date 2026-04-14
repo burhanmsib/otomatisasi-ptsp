@@ -262,9 +262,6 @@ mode = st.radio(
     ["Ambil dari Google Sheet", "Input Manual"]
 )
 
-if mode == "Ambil dari Google Sheet":
-    st.session_state.manual_saved = False
-
 # =========================
 # MODE 1 – GOOGLE SHEET
 # =========================
@@ -280,8 +277,6 @@ if mode == "Ambil dari Google Sheet":
 
     st.session_state.df_requests = df_requests
 
-    st.header("🆔 Pilih ID Surat")
-
     id_list = sorted(df_requests["Id"].astype(str).unique())
 
     col1, col2 = st.columns(2)
@@ -295,21 +290,14 @@ if mode == "Ambil dari Google Sheet":
     selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
 
     if not selected_id:
-        st.warning("Silakan pilih atau input ID terlebih dahulu")
+        st.warning("Silakan pilih ID")
         st.stop()
 
     df_id = df_requests[df_requests["Id"].astype(str) == selected_id]
 
-    if df_id.empty:
-        st.error("Data tidak ditemukan")
-        st.stop()
-
     st.success(f"{len(df_id)} data ditemukan")
     st.dataframe(df_id)
 
-    # =========================
-    # 🔥 PARSE OTOMATIS
-    # =========================
     if st.button("Preview Data"):
 
         parsed_rows = []
@@ -317,113 +305,129 @@ if mode == "Ambil dari Google Sheet":
         for _, row in df_id.iterrows():
 
             koordinat = row.get("Koordinat", "")
-
             parsed = parse_coordinate(koordinat)
 
             if parsed is None:
-                st.error(f"Koordinat tidak valid: {koordinat}")
-                st.stop()
-
-            # simpan parsed terakhir (PENTING)
-            st.session_state.last_parsed = parsed
+                continue
 
             parsed_rows.append({
-                "Tanggal Koordinat": str(
-                    row.get("Tanggal Koordinat") 
-                    or row.get("Tanggal") 
-                    or row.get("Date") 
-                    or ""
-                ),
+                "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or row.get("Tanggal") or ""),
                 "Koordinat": koordinat,
-            
-                # 🔥 TAMBAHAN (BIAR SESUAI SHEET)
                 "Koordinat Awal": koordinat,
                 "Koordinat Akhir": koordinat,
-            
                 "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
                 "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-            
                 "Mode": parsed.get("mode"),
                 "All Points": parsed.get("All Points", [])
             })
 
-        df_preview = pd.DataFrame(parsed_rows)
+        st.session_state.preview_data = pd.DataFrame(parsed_rows)
 
-        st.session_state.preview_data = df_preview
-
-        st.success("✅ Data berhasil diparsing")
-        st.dataframe(df_preview)
 
 # =========================
-# MODE 2 – INPUT MANUAL
+# MODE 2 – INPUT MANUAL + PILIH ID
 # =========================
 else:
 
-    st.header("📝 Input Manual Data Permintaan")
+    st.header("📝 Input Manual / Reuse PTSP")
 
-    requester = st.text_input("Nama FOD")
-    nama = st.text_input("Nama Perusahaan")
-    alamat = st.text_input("Alamat Perusahaan")
-    nomor = st.text_input("Nomor Surat")
+    use_existing = st.checkbox("Gunakan ID PTSP yang sudah ada")
 
-    jumlah = st.number_input("Jumlah Titik Permintaan", min_value=1, step=1)
+    df_requests = st.session_state.get("df_requests")
 
-    data_list = []
-
-    for i in range(jumlah):
-        st.subheader(f"Titik {i+1}")
-
-        tanggal_i = st.date_input(f"Tanggal {i+1}", key=f"tgl_{i}")
-        koordinat_i = st.text_area(f"Koordinat {i+1}", key=f"coord_{i}")
-
-        data_list.append({
-            "tanggal": tanggal_i,
-            "koordinat": koordinat_i
-        })
+    if df_requests is None:
+        df_requests = load_request_sheet_streamlit()
 
     # =========================
-    # 🔥 PREVIEW
+    # 🔁 MODE PILIH ID
     # =========================
-    if st.button("Preview Data"):
+    if use_existing and df_requests is not None:
 
-        parsed_rows = []
+        id_list = sorted(df_requests["Id"].astype(str).unique())
 
-        for d in data_list:
+        selected_existing_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
 
-            koordinat = d.get("koordinat", "")
-            tanggal = d.get("tanggal", "")
+        if selected_existing_id:
 
-            parsed = parse_coordinate(koordinat)
+            df_selected = df_requests[df_requests["Id"].astype(str) == selected_existing_id]
 
-            if parsed is None:
-                st.error(f"Koordinat tidak valid: {koordinat}")
-                st.stop()
+            st.success(f"{len(df_selected)} data ditemukan")
+            st.dataframe(df_selected)
 
-            # simpan parsed terakhir
-            st.session_state.last_parsed = parsed
+            parsed_rows = []
 
-            parsed_rows.append({
-                "Tanggal Koordinat": str(tanggal),
-                "Koordinat": koordinat,
-            
-                # 🔥 TAMBAHAN
-                "Koordinat Awal": koordinat,
-                "Koordinat Akhir": koordinat,
-            
-                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-            
-                "Mode": parsed.get("mode"),
-                "All Points": parsed.get("All Points", [])
+            for _, row in df_selected.iterrows():
+
+                koordinat = row.get("Koordinat", "")
+                parsed = parse_coordinate(koordinat)
+
+                if parsed is None:
+                    continue
+
+                parsed_rows.append({
+                    "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or row.get("Tanggal") or ""),
+                    "Koordinat": koordinat,
+                    "Koordinat Awal": koordinat,
+                    "Koordinat Akhir": koordinat,
+                    "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+                    "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+                    "Mode": parsed.get("mode"),
+                    "All Points": parsed.get("All Points", [])
+                })
+
+            st.session_state.preview_data = pd.DataFrame(parsed_rows)
+
+    # =========================
+    # ✍️ MODE INPUT MANUAL
+    # =========================
+    elif not use_existing:
+
+        jumlah = st.number_input("Jumlah Titik", min_value=1, step=1)
+
+        data_list = []
+
+        for i in range(jumlah):
+            st.subheader(f"Titik {i+1}")
+
+            tanggal_i = st.date_input(f"Tanggal {i+1}", key=f"tgl_{i}")
+            koordinat_i = st.text_area(f"Koordinat {i+1}", key=f"coord_{i}")
+
+            data_list.append({
+                "tanggal": tanggal_i,
+                "koordinat": koordinat_i
             })
-        df_preview = pd.DataFrame(parsed_rows)
-        st.session_state.preview_data = df_preview
 
-        st.success("✅ Data berhasil diparsing")
-        st.dataframe(df_preview)
+        if st.button("Preview Data"):
+
+            parsed_rows = []
+
+            for d in data_list:
+
+                koordinat = d["koordinat"]
+                tanggal = d["tanggal"]
+
+                parsed = parse_coordinate(koordinat)
+
+                if parsed is None:
+                    st.error(f"Koordinat tidak valid: {koordinat}")
+                    st.stop()
+
+                parsed_rows.append({
+                    "Tanggal Koordinat": str(tanggal),
+                    "Koordinat": koordinat,
+                    "Koordinat Awal": koordinat,
+                    "Koordinat Akhir": koordinat,
+                    "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+                    "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+                    "Mode": parsed.get("mode"),
+                    "All Points": parsed.get("All Points", [])
+                })
+
+            st.session_state.preview_data = pd.DataFrame(parsed_rows)
+
 
 # =========================
-# 🔥 PREVIEW + MAP (GLOBAL)
+# 🔥 PREVIEW + MAP
 # =========================
 if st.session_state.get("preview_data") is not None:
 
@@ -438,25 +442,16 @@ if st.session_state.get("preview_data") is not None:
     st.subheader("🗺️ Preview Lokasi")
 
     try:
-        # =========================
-        # 🔵 MODE TITIK
-        # =========================
         if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
 
             latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
             lat, lon = map(float, latlon.split(","))
 
-            st.success(f"📍 Titik otomatis: {lat}, {lon}")
-
             m = folium.Map(location=[lat, lon], zoom_start=7)
-
             folium.Marker([lat, lon]).add_to(m)
 
             st_folium(m, height=400)
 
-        # =========================
-        # 🟢 MODE RUTE
-        # =========================
         else:
             all_points = []
 
@@ -473,7 +468,6 @@ if st.session_state.get("preview_data") is not None:
                 for lat, lon in all_points:
                     folium.Marker([lat, lon]).add_to(m)
 
-                # garis rute
                 if len(all_points) > 1:
                     folium.PolyLine(all_points).add_to(m)
 
@@ -483,63 +477,33 @@ if st.session_state.get("preview_data") is not None:
         st.warning("Map error")
         st.exception(e)
 
-    # =========================
-    # SAVE
-    # =========================
-    if st.session_state.preview_data is not None:
 
-        if st.button("Simpan Data Manual"):
+# =========================
+# 💾 SIMPAN DATA
+# =========================
+if st.button("Simpan Data Manual"):
 
-            jakarta_tz = pytz.timezone("Asia/Jakarta")
-            now_wib = datetime.datetime.now(jakarta_tz)
+    df_preview = st.session_state.get("preview_data")
 
-            id_surat = generate_id()
-
-            for _, row in st.session_state.preview_data.iterrows():
-
-                data = {
-                    "Id": id_surat,
-                    "Requester": requester or "unknown",
-                    "Timestamp": now_wib.strftime("%Y-%m-%d %H:%M:%S"),
-                    "Nama Perusahaan": nama or "-",
-                    "Alamat Perusahaan": alamat or "-",
-                    "Nomor Surat": nomor or "-",
-                    "Informasi": "-",
-                    "Tanggal Koordinat": row["Tanggal Koordinat"],
-                    "Koordinat": row["Koordinat"],
-                    "Koordinat Awal": row["Koordinat"],
-                    "Koordinat Akhir": row["Koordinat"],
-                    "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
-                    "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
-                    "Water Checker Awal": "",
-                    "Water Checker Akhir": ""
-                }
-
-                save_manual_input(data)
-
-            st.success(f"Data tersimpan dengan ID: {id_surat}")
-            st.code(id_surat)
-
-            # 🔥 FIX UTAMA (JANGAN DIHAPUS)
-            df_id = pd.DataFrame([
-                {
-                    "Id": id_surat,
-                    "Tanggal Koordinat": row["Tanggal Koordinat"],
-                    "Koordinat": row["Koordinat"],
-                    "Koordinat Awal": row["Koordinat"],
-                    "Koordinat Akhir": row["Koordinat"],
-                    "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
-                    "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
-                }
-                for _, row in st.session_state.preview_data.iterrows()
-            ])
-
-            # 🔥 SIMPAN KE SESSION
-            st.session_state.df_id_manual = df_id
-            st.session_state.manual_saved = True
-
-    if not st.session_state.manual_saved:
+    if df_preview is None:
+        st.warning("Preview dulu")
         st.stop()
+
+    data_save = []
+
+    for _, row in df_preview.iterrows():
+
+        data_save.append({
+            "Tanggal Koordinat": row.get("Tanggal Koordinat", ""),
+            "Koordinat": row.get("Koordinat", ""),
+            "Koordinat Awal": row.get("Koordinat Awal", ""),
+            "Koordinat Akhir": row.get("Koordinat Akhir", ""),
+            "Koordinat Awal (Desimal)": row.get("Koordinat Awal (Desimal)", ""),
+            "Koordinat Akhir (Desimal)": row.get("Koordinat Akhir (Desimal)", ""),
+        })
+
+    st.success("✅ Data siap disimpan")
+    st.write(data_save)
 
 # =========================
 # 🔥 FIX STATE df_id (WAJIB)
