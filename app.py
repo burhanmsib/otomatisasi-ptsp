@@ -340,7 +340,7 @@ else:
     )
 
     # =========================================================
-    # 🔵 OPSI 1: INPUT DATA BARU (FORM TETAP ADA)
+    # 🔵 OPSI 1: INPUT DATA BARU
     # =========================================================
     if manual_mode == "Input Data Baru":
 
@@ -373,20 +373,17 @@ else:
 
             for d in data_list:
 
-                koordinat = d["koordinat"]
-                tanggal = d["tanggal"]
-
-                parsed = parse_coordinate(koordinat)
+                parsed = parse_coordinate(d["koordinat"])
 
                 if parsed is None:
-                    st.error(f"Koordinat tidak valid: {koordinat}")
+                    st.error(f"Koordinat tidak valid: {d['koordinat']}")
                     st.stop()
 
                 parsed_rows.append({
-                    "Tanggal Koordinat": str(tanggal),
-                    "Koordinat": koordinat,
-                    "Koordinat Awal": koordinat,
-                    "Koordinat Akhir": koordinat,
+                    "Tanggal Koordinat": str(d["tanggal"]),
+                    "Koordinat": d["koordinat"],
+                    "Koordinat Awal": d["koordinat"],
+                    "Koordinat Akhir": d["koordinat"],
                     "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
                     "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
                     "Mode": parsed.get("mode"),
@@ -406,14 +403,11 @@ else:
                 st.warning("Preview dulu sebelum simpan")
                 st.stop()
 
-            data_save = []
-
-            # 🔥 generate ID sekali
             new_id = generate_id()
 
             for _, row in df_preview.iterrows():
 
-                data_save.append({
+                save_manual_input({
                     "Id": new_id,
                     "Requester": requester,
                     "Timestamp": str(datetime.datetime.now()),
@@ -431,38 +425,31 @@ else:
                     "Water Checker Akhir": ""
                 })
 
-            # 🔥 simpan satu per satu
-            for row in data_save:
-                save_manual_input(row)
-
             st.success(f"✅ Data berhasil disimpan dengan ID: {new_id}")
 
     # =========================================================
-    # 🟢 OPSI 2: PAKAI DATA LAMA (FIXED)
+    # 🟢 OPSI 2: GUNAKAN DATA LAMA
     # =========================================================
     else:
 
-        # 🔥 AMBIL ID KHUSUS DARI INPUT_MANUAL
         id_list = get_manual_id_list()
 
         selected_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
 
         if selected_id:
 
-            # 🔥 AMBIL DATA DARI MODULE1 (AMAN)
             data = get_data_by_id(selected_id)
 
             if data:
 
-                df_selected = pd.DataFrame([data])
                 st.success("Data ditemukan")
-                st.dataframe(df_selected)
+                st.dataframe(pd.DataFrame([data]))
 
                 parsed = parse_coordinate(data.get("Koordinat", ""))
 
                 if parsed:
 
-                    df_preview = pd.DataFrame([{
+                    st.session_state.preview_data = pd.DataFrame([{
                         "Tanggal Koordinat": data.get("Tanggal Koordinat", ""),
                         "Koordinat": data.get("Koordinat", ""),
                         "Koordinat Awal": data.get("Koordinat", ""),
@@ -471,14 +458,14 @@ else:
                         "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
                         "Mode": parsed.get("mode"),
                         "All Points": parsed.get("All Points", [])
-                    }])
+                    })
 
-                    st.session_state.preview_data = df_preview
 
 # =========================
-# 🔥 PREVIEW + MAP
+# 🔥 PREVIEW + MAP (FIXED)
 # =========================
-if st.session_state.get("preview_data") is not None:
+# HANYA UNTUK INPUT MANUAL
+if mode == "Input Manual" and st.session_state.get("preview_data") is not None:
 
     df_preview = st.session_state.preview_data
 
@@ -528,31 +515,9 @@ if st.session_state.get("preview_data") is not None:
 
 
 # =========================
-# 💾 SIMPAN DATA
+# ❌ HAPUS GLOBAL SAVE BUTTON
 # =========================
-if st.button("Simpan Data Manual"):
-
-    df_preview = st.session_state.get("preview_data")
-
-    if df_preview is None:
-        st.warning("Preview dulu")
-        st.stop()
-
-    data_save = []
-
-    for _, row in df_preview.iterrows():
-
-        data_save.append({
-            "Tanggal Koordinat": row.get("Tanggal Koordinat", ""),
-            "Koordinat": row.get("Koordinat", ""),
-            "Koordinat Awal": row.get("Koordinat Awal", ""),
-            "Koordinat Akhir": row.get("Koordinat Akhir", ""),
-            "Koordinat Awal (Desimal)": row.get("Koordinat Awal (Desimal)", ""),
-            "Koordinat Akhir (Desimal)": row.get("Koordinat Akhir (Desimal)", ""),
-        })
-
-    st.success("✅ Data siap disimpan")
-    st.write(data_save)
+# (TIDAK ADA LAGI SIMPAN DI LUAR MODE MANUAL)
 
 # =========================
 # 🔥 FIX STATE df_id (WAJIB)
