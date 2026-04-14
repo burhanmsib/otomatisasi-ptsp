@@ -465,83 +465,9 @@ else:
     
         st.success(f"{len(df_id)} data ditemukan")
         st.dataframe(df_id)
-    
-        # 🔥 AUTO PARSE (SAMA PERSIS)
-        parsed_rows = []
-    
-        for _, row in df_id.iterrows():
-    
-            koordinat = row.get("Koordinat", "")
-            parsed = parse_coordinate(koordinat)
-    
-            if parsed is None:
-                continue
-    
-            parsed_rows.append({
-                "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or ""),
-                "Koordinat": koordinat,
-                "Koordinat Awal": koordinat,
-                "Koordinat Akhir": koordinat,
-                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-                "Mode": parsed.get("mode"),
-                "All Points": parsed.get("All Points", [])
-            })
-    
-        st.session_state.preview_data = pd.DataFrame(parsed_rows)
 
-# =========================
-# 🔥 PREVIEW + MAP (FIXED)
-# =========================
-# HANYA UNTUK INPUT MANUAL
-if mode == "Input Manual" and st.session_state.get("preview_data") is not None:
-
-    df_preview = st.session_state.preview_data
-
-    st.success("✅ Data berhasil diparsing")
-    st.dataframe(df_preview)
-
-    import folium
-    from streamlit_folium import st_folium
-
-    st.subheader("🗺️ Preview Lokasi")
-
-    try:
-        if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
-
-            latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
-            lat, lon = map(float, latlon.split(","))
-
-            m = folium.Map(location=[lat, lon], zoom_start=7)
-            folium.Marker([lat, lon]).add_to(m)
-
-            st_folium(m, height=400)
-
-        else:
-            all_points = []
-
-            for _, row in df_preview.iterrows():
-                for lat, lon in row.get("All Points", []):
-                    all_points.append((lat, lon))
-
-            if all_points:
-                center_lat = sum(p[0] for p in all_points) / len(all_points)
-                center_lon = sum(p[1] for p in all_points) / len(all_points)
-
-                m = folium.Map(location=[center_lat, center_lon], zoom_start=6)
-
-                for lat, lon in all_points:
-                    folium.Marker([lat, lon]).add_to(m)
-
-                if len(all_points) > 1:
-                    folium.PolyLine(all_points).add_to(m)
-
-                st_folium(m, height=400)
-
-    except Exception as e:
-        st.warning("Map error")
-        st.exception(e)
-
+        st.session_state.selected_data = df_id
+        st.info("✅ Data siap digunakan. Silakan lanjut ke Input Lokasi / Rute.")
 
 # =========================
 # ❌ HAPUS GLOBAL SAVE BUTTON
