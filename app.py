@@ -11,7 +11,8 @@ import pytz
 from modules.module1_request import (
     load_request_sheet_streamlit,
     save_manual_input,
-    generate_id
+    generate_id,
+    get_manual_id_list
 )
 from modules.module2_route import process_route_segment_module2_streamlit
 from modules.module34_data import process_module34, load_datasets_cached
@@ -336,11 +337,6 @@ else:
         ["Input Data Baru", "Gunakan ID PTSP yang Sudah Ada"]
     )
 
-    df_requests = st.session_state.get("df_requests")
-
-    if df_requests is None:
-        df_requests = load_request_sheet_streamlit()
-
     # =========================================================
     # 🔵 OPSI 1: INPUT DATA BARU (FORM TETAP ADA)
     # =========================================================
@@ -410,63 +406,72 @@ else:
 
             data_save = []
 
+            # 🔥 generate ID sekali
+            new_id = generate_id()
+
             for _, row in df_preview.iterrows():
 
                 data_save.append({
+                    "Id": new_id,
+                    "Requester": requester,
+                    "Timestamp": str(datetime.datetime.now()),
+                    "Nama Perusahaan": nama,
+                    "Alamat Perusahaan": alamat,
+                    "Nomor Surat": nomor,
+                    "Informasi": "",
                     "Tanggal Koordinat": row.get("Tanggal Koordinat", ""),
                     "Koordinat": row.get("Koordinat", ""),
                     "Koordinat Awal": row.get("Koordinat Awal", ""),
                     "Koordinat Akhir": row.get("Koordinat Akhir", ""),
                     "Koordinat Awal (Desimal)": row.get("Koordinat Awal (Desimal)", ""),
                     "Koordinat Akhir (Desimal)": row.get("Koordinat Akhir (Desimal)", ""),
+                    "Water Checker Awal": "",
+                    "Water Checker Akhir": ""
                 })
 
-            # 🔥 PANGGIL FUNCTION SIMPAN
-            save_to_gsheet(data_save)
+            # 🔥 simpan satu per satu
+            for row in data_save:
+                save_manual_input(row)
 
-            st.success("✅ Data berhasil disimpan ke Google Sheet")
+            st.success(f"✅ Data berhasil disimpan dengan ID: {new_id}")
 
     # =========================================================
-    # 🟢 OPSI 2: PAKAI DATA LAMA
+    # 🟢 OPSI 2: PAKAI DATA LAMA (FIXED)
     # =========================================================
     else:
 
-        if df_requests is not None:
+        # 🔥 AMBIL ID KHUSUS DARI INPUT_MANUAL
+        id_list = get_manual_id_list()
 
-            id_list = sorted(df_requests["Id"].astype(str).unique())
+        selected_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
 
-            selected_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
+        if selected_id:
 
-            if selected_id:
+            # 🔥 AMBIL DATA DARI MODULE1 (AMAN)
+            data = get_data_by_id(selected_id)
 
-                df_selected = df_requests[df_requests["Id"].astype(str) == selected_id]
+            if data:
 
-                st.success(f"{len(df_selected)} data ditemukan")
+                df_selected = pd.DataFrame([data])
+                st.success("Data ditemukan")
                 st.dataframe(df_selected)
 
-                parsed_rows = []
+                parsed = parse_coordinate(data.get("Koordinat", ""))
 
-                for _, row in df_selected.iterrows():
+                if parsed:
 
-                    koordinat = row.get("Koordinat", "")
-                    parsed = parse_coordinate(koordinat)
-
-                    if parsed is None:
-                        continue
-
-                    parsed_rows.append({
-                        "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or ""),
-                        "Koordinat": koordinat,
-                        "Koordinat Awal": koordinat,
-                        "Koordinat Akhir": koordinat,
+                    df_preview = pd.DataFrame([{
+                        "Tanggal Koordinat": data.get("Tanggal Koordinat", ""),
+                        "Koordinat": data.get("Koordinat", ""),
+                        "Koordinat Awal": data.get("Koordinat", ""),
+                        "Koordinat Akhir": data.get("Koordinat", ""),
                         "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
                         "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
                         "Mode": parsed.get("mode"),
                         "All Points": parsed.get("All Points", [])
-                    })
+                    }])
 
-                st.session_state.preview_data = pd.DataFrame(parsed_rows)
-
+                    st.session_state.preview_data = df_preview
 
 # =========================
 # 🔥 PREVIEW + MAP
