@@ -428,38 +428,66 @@ else:
             st.success(f"✅ Data berhasil disimpan dengan ID: {new_id}")
 
     # =========================================================
-    # 🟢 OPSI 2: GUNAKAN DATA LAMA
+    # 🟢 OPSI 2: GUNAKAN DATA LAMA (DISAMAKAN DENGAN GOOGLE SHEET)
     # =========================================================
     else:
-
-        id_list = get_manual_id_list()
-
-        selected_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
-
-        if selected_id:
-
-            data = get_data_by_id(selected_id)
-
-            if data:
-
-                st.success("Data ditemukan")
-                st.dataframe(pd.DataFrame([data]))
-
-                parsed = parse_coordinate(data.get("Koordinat", ""))
-
-                if parsed:
-
-                    st.session_state.preview_data = pd.DataFrame([{
-                        "Tanggal Koordinat": data.get("Tanggal Koordinat", ""),
-                        "Koordinat": data.get("Koordinat", ""),
-                        "Koordinat Awal": data.get("Koordinat", ""),
-                        "Koordinat Akhir": data.get("Koordinat", ""),
-                        "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                        "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-                        "Mode": parsed.get("mode"),
-                        "All Points": parsed.get("All Points", [])
-                    }])
-
+    
+        df_manual = load_manual_sheet()
+    
+        if df_manual.empty:
+            st.warning("Data manual kosong")
+            st.stop()
+    
+        # 🔥 UI SAMA PERSIS
+        col1, col2 = st.columns(2)
+    
+        with col1:
+            selected_id_dropdown = st.selectbox(
+                "Pilih dari daftar (Manual)",
+                [""] + sorted(df_manual["Id"].astype(str).unique())
+            )
+    
+        with col2:
+            selected_id_manual = st.text_input("Atau input ID manual")
+    
+        selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
+    
+        if not selected_id:
+            st.warning("Silakan pilih ID terlebih dahulu")
+            st.stop()
+    
+        df_id = df_manual[df_manual["Id"].astype(str) == selected_id]
+    
+        if df_id.empty:
+            st.error("Data tidak ditemukan")
+            st.stop()
+    
+        st.success(f"{len(df_id)} data ditemukan")
+        st.dataframe(df_id)
+    
+        # 🔥 AUTO PARSE (SAMA PERSIS)
+        parsed_rows = []
+    
+        for _, row in df_id.iterrows():
+    
+            koordinat = row.get("Koordinat", "")
+            parsed = parse_coordinate(koordinat)
+    
+            if parsed is None:
+                continue
+    
+            parsed_rows.append({
+                "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or ""),
+                "Koordinat": koordinat,
+                "Koordinat Awal": koordinat,
+                "Koordinat Akhir": koordinat,
+                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+                "Mode": parsed.get("mode"),
+                "All Points": parsed.get("All Points", [])
+            })
+    
+        st.session_state.preview_data = pd.DataFrame(parsed_rows)
 
 # =========================
 # 🔥 PREVIEW + MAP (FIXED)
