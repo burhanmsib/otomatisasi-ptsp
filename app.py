@@ -325,62 +325,31 @@ if mode == "Ambil dari Google Sheet":
 
 
 # =========================
-# MODE 2 – INPUT MANUAL + PILIH ID
+# MODE 2 – INPUT MANUAL
 # =========================
 else:
 
-    st.header("📝 Input Manual / Reuse PTSP")
+    st.header("📝 Input Manual / Gunakan Data Lama")
 
-    use_existing = st.checkbox("Gunakan ID PTSP yang sudah ada")
+    manual_mode = st.radio(
+        "Pilih opsi:",
+        ["Input Data Baru", "Gunakan ID PTSP yang Sudah Ada"]
+    )
 
     df_requests = st.session_state.get("df_requests")
 
     if df_requests is None:
         df_requests = load_request_sheet_streamlit()
 
-    # =========================
-    # 🔁 MODE PILIH ID
-    # =========================
-    if use_existing and df_requests is not None:
+    # =========================================================
+    # 🔵 OPSI 1: INPUT DATA BARU (FORM TETAP ADA)
+    # =========================================================
+    if manual_mode == "Input Data Baru":
 
-        id_list = sorted(df_requests["Id"].astype(str).unique())
-
-        selected_existing_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
-
-        if selected_existing_id:
-
-            df_selected = df_requests[df_requests["Id"].astype(str) == selected_existing_id]
-
-            st.success(f"{len(df_selected)} data ditemukan")
-            st.dataframe(df_selected)
-
-            parsed_rows = []
-
-            for _, row in df_selected.iterrows():
-
-                koordinat = row.get("Koordinat", "")
-                parsed = parse_coordinate(koordinat)
-
-                if parsed is None:
-                    continue
-
-                parsed_rows.append({
-                    "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or row.get("Tanggal") or ""),
-                    "Koordinat": koordinat,
-                    "Koordinat Awal": koordinat,
-                    "Koordinat Akhir": koordinat,
-                    "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                    "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-                    "Mode": parsed.get("mode"),
-                    "All Points": parsed.get("All Points", [])
-                })
-
-            st.session_state.preview_data = pd.DataFrame(parsed_rows)
-
-    # =========================
-    # ✍️ MODE INPUT MANUAL
-    # =========================
-    elif not use_existing:
+        requester = st.text_input("Nama FOD")
+        nama = st.text_input("Nama Perusahaan")
+        alamat = st.text_input("Alamat Perusahaan")
+        nomor = st.text_input("Nomor Surat")
 
         jumlah = st.number_input("Jumlah Titik", min_value=1, step=1)
 
@@ -397,7 +366,10 @@ else:
                 "koordinat": koordinat_i
             })
 
-        if st.button("Preview Data"):
+        # =========================
+        # PREVIEW
+        # =========================
+        if st.button("Preview Data Manual"):
 
             parsed_rows = []
 
@@ -424,6 +396,76 @@ else:
                 })
 
             st.session_state.preview_data = pd.DataFrame(parsed_rows)
+
+        # =========================
+        # SIMPAN KE GOOGLE SHEET
+        # =========================
+        if st.button("Simpan ke Google Sheet"):
+
+            df_preview = st.session_state.get("preview_data")
+
+            if df_preview is None:
+                st.warning("Preview dulu sebelum simpan")
+                st.stop()
+
+            data_save = []
+
+            for _, row in df_preview.iterrows():
+
+                data_save.append({
+                    "Tanggal Koordinat": row.get("Tanggal Koordinat", ""),
+                    "Koordinat": row.get("Koordinat", ""),
+                    "Koordinat Awal": row.get("Koordinat Awal", ""),
+                    "Koordinat Akhir": row.get("Koordinat Akhir", ""),
+                    "Koordinat Awal (Desimal)": row.get("Koordinat Awal (Desimal)", ""),
+                    "Koordinat Akhir (Desimal)": row.get("Koordinat Akhir (Desimal)", ""),
+                })
+
+            # 🔥 PANGGIL FUNCTION SIMPAN
+            save_to_gsheet(data_save)
+
+            st.success("✅ Data berhasil disimpan ke Google Sheet")
+
+    # =========================================================
+    # 🟢 OPSI 2: PAKAI DATA LAMA
+    # =========================================================
+    else:
+
+        if df_requests is not None:
+
+            id_list = sorted(df_requests["Id"].astype(str).unique())
+
+            selected_id = st.selectbox("Pilih ID PTSP", [""] + id_list)
+
+            if selected_id:
+
+                df_selected = df_requests[df_requests["Id"].astype(str) == selected_id]
+
+                st.success(f"{len(df_selected)} data ditemukan")
+                st.dataframe(df_selected)
+
+                parsed_rows = []
+
+                for _, row in df_selected.iterrows():
+
+                    koordinat = row.get("Koordinat", "")
+                    parsed = parse_coordinate(koordinat)
+
+                    if parsed is None:
+                        continue
+
+                    parsed_rows.append({
+                        "Tanggal Koordinat": str(row.get("Tanggal Koordinat") or ""),
+                        "Koordinat": koordinat,
+                        "Koordinat Awal": koordinat,
+                        "Koordinat Akhir": koordinat,
+                        "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
+                        "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+                        "Mode": parsed.get("mode"),
+                        "All Points": parsed.get("All Points", [])
+                    })
+
+                st.session_state.preview_data = pd.DataFrame(parsed_rows)
 
 
 # =========================
