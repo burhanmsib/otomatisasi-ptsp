@@ -89,16 +89,23 @@ def get_sheet_config():
 # =========================
 def load_sheet(sheet_name):
 
-    client = get_gspread_client()
-    cfg = get_sheet_config()
+    try:
+        client = get_gspread_client()
+        cfg = get_sheet_config()
 
-    sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(sheet_name)
+        sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(sheet_name)
 
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
 
-    return validate_request_dataframe(df)
+        if df.empty:
+            return pd.DataFrame()
 
+        return validate_request_dataframe(df)
+
+    except Exception as e:
+        st.warning(f"Gagal load sheet {sheet_name}: {e}")
+        return pd.DataFrame()
 
 # =========================
 # LOAD N8N SHEET
@@ -112,26 +119,31 @@ def load_google_sheet():
 # =========================
 # LOAD MANUAL SHEET
 # =========================
+@st.cache_data(show_spinner=False)
 def load_manual_sheet():
     cfg = get_sheet_config()
-    return load_sheet(cfg["sheet_manual"])
+    df = load_sheet(cfg["sheet_manual"])
 
+    if df is None or df.empty:
+        st.warning("Sheet Input_Manual kosong atau gagal dibaca")
+
+    return df
 
 # =========================
 # GET DATA BY ID (DUAL SOURCE)
 # =========================
 def get_data_by_id(id_surat):
 
-    df_n8n = load_google_sheet()
     df_manual = load_manual_sheet()
+    df_n8n = load_google_sheet()
 
-    # Cari di n8n
-    row = df_n8n[df_n8n["Id"].astype(str) == str(id_surat)]
+    # 🔥 PRIORITAS: MANUAL DULU
+    row = df_manual[df_manual["Id"].astype(str) == str(id_surat)]
     if not row.empty:
         return row.iloc[0].to_dict()
 
-    # Cari di manual
-    row = df_manual[df_manual["Id"].astype(str) == str(id_surat)]
+    # fallback ke n8n
+    row = df_n8n[df_n8n["Id"].astype(str) == str(id_surat)]
     if not row.empty:
         return row.iloc[0].to_dict()
 
@@ -143,39 +155,41 @@ def get_data_by_id(id_surat):
 # =========================
 def generate_id():
 
-    client = get_gspread_client()
-    cfg = get_sheet_config()
+    try:
+        client = get_gspread_client()
+        cfg = get_sheet_config()
 
-    sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(cfg["sheet_manual"])
+        sheet = client.open_by_key(cfg["spreadsheet_id"]).worksheet(cfg["sheet_manual"])
 
-    data = sheet.get_all_records()
+        data = sheet.get_all_records()
 
-    if not data:
+        if not data:
+            return "PTSP-001"
+
+        df = pd.DataFrame(data)
+
+        if "Id" not in df.columns:
+            return "PTSP-001"
+
+        ids = df["Id"].dropna().astype(str)
+
+        numbers = []
+
+        for i in ids:
+            if i.startswith("PTSP-"):
+                try:
+                    num = int(i.split("-")[1])
+                    numbers.append(num)
+                except:
+                    continue
+
+        next_id = max(numbers) + 1 if numbers else 1
+
+        return f"PTSP-{str(next_id).zfill(3)}"
+
+    except Exception as e:
+        st.warning(f"Gagal generate ID: {e}")
         return "PTSP-001"
-
-    df = pd.DataFrame(data)
-
-    if "Id" not in df.columns:
-        return "PTSP-001"
-
-    ids = df["Id"].dropna().astype(str)
-
-    numbers = []
-
-    for i in ids:
-        if i.startswith("PTSP-"):
-            try:
-                num = int(i.split("-")[1])
-                numbers.append(num)
-            except:
-                continue
-
-    if not numbers:
-        return "PTSP-001"
-
-    next_id = max(numbers) + 1
-
-    return f"PTSP-{str(next_id).zfill(3)}"
 
 # =========================
 # SAVE MANUAL INPUT
