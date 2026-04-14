@@ -12,7 +12,8 @@ from modules.module1_request import (
     load_request_sheet_streamlit,
     save_manual_input,
     generate_id,
-    get_manual_id_list
+    get_manual_id_list,
+    get_data_by_id
 )
 from modules.module2_route import process_route_segment_module2_streamlit
 from modules.module34_data import process_module34, load_datasets_cached
