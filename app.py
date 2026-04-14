@@ -458,7 +458,7 @@ else:
                         "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
                         "Mode": parsed.get("mode"),
                         "All Points": parsed.get("All Points", [])
-                    })
+                    }])
 
 
 # =========================
