@@ -341,73 +341,93 @@ else:
     )
 
     # =========================================================
-    # 🔵 OPSI 1: INPUT DATA BARU
+    # 🔵 OPSI 1: INPUT DATA BARU (FIXED)
     # =========================================================
     if manual_mode == "Input Data Baru":
-
+    
         requester = st.text_input("Nama FOD")
         nama = st.text_input("Nama Perusahaan")
         alamat = st.text_input("Alamat Perusahaan")
         nomor = st.text_input("Nomor Surat")
-
+    
         jumlah = st.number_input("Jumlah Titik", min_value=1, step=1)
-
+    
         data_list = []
-
+    
         for i in range(jumlah):
             st.subheader(f"Titik {i+1}")
-
+    
             tanggal_i = st.date_input(f"Tanggal {i+1}", key=f"tgl_{i}")
             koordinat_i = st.text_area(f"Koordinat {i+1}", key=f"coord_{i}")
-
+    
             data_list.append({
                 "tanggal": tanggal_i,
                 "koordinat": koordinat_i
             })
-
+    
         # =========================
-        # PREVIEW
+        # PREVIEW (FIXED)
         # =========================
-        if st.button("Preview Data Manual"):
-
+        if st.button("Preview Data Manual", key="preview_manual"):
+    
             parsed_rows = []
-
+    
             for d in data_list:
-
-                parsed = parse_coordinate(d["koordinat"])
-
+    
+                koordinat = d["koordinat"]
+    
+                if not koordinat.strip():
+                    continue
+    
+                parsed = parse_coordinate(koordinat)
+    
                 if parsed is None:
-                    st.error(f"Koordinat tidak valid: {d['koordinat']}")
+                    st.error(f"Koordinat tidak valid: {koordinat}")
                     st.stop()
-
+    
                 parsed_rows.append({
                     "Tanggal Koordinat": str(d["tanggal"]),
-                    "Koordinat": d["koordinat"],
-                    "Koordinat Awal": d["koordinat"],
-                    "Koordinat Akhir": d["koordinat"],
-                    "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                    "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
+                    "Koordinat": koordinat,
+                    "Koordinat Awal": koordinat,
+                    "Koordinat Akhir": koordinat,
+                    "Koordinat Awal (Desimal)": parsed.get("awal"),
+                    "Koordinat Akhir (Desimal)": parsed.get("akhir"),
                     "Mode": parsed.get("mode"),
-                    "All Points": parsed.get("All Points", [])
+                    "All Points": parsed.get("all", [])
                 })
-
-            st.session_state.preview_data = pd.DataFrame(parsed_rows)
-
+    
+            if parsed_rows:
+                st.session_state.preview_data = pd.DataFrame(parsed_rows)
+                st.success("✅ Preview berhasil dibuat")
+            else:
+                st.warning("Tidak ada data yang bisa diproses")
+    
         # =========================
-        # SIMPAN KE GOOGLE SHEET
+        # TAMPILKAN PREVIEW (WAJIB ADA)
         # =========================
-        if st.button("Simpan ke Google Sheet"):
-
+        if st.session_state.get("preview_data") is not None:
+    
+            st.success("✅ Data berhasil diparsing")
+            st.dataframe(st.session_state.preview_data)
+    
+        else:
+            st.warning("Data belum siap")
+    
+        # =========================
+        # SIMPAN
+        # =========================
+        if st.button("Simpan ke Google Sheet", key="save_manual"):
+    
             df_preview = st.session_state.get("preview_data")
-
+    
             if df_preview is None:
                 st.warning("Preview dulu sebelum simpan")
                 st.stop()
-
+    
             new_id = generate_id()
-
+    
             for _, row in df_preview.iterrows():
-
+    
                 save_manual_input({
                     "Id": new_id,
                     "Requester": requester,
@@ -425,7 +445,7 @@ else:
                     "Water Checker Awal": "",
                     "Water Checker Akhir": ""
                 })
-
+    
             st.success(f"✅ Data berhasil disimpan dengan ID: {new_id}")
 
     # =========================================================
