@@ -504,14 +504,13 @@ if df_id is None or df_id.empty:
     st.stop()
 
 # =========================
-# MODULE 2 (FIX TOTAL)
+# MODULE 2 (FINAL FIX)
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
 
-# 🔥 WAJIB: ambil dari selected_data saja
 df_source = st.session_state.get("selected_data")
 
 if df_source is None or df_source.empty:
@@ -526,11 +525,25 @@ selected_index = st.selectbox(
     format_func=lambda x: f"Titik {x+1} - {df_source.iloc[x].get('Tanggal Koordinat', '-')}"
 )
 
-row = df_source.iloc[selected_index]
+row = df_source.iloc[selected_index].copy()
+
+# 🔥 NORMALISASI
+row["Koordinat Awal"] = row.get("Koordinat Awal") or row.get("Koordinat")
+row["Koordinat Akhir"] = row.get("Koordinat Akhir") or row.get("Koordinat")
+
+# DEBUG (hapus nanti kalau sudah aman)
+st.write("DEBUG ROW:", row)
+
+# VALIDASI
+if not row.get("Koordinat Awal") or not row.get("Koordinat Akhir"):
+    st.error("Koordinat tidak lengkap")
+    st.stop()
 
 hasil = process_route_segment_module2_streamlit(row, selected_index)
 
-if hasil is not None:
+if hasil is None:
+    st.error("Gagal membuat rute. Pastikan gambar rute sudah dilakukan.")
+else:
     st.session_state.results_module2_dict[selected_index] = hasil
     st.success(f"Titik {selected_index+1} tersimpan")
 
@@ -542,7 +555,6 @@ if len(st.session_state.results_module2_dict) == len(df_source):
     ]
 
     st.success("✅ Semua titik/rute sudah dibuat")
-
 # =========================
 # MODULE 3-4
 # =========================
