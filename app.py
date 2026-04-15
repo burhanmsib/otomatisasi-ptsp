@@ -406,7 +406,7 @@ else:
                 df_preview = pd.DataFrame(parsed_rows)
 
                 st.session_state.preview_data = df_preview
-                st.session_state.selected_data = df_preview  # 🔥 KUNCI
+                st.session_state.selected_data = df_id  # 🔥 KUNCI
 
                 st.success("✅ Preview berhasil dibuat")
 
@@ -496,12 +496,12 @@ else:
 if df_id is None and st.session_state.df_id_manual is not None:
     df_id = st.session_state.df_id_manual
 
-# =========================
-# VALIDASI df_id
-# =========================
-if df_id is None or df_id.empty:
-    st.warning("Data belum siap")
-    st.stop()
+# # =========================
+# # VALIDASI df_id
+# # =========================
+# if df_id is None or df_id.empty:
+#     st.warning("Data belum siap")
+#     st.stop()
 
 # =========================
 # MODULE 2
@@ -511,15 +511,21 @@ st.header("🟩 Input Lokasi / Rute")
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
 
-index_list = list(range(len(df_id)))
+df_source = st.session_state.get("selected_data")
+
+if df_source is None or df_source.empty:
+    st.warning("Data belum siap. Silakan preview atau pilih ID terlebih dahulu.")
+    st.stop()
+
+index_list = list(range(len(df_source)))
 
 selected_index = st.selectbox(
     "Pilih titik yang ingin diinput",
     index_list,
-    format_func=lambda x: f"Titik {x+1} - {df_id.iloc[x]['Tanggal Koordinat']}"
+    format_func=lambda x: f"Titik {x+1} - {df_source.iloc[x].get('Tanggal Koordinat', '-')}"
 )
 
-row = df_id.iloc[selected_index]
+row = df_source.iloc[selected_index]
 
 hasil = process_route_segment_module2_streamlit(row, selected_index)
 
@@ -546,7 +552,7 @@ if "results_module2_dict" not in st.session_state or len(st.session_state.result
     st.warning("Silakan isi minimal 1 titik terlebih dahulu")
     st.stop()
 
-if len(st.session_state.results_module2_dict) != len(df_id):
+if len(st.session_state.results_module2_dict) != len(df_source):
     st.warning("Semua titik harus diisi sebelum lanjut")
     st.stop()
 
@@ -559,7 +565,7 @@ if st.session_state.get("run_module34", False):
 
         with st.spinner("Load dataset (sekali saja)..."):
 
-            sample_row = df_id.iloc[0]
+            sample_row = df_source.iloc[0]
             dt_sample = sample_row["Tanggal Koordinat"]
 
             ds_wave, ds_cur, ds_rain = load_datasets_cached(dt_sample)
@@ -592,7 +598,7 @@ if st.session_state.get("run_module34", False):
                 gagal = True
                 break
 
-            row = df_id.iloc[i]
+            row = df_source.iloc[i]
 
             result = process_module34(
                 row=row,
@@ -659,7 +665,7 @@ if st.session_state.run_generate and st.session_state.results_module5:
     with st.spinner("Menyusun laporan..."):
 
         doc_buffer = generate_final_docx_streamlit(
-            module1_rows=df_id.to_dict(orient="records"),
+            module1_rows=df_source.to_dict(orient="records"),
             module5_rows=st.session_state.results_module5,
             template_path=str(template_path)
         )
