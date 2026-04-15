@@ -347,50 +347,50 @@ else:
     )
 
     # =========================================================
-    # 🔵 OPSI 1: INPUT DATA BARU (FIXED)
+    # 🔵 OPSI 1: INPUT DATA BARU
     # =========================================================
     if manual_mode == "Input Data Baru":
-    
+
         requester = st.text_input("Nama FOD")
         nama = st.text_input("Nama Perusahaan")
         alamat = st.text_input("Alamat Perusahaan")
         nomor = st.text_input("Nomor Surat")
-    
+
         jumlah = st.number_input("Jumlah Titik", min_value=1, step=1)
-    
+
         data_list = []
-    
+
         for i in range(jumlah):
             st.subheader(f"Titik {i+1}")
-    
+
             tanggal_i = st.date_input(f"Tanggal {i+1}", key=f"tgl_{i}")
             koordinat_i = st.text_area(f"Koordinat {i+1}", key=f"coord_{i}")
-    
+
             data_list.append({
                 "tanggal": tanggal_i,
                 "koordinat": koordinat_i
             })
-    
+
         # =========================
-        # PREVIEW (FIXED)
+        # PREVIEW
         # =========================
         if st.button("Preview Data Manual", key="preview_manual"):
 
             parsed_rows = []
-        
+
             for d in data_list:
-        
+
                 koordinat = d["koordinat"]
-        
+
                 if not koordinat.strip():
                     continue
-        
+
                 parsed = parse_coordinate(koordinat)
-        
+
                 if parsed is None:
                     st.error(f"Koordinat tidak valid: {koordinat}")
                     st.stop()
-        
+
                 parsed_rows.append({
                     "Tanggal Koordinat": str(d["tanggal"]),
                     "Koordinat": koordinat,
@@ -401,49 +401,35 @@ else:
                     "Mode": parsed.get("mode"),
                     "All Points": parsed.get("all", [])
                 })
-        
+
             if parsed_rows:
-                st.session_state.preview_data = pd.DataFrame(parsed_rows)
-        
-                # 🔥 AUTO ROUTE (INI KUNCI)
-                all_points = []
-                for row in parsed_rows:
-                    for p in row.get("All Points", []):
-                        all_points.append(p)
-        
-                if all_points:
-                    st.session_state.route_points = all_points
-        
+                df_preview = pd.DataFrame(parsed_rows)
+
+                st.session_state.preview_data = df_preview
+                st.session_state.selected_data = df_preview  # 🔥 KUNCI
+
                 st.success("✅ Preview berhasil dibuat")
-            else:
-                st.warning("Tidak ada data yang bisa diproses")
-    
-        # =========================
-        # TAMPILKAN PREVIEW (WAJIB ADA)
-        # =========================
+
+        # tampilkan preview
         if st.session_state.get("preview_data") is not None:
-    
             st.success("✅ Data berhasil diparsing")
             st.dataframe(st.session_state.preview_data)
-    
-        else:
-            st.warning("Data belum siap")
-    
+
         # =========================
         # SIMPAN
         # =========================
         if st.button("Simpan ke Google Sheet", key="save_manual"):
 
             df_preview = st.session_state.get("preview_data")
-        
+
             if df_preview is None:
                 st.warning("Preview dulu sebelum simpan")
                 st.stop()
-        
+
             new_id = generate_id()
-        
+
             for _, row in df_preview.iterrows():
-        
+
                 save_manual_input({
                     "Id": new_id,
                     "Requester": requester,
@@ -461,54 +447,48 @@ else:
                     "Water Checker Awal": "",
                     "Water Checker Akhir": ""
                 })
-        
+
             st.success(f"✅ Data berhasil disimpan dengan ID: {new_id}")
 
     # =========================================================
-    # 🟢 OPSI 2: GUNAKAN DATA LAMA (DISAMAKAN DENGAN GOOGLE SHEET)
+    # 🟢 OPSI 2: GUNAKAN DATA LAMA
     # =========================================================
     else:
-    
+
         df_manual = load_manual_sheet()
-    
+
         if df_manual.empty:
             st.warning("Data manual kosong")
             st.stop()
-    
-        # 🔥 UI SAMA PERSIS
+
         col1, col2 = st.columns(2)
-    
+
         with col1:
             selected_id_dropdown = st.selectbox(
                 "Pilih dari daftar (Manual)",
                 [""] + sorted(df_manual["Id"].astype(str).unique())
             )
-    
+
         with col2:
             selected_id_manual = st.text_input("Atau input ID manual")
-    
+
         selected_id = selected_id_manual if selected_id_manual else selected_id_dropdown
-    
+
         if not selected_id:
             st.warning("Silakan pilih ID terlebih dahulu")
             st.stop()
-    
+
         df_id = df_manual[df_manual["Id"].astype(str) == selected_id]
-    
+
         if df_id.empty:
             st.error("Data tidak ditemukan")
             st.stop()
-    
+
         st.success(f"{len(df_id)} data ditemukan")
         st.dataframe(df_id)
 
-        st.session_state.selected_data = df_id
+        st.session_state.selected_data = df_id  # 🔥 KUNCI
         st.info("✅ Data siap digunakan. Silakan lanjut ke Input Lokasi / Rute.")
-
-# =========================
-# ❌ HAPUS GLOBAL SAVE BUTTON
-# =========================
-# (TIDAK ADA LAGI SIMPAN DI LUAR MODE MANUAL)
 
 # =========================
 # 🔥 FIX STATE df_id (WAJIB)
@@ -524,32 +504,20 @@ if df_id is None or df_id.empty:
     st.stop()
 
 # =========================
-# MODULE 2 (FINAL - FULL MANUAL)
+# MODULE 2 (FIX TOTAL)
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
-# =========================
-# INIT STORAGE
-# =========================
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
 
-# =========================
-# CEK DATA SOURCE
-# =========================
-df_source = None
+# 🔥 WAJIB: ambil dari selected_data saja
+df_source = st.session_state.get("selected_data")
 
-if st.session_state.get("selected_data") is not None:
-    df_source = st.session_state.selected_data
-elif st.session_state.get("preview_data") is not None:
-    df_source = st.session_state.preview_data
-else:
-    st.warning("Data belum siap")
+if df_source is None or df_source.empty:
+    st.warning("Data belum siap. Silakan preview atau pilih ID terlebih dahulu.")
     st.stop()
 
-# =========================
-# PILIH TITIK
-# =========================
 index_list = list(range(len(df_source)))
 
 selected_index = st.selectbox(
@@ -560,18 +528,12 @@ selected_index = st.selectbox(
 
 row = df_source.iloc[selected_index]
 
-# =========================
-# PROSES MODULE 2 (MANUAL ROUTE)
-# =========================
 hasil = process_route_segment_module2_streamlit(row, selected_index)
 
 if hasil is not None:
     st.session_state.results_module2_dict[selected_index] = hasil
     st.success(f"Titik {selected_index+1} tersimpan")
 
-# =========================
-# FINAL CHECK
-# =========================
 if len(st.session_state.results_module2_dict) == len(df_source):
 
     st.session_state.results_module2 = [
