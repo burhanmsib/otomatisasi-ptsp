@@ -236,23 +236,29 @@ def parse_coordinate(text):
     if not coords:
         return None
 
+    # =========================
     # 🔵 MODE TITIK
+    # =========================
     if len(coords) == 1:
         lat, lon = coords[0]
 
         return {
             "mode": "titik",
-            "Koordinat Awal (Desimal)": f"{lat},{lon}",
-            "Koordinat Akhir (Desimal)": f"{lat},{lon}",
-            "All Points": coords
+            "awal": f"{lat},{lon}",
+            "akhir": f"{lat},{lon}",
+            "all": [(lat, lon)],  # 🔥 WAJIB ADA
+            "lat": lat,
+            "lon": lon
         }
 
+    # =========================
     # 🟢 MODE RUTE
+    # =========================
     return {
         "mode": "rute",
-        "Koordinat Awal (Desimal)": f"{coords[0][0]},{coords[0][1]}",
-        "Koordinat Akhir (Desimal)": f"{coords[-1][0]},{coords[-1][1]}",
-        "All Points": coords
+        "awal": f"{coords[0][0]},{coords[0][1]}",
+        "akhir": f"{coords[-1][0]},{coords[-1][1]}",
+        "all": coords
     }
 
 # =========================
@@ -369,22 +375,22 @@ else:
         # PREVIEW (FIXED)
         # =========================
         if st.button("Preview Data Manual", key="preview_manual"):
-    
+
             parsed_rows = []
-    
+        
             for d in data_list:
-    
+        
                 koordinat = d["koordinat"]
-    
+        
                 if not koordinat.strip():
                     continue
-    
+        
                 parsed = parse_coordinate(koordinat)
-    
+        
                 if parsed is None:
                     st.error(f"Koordinat tidak valid: {koordinat}")
                     st.stop()
-    
+        
                 parsed_rows.append({
                     "Tanggal Koordinat": str(d["tanggal"]),
                     "Koordinat": koordinat,
@@ -395,9 +401,19 @@ else:
                     "Mode": parsed.get("mode"),
                     "All Points": parsed.get("all", [])
                 })
-    
+        
             if parsed_rows:
                 st.session_state.preview_data = pd.DataFrame(parsed_rows)
+        
+                # 🔥 AUTO ROUTE (INI KUNCI)
+                all_points = []
+                for row in parsed_rows:
+                    for p in row.get("All Points", []):
+                        all_points.append(p)
+        
+                if all_points:
+                    st.session_state.route_points = all_points
+        
                 st.success("✅ Preview berhasil dibuat")
             else:
                 st.warning("Tidak ada data yang bisa diproses")
@@ -417,17 +433,17 @@ else:
         # SIMPAN
         # =========================
         if st.button("Simpan ke Google Sheet", key="save_manual"):
-    
+
             df_preview = st.session_state.get("preview_data")
-    
+        
             if df_preview is None:
                 st.warning("Preview dulu sebelum simpan")
                 st.stop()
-    
+        
             new_id = generate_id()
-    
+        
             for _, row in df_preview.iterrows():
-    
+        
                 save_manual_input({
                     "Id": new_id,
                     "Requester": requester,
@@ -445,7 +461,7 @@ else:
                     "Water Checker Awal": "",
                     "Water Checker Akhir": ""
                 })
-    
+        
             st.success(f"✅ Data berhasil disimpan dengan ID: {new_id}")
 
     # =========================================================
@@ -508,34 +524,59 @@ if df_id is None or df_id.empty:
     st.stop()
 
 # =========================
-# MODULE 2
+# MODULE 2 (FINAL - FULL MANUAL)
 # =========================
 st.header("🟩 Input Lokasi / Rute")
 
+# =========================
+# INIT STORAGE
+# =========================
 if "results_module2_dict" not in st.session_state:
     st.session_state.results_module2_dict = {}
 
-index_list = list(range(len(df_id)))
+# =========================
+# CEK DATA SOURCE
+# =========================
+df_source = None
+
+if st.session_state.get("selected_data") is not None:
+    df_source = st.session_state.selected_data
+elif st.session_state.get("preview_data") is not None:
+    df_source = st.session_state.preview_data
+else:
+    st.warning("Data belum siap")
+    st.stop()
+
+# =========================
+# PILIH TITIK
+# =========================
+index_list = list(range(len(df_source)))
 
 selected_index = st.selectbox(
     "Pilih titik yang ingin diinput",
     index_list,
-    format_func=lambda x: f"Titik {x+1} - {df_id.iloc[x]['Tanggal Koordinat']}"
+    format_func=lambda x: f"Titik {x+1} - {df_source.iloc[x].get('Tanggal Koordinat', '-')}"
 )
 
-row = df_id.iloc[selected_index]
+row = df_source.iloc[selected_index]
 
+# =========================
+# PROSES MODULE 2 (MANUAL ROUTE)
+# =========================
 hasil = process_route_segment_module2_streamlit(row, selected_index)
 
 if hasil is not None:
     st.session_state.results_module2_dict[selected_index] = hasil
     st.success(f"Titik {selected_index+1} tersimpan")
 
-if len(st.session_state.results_module2_dict) == len(df_id):
+# =========================
+# FINAL CHECK
+# =========================
+if len(st.session_state.results_module2_dict) == len(df_source):
 
     st.session_state.results_module2 = [
         st.session_state.results_module2_dict[i]
-        for i in range(len(df_id))
+        for i in range(len(df_source))
     ]
 
     st.success("✅ Semua titik/rute sudah dibuat")
