@@ -341,11 +341,18 @@ def build_satellite_image_table(doc, tanggal_str):
 
 
 # =========================
-# FIRST PAGE PLACEHOLDER REPLACER
+# FIRST PAGE PLACEHOLDER REPLACER (FINAL FIX)
 # =========================
 def replace_first_page_placeholders(doc, module1_rows, module5_rows):
+
     first = module1_rows[0]
+
+    # =========================
+    # 🔥 FIX REF NO (AMAN)
+    # =========================
     ref_no = str(first.get("Nomor Surat", "") or "").strip()
+    if not ref_no or ref_no == "-":
+        ref_no = "______"
 
     valid_report_count = sum(
         1
@@ -377,13 +384,13 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             continue
 
         # =========================
-        # 🔥 FIX DI SINI (KOORDINAT)
+        # 🔥 FIX KOORDINAT + RANGE TANGGAL
         # =========================
         if "$LIST_KOORDINAT" in text:
             clear_paragraph(p)
 
             intro_text = (
-                f"Responding to your letter with Ref. {ref_no if ref_no else '______'} "
+                f"Responding to your letter with Ref. {ref_no} "
                 f"on the subject of marine meteorological analysis with coordinate :"
             )
             p.add_run(intro_text)
@@ -399,14 +406,46 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
             current_p = p
 
+            # =========================
+            # 🔥 GROUP BY KOORDINAT
+            # =========================
+            coord_map = {}
+
             for row in module1_rows:
-                # 🔥 PAKAI KOORDINAT ASLI (BUKAN AWAL/AKHIR)
                 coord = str(row.get("Koordinat", "") or "").strip()
-
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-                dt_str = format_date_en(dt) if dt else str(row.get("Tanggal Koordinat", "") or "").strip()
 
-                # 🔥 FORMAT BERSIH (NO DUPLIKAT)
+                if coord not in coord_map:
+                    coord_map[coord] = []
+
+                if dt:
+                    coord_map[coord].append(dt)
+
+            # =========================
+            # 🔥 BUILD BULLET (FORMAT LAMA)
+            # =========================
+            for coord, dates in coord_map.items():
+
+                if not dates:
+                    continue
+
+                dates = sorted(dates)
+
+                # =========================
+                # FORMAT TANGGAL
+                # =========================
+                if len(dates) == 1:
+                    dt_str = format_date_en(dates[0])
+                else:
+                    start = dates[0]
+                    end = dates[-1]
+
+                    # kalau bulan & tahun sama → ringkas
+                    if start.month == end.month and start.year == end.year:
+                        dt_str = f"{start.strftime('%B %d')}–{end.strftime('%d, %Y')}"
+                    else:
+                        dt_str = f"{format_date_en(start)} – {format_date_en(end)}"
+
                 bullet_text = f"• {coord} for {dt_str}"
 
                 new_p = insert_paragraph_after(current_p)
@@ -426,6 +465,9 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
                 current_p = new_p
 
+            # =========================
+            # PENUTUP
+            # =========================
             end_p = insert_paragraph_after(current_p)
             clear_paragraph(end_p)
             end_p.add_run("here with we enclose the meteorological analysis in attachments sheets.")
@@ -441,6 +483,9 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
             continue
 
+        # =========================
+        # REPLACEMENT TEXT
+        # =========================
         for k, v in replacements.items():
             if k in p.text:
                 p.text = p.text.replace(k, str(v))
