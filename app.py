@@ -441,11 +441,17 @@ else:
         st.dataframe(df_preview)
 
 # =========================
-# 🔥 PREVIEW + MAP (GLOBAL)
+# 🔥 PREVIEW + MAP (GLOBAL) — FINAL FIX
 # =========================
-if st.session_state.get("preview_data") is not None:
 
-    df_preview = st.session_state.preview_data
+# 🔥 AMBIL DATA DARI selected_data (UTAMA)
+df_preview = st.session_state.get("selected_data")
+
+# 🔥 FALLBACK KE preview_data (KHUSUS MANUAL)
+if df_preview is None:
+    df_preview = st.session_state.get("preview_data")
+
+if df_preview is not None:
 
     st.success("✅ Data berhasil diparsing")
     st.dataframe(df_preview)
@@ -462,7 +468,12 @@ if st.session_state.get("preview_data") is not None:
         if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
 
             latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
-            lat, lon = map(float, latlon.split(","))
+
+            # 🔥 AMAN (HANDLE STRING ATAU TUPLE)
+            if isinstance(latlon, str):
+                lat, lon = map(float, latlon.split(","))
+            else:
+                lat, lon = latlon
 
             st.success(f"📍 Titik otomatis: {lat}, {lon}")
 
@@ -502,9 +513,9 @@ if st.session_state.get("preview_data") is not None:
         st.exception(e)
 
     # =========================
-    # SAVE
+    # SAVE (KHUSUS MANUAL — TIDAK DIUBAH)
     # =========================
-    if st.session_state.preview_data is not None:
+    if st.session_state.get("preview_data") is not None:
 
         if st.button("Simpan Data Manual"):
 
@@ -556,13 +567,13 @@ if st.session_state.get("preview_data") is not None:
             st.session_state.df_id_manual = df_id
             st.session_state.manual_saved = True
 
-    if not st.session_state.manual_saved:
-        st.stop()
+    if not st.session_state.get("manual_saved", False):
+        pass  # 🔥 jangan stop global (biar Google Sheet tetap jalan)
 
 # =========================
 # 🔥 FIX STATE df_id (WAJIB)
 # =========================
-if df_id is None and st.session_state.df_id_manual is not None:
+if df_id is None and st.session_state.get("df_id_manual") is not None:
     df_id = st.session_state.df_id_manual
 
 # =========================
