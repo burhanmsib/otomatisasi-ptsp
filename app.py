@@ -427,6 +427,10 @@ else:
             })
         df_preview = pd.DataFrame(parsed_rows)
         st.session_state.preview_data = df_preview
+        
+
+        # 🔥 FIX PENTING (INI YANG HILANG)
+        st.session_state.selected_data = df_preview
 
         st.success("✅ Data berhasil diparsing")
         st.dataframe(df_preview)
