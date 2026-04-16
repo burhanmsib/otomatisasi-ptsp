@@ -366,6 +366,15 @@ else:
     alamat = st.text_input("Alamat Perusahaan")
     nomor = st.text_input("Nomor Surat")
 
+    # =========================
+    # 🔥 SIMPAN INFO PERUSAHAAN (INI YANG KAMU CARI)
+    # =========================
+    st.session_state.company_info = {
+        "Nama Perusahaan": nama,
+        "Alamat Perusahaan": alamat,
+        "Nomor Surat": nomor
+    }
+
     jumlah = st.number_input("Jumlah Titik Permintaan", min_value=1, step=1)
 
     data_list = []
@@ -704,29 +713,54 @@ if not template_path.exists():
     st.stop()
 
 if st.button("📄 Generate Laporan"):
-    st.session_state.run_generate = True
 
-if st.session_state.run_generate and st.session_state.results_module5:
+    if st.session_state.get("results_module5") is None:
+        st.warning("Jalankan analisis dulu")
+        st.stop()
 
-    with st.spinner("Menyusun laporan..."):
+    # =========================
+    # 🔥 FIX: BUILD module1_rows (UNIFIED)
+    # =========================
+    module1_rows = []
 
-        doc_buffer = generate_final_docx_streamlit(
-            module1_rows=df_id.to_dict(orient="records"),
-            module5_rows=st.session_state.results_module5,
-            template_path=str(template_path)
+    # ambil data perusahaan (khusus manual)
+    company_info = st.session_state.get("company_info", {})
+
+    for row in st.session_state.selected_data.to_dict("records"):
+
+        new_row = row.copy()
+
+        # =========================
+        # 🔥 INJECT DATA PERUSAHAAN
+        # =========================
+        new_row["Nama Perusahaan"] = company_info.get(
+            "Nama Perusahaan",
+            row.get("Nama Perusahaan", "")
         )
 
-    st.session_state.doc_buffer = doc_buffer
-    st.success("✅ Laporan berhasil dibuat")
+        new_row["Alamat Perusahaan"] = company_info.get(
+            "Alamat Perusahaan",
+            row.get("Alamat Perusahaan", "")
+        )
 
-    st.session_state.run_generate = False
+        new_row["Nomor Surat"] = company_info.get(
+            "Nomor Surat",
+            row.get("Nomor Surat", "")
+        )
 
-# =========================
-# DOWNLOAD
-# =========================
-if st.session_state.doc_buffer:
+        module1_rows.append(new_row)
+
+    # =========================
+    # GENERATE DOCX
+    # =========================
+    buffer = generate_final_docx_streamlit(
+        module1_rows,
+        st.session_state.results_module5,
+        template_path
+    )
+
     st.download_button(
-        "⬇️ Download Laporan",
-        data=st.session_state.doc_buffer,
-        file_name=f"PTSP_{'manual' if mode=='Input Manual' else selected_id}.docx"
+        "📥 Download Laporan",
+        buffer,
+        file_name="PTSP_Report.docx"
     )
