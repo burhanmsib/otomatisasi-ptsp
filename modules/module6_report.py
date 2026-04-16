@@ -196,6 +196,14 @@ def build_title(doc, row):
 
     ka = row.get("Koordinat Awal", "")
     kb = row.get("Koordinat Akhir", "")
+    
+    # 🔥 FIX TITIK VS RUTE
+    if ka == kb:
+        coord_text = ka
+    else:
+        coord_text = f"{ka} to {kb}"
+    
+    p.add_run(f"Coordinate: {coord_text}\n")
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports").bold = True
