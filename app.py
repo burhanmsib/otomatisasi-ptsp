@@ -329,19 +329,32 @@ if mode == "Ambil dari Google Sheet":
                 or row.get("Date") 
                 or ""
             ),
+        
             "Koordinat": koordinat,
-
-            # 🔥 FIX STRUKTUR (SAMA DENGAN MANUAL)
-            "Koordinat Awal": parsed.get("awal"),
-            "Koordinat Akhir": parsed.get("akhir"),
-
+        
+            # =========================
+            # 🔥 FIX UTAMA (WAJIB)
+            # =========================
+            "Nama Perusahaan": row.get("Nama Perusahaan", ""),
+            "Alamat Perusahaan": row.get("Alamat Perusahaan", ""),
+            "Nomor Surat": row.get("Nomor Surat", ""),
+        
+            # =========================
+            # 🔥 FIX KOORDINAT UNTUK REPORT
+            # =========================
+            "Koordinat Awal": koordinat,
+            "Koordinat Akhir": koordinat,
+        
+            # =========================
+            # DESIMAL UNTUK PROCESSING
+            # =========================
             "Koordinat Awal (Desimal)": parsed.get("awal"),
             "Koordinat Akhir (Desimal)": parsed.get("akhir"),
-
+        
             "Mode": parsed.get("mode"),
             "All Points": parsed.get("all", [])
         })
-
+        
     df_parsed = pd.DataFrame(parsed_rows)
 
     # =========================
