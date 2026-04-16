@@ -341,19 +341,39 @@ def build_satellite_image_table(doc, tanggal_str):
 
 
 # =========================
-# FIRST PAGE PLACEHOLDER REPLACER (FINAL FIX)
+# FIRST PAGE PLACEHOLDER REPLACER (FINAL FULL FIX - NO LOGIC REMOVED)
 # =========================
 def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
+    # =========================
+    # 🔥 BASE (TETAP PAKAI LOGIC ASLI)
+    # =========================
     first = module1_rows[0]
 
     # =========================
-    # 🔥 FIX REF NO (AMAN)
+    # 🔥 TAMBAHAN: FALLBACK (TANPA MERUBAH FLOW)
     # =========================
-    ref_no = str(first.get("Nomor Surat", "") or "").strip()
-    if not ref_no or ref_no == "-":
+    def get_fallback(key):
+        val = str(first.get(key, "") or "").strip()
+
+        if not val or val == "-":
+            for r in module1_rows:
+                v = str(r.get(key, "") or "").strip()
+                if v and v != "-":
+                    return v
+            return ""
+        return val
+
+    nama_perusahaan = get_fallback("Nama Perusahaan")
+    alamat_perusahaan = get_fallback("Alamat Perusahaan")
+    ref_no = get_fallback("Nomor Surat")
+
+    if not ref_no:
         ref_no = "______"
 
+    # =========================
+    # LOGIC ASLI (TIDAK DIUBAH)
+    # =========================
     valid_report_count = sum(
         1
         for idx in range(len(module1_rows))
@@ -363,8 +383,8 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
     )
 
     replacements = {
-        "$nama_perusahaan": str(first.get("Nama Perusahaan", "") or ""),
-        "$alamat_perusahaan": str(first.get("Alamat Perusahaan", "") or ""),
+        "$nama_perusahaan": nama_perusahaan,
+        "$alamat_perusahaan": alamat_perusahaan,
         "$no_surat": ref_no,
         "$tanggal_hari_ini": format_date_id(datetime.now()),
         "$jumlah_laporan_section": str(valid_report_count),
@@ -384,7 +404,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             continue
 
         # =========================
-        # 🔥 FIX KOORDINAT + RANGE TANGGAL
+        # 🔥 BAGIAN KOORDINAT (LOGIC ASLI + UPGRADE)
         # =========================
         if "$LIST_KOORDINAT" in text:
             clear_paragraph(p)
@@ -407,7 +427,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             current_p = p
 
             # =========================
-            # 🔥 GROUP BY KOORDINAT
+            # 🔥 GROUP BY KOORDINAT (TAMBAHAN)
             # =========================
             coord_map = {}
 
@@ -422,7 +442,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                     coord_map[coord].append(dt)
 
             # =========================
-            # 🔥 BUILD BULLET (FORMAT LAMA)
+            # 🔥 BUILD BULLET (FORMAT ASLI)
             # =========================
             for coord, dates in coord_map.items():
 
@@ -431,16 +451,12 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
                 dates = sorted(dates)
 
-                # =========================
-                # FORMAT TANGGAL
-                # =========================
                 if len(dates) == 1:
                     dt_str = format_date_en(dates[0])
                 else:
                     start = dates[0]
                     end = dates[-1]
 
-                    # kalau bulan & tahun sama → ringkas
                     if start.month == end.month and start.year == end.year:
                         dt_str = f"{start.strftime('%B %d')}–{end.strftime('%d, %Y')}"
                     else:
@@ -466,7 +482,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 current_p = new_p
 
             # =========================
-            # PENUTUP
+            # PENUTUP (TETAP)
             # =========================
             end_p = insert_paragraph_after(current_p)
             clear_paragraph(end_p)
@@ -484,7 +500,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             continue
 
         # =========================
-        # REPLACEMENT TEXT
+        # REPLACEMENT TEXT (TETAP)
         # =========================
         for k, v in replacements.items():
             if k in p.text:
