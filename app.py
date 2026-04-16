@@ -732,8 +732,12 @@ if st.button("📄 Generate Laporan"):
 
     df_data = st.session_state.get("selected_data")
 
+    # 🔥 AUTO FALLBACK
+    if df_data is None:
+        df_data = st.session_state.get("preview_data")
+    
     if df_data is None or df_data.empty:
-        st.warning("Data belum tersedia. Silakan preview/input dulu.")
+        st.warning("Data belum tersedia. Klik 'Preview Data' dulu.")
         st.stop()
     
     for row in df_data.to_dict("records"):
