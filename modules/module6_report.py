@@ -191,31 +191,32 @@ def remove_template_markers(doc):
 # SECTION BUILDERS
 # =========================
 def build_title(doc, row):
+
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
     t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
 
     ka = row.get("Koordinat Awal", "")
     kb = row.get("Koordinat Akhir", "")
-    
+
     # 🔥 FIX TITIK VS RUTE
-    if ka == kb:
-        coord_text = ka
+    if ka and kb:
+        if str(ka) == str(kb):
+            coord_text = str(ka)
+        else:
+            coord_text = f"{ka} to {kb}"
     else:
-        coord_text = f"{ka} to {kb}"
-    
-    p.add_run(f"Coordinate: {coord_text}\n")
+        coord_text = "-"
 
     p = doc.add_paragraph()
-    p.add_run("Meteorological Reports").bold = True
-    p.add_run("\nCoordinate: From ").bold = True
-    p.add_run(f"{ka} ")
-    p.add_run("To ").bold = True
-    p.add_run(f"{kb}\n")
+    p.add_run("Meteorological Reports\n").bold = True
+    p.add_run("Coordinate: ").bold = True
+    p.add_run(f"{coord_text}\n")
     p.add_run(f"for {t_str}")
 
     style_paragraph(p, bold=True, align="center")
-    doc.add_paragraph("")
 
+    doc.add_paragraph("")
+    
 def build_interval_table(doc, intervals, tz="WIB"):
     headers = [
         "DATE", f"LOCAL TIME ({tz})", "WEATHER",
