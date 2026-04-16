@@ -308,20 +308,44 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
     # =========================
-    # 🔥 PARSE OTOMATIS (LANGSUNG JALAN TANPA BUTTON)
+    # 🔥 PARSE OTOMATIS (FINAL FIX)
     # =========================
     parsed_rows = []
-
+    
+    # =========================
+    # 🔥 FUNCTION AMBIL DATA FLEXIBLE
+    # =========================
+    def get_val(row, keys):
+        for k in keys:
+            if k in row and str(row.get(k)).strip():
+                return row.get(k)
+        return ""
+    
     for _, row in df_id.iterrows():
-
+    
         koordinat = row.get("Koordinat", "")
-
+    
         parsed = parse_coordinate(koordinat)
-
+    
         if parsed is None:
             st.error(f"Koordinat tidak valid: {koordinat}")
             st.stop()
-
+    
+        # =========================
+        # 🔥 AMBIL DATA (ANTI SALAH KOLOM)
+        # =========================
+        nama_perusahaan = get_val(row, [
+            "Nama Perusahaan", "Perusahaan", "Company", "Client"
+        ])
+    
+        alamat_perusahaan = get_val(row, [
+            "Alamat Perusahaan", "Alamat", "Address"
+        ])
+    
+        nomor_surat = get_val(row, [
+            "Nomor Surat", "No Surat", "Ref", "Reference"
+        ])
+    
         parsed_rows.append({
             "Tanggal Koordinat": str(
                 row.get("Tanggal Koordinat") 
@@ -329,34 +353,33 @@ if mode == "Ambil dari Google Sheet":
                 or row.get("Date") 
                 or ""
             ),
-        
+    
             "Koordinat": koordinat,
-        
+    
             # =========================
-            # 🔥 FIX UTAMA (WAJIB)
+            # 🔥 FIX UTAMA (PASTI MASUK)
             # =========================
-            "Nama Perusahaan": row.get("Nama Perusahaan", ""),
-            "Alamat Perusahaan": row.get("Alamat Perusahaan", ""),
-            "Nomor Surat": row.get("Nomor Surat", ""),
-        
+            "Nama Perusahaan": nama_perusahaan,
+            "Alamat Perusahaan": alamat_perusahaan,
+            "Nomor Surat": nomor_surat,
+    
             # =========================
-            # 🔥 FIX KOORDINAT UNTUK REPORT
+            # 🔥 KOORDINAT UNTUK REPORT
             # =========================
             "Koordinat Awal": koordinat,
             "Koordinat Akhir": koordinat,
-        
+    
             # =========================
             # DESIMAL UNTUK PROCESSING
             # =========================
             "Koordinat Awal (Desimal)": parsed.get("awal"),
             "Koordinat Akhir (Desimal)": parsed.get("akhir"),
-        
+    
             "Mode": parsed.get("mode"),
             "All Points": parsed.get("all", [])
         })
-        
+    
     df_parsed = pd.DataFrame(parsed_rows)
-
     # =========================
     # 🔥 SIMPAN KE STATE (INI KUNCI FIX)
     # =========================
