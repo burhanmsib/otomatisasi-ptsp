@@ -266,7 +266,7 @@ if mode == "Ambil dari Google Sheet":
     st.session_state.manual_saved = False
 
 # =========================
-# MODE 1 – GOOGLE SHEET
+# MODE 1 – GOOGLE SHEET (FINAL FIX)
 # =========================
 if mode == "Ambil dari Google Sheet":
 
@@ -308,51 +308,56 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
     # =========================
-    # 🔥 PARSE OTOMATIS
+    # 🔥 PARSE OTOMATIS (LANGSUNG JALAN TANPA BUTTON)
+    # =========================
+    parsed_rows = []
+
+    for _, row in df_id.iterrows():
+
+        koordinat = row.get("Koordinat", "")
+
+        parsed = parse_coordinate(koordinat)
+
+        if parsed is None:
+            st.error(f"Koordinat tidak valid: {koordinat}")
+            st.stop()
+
+        parsed_rows.append({
+            "Tanggal Koordinat": str(
+                row.get("Tanggal Koordinat") 
+                or row.get("Tanggal") 
+                or row.get("Date") 
+                or ""
+            ),
+            "Koordinat": koordinat,
+
+            # 🔥 FIX STRUKTUR (SAMA DENGAN MANUAL)
+            "Koordinat Awal": parsed.get("awal"),
+            "Koordinat Akhir": parsed.get("akhir"),
+
+            "Koordinat Awal (Desimal)": parsed.get("awal"),
+            "Koordinat Akhir (Desimal)": parsed.get("akhir"),
+
+            "Mode": parsed.get("mode"),
+            "All Points": parsed.get("all", [])
+        })
+
+    df_parsed = pd.DataFrame(parsed_rows)
+
+    # =========================
+    # 🔥 SIMPAN KE STATE (INI KUNCI FIX)
+    # =========================
+    st.session_state.selected_data = df_parsed
+    st.session_state.preview_data = df_parsed  # optional (biar tetap bisa preview)
+
+    st.success("✅ Data siap digunakan (tanpa perlu preview)")
+    st.dataframe(df_parsed)
+
+    # =========================
+    # (OPSIONAL) BUTTON PREVIEW
     # =========================
     if st.button("Preview Data"):
-
-        parsed_rows = []
-
-        for _, row in df_id.iterrows():
-
-            koordinat = row.get("Koordinat", "")
-
-            parsed = parse_coordinate(koordinat)
-
-            if parsed is None:
-                st.error(f"Koordinat tidak valid: {koordinat}")
-                st.stop()
-
-            # simpan parsed terakhir (PENTING)
-            st.session_state.last_parsed = parsed
-
-            parsed_rows.append({
-                "Tanggal Koordinat": str(
-                    row.get("Tanggal Koordinat") 
-                    or row.get("Tanggal") 
-                    or row.get("Date") 
-                    or ""
-                ),
-                "Koordinat": koordinat,
-            
-                # 🔥 TAMBAHAN (BIAR SESUAI SHEET)
-                "Koordinat Awal": koordinat,
-                "Koordinat Akhir": koordinat,
-            
-                "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
-                "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
-            
-                "Mode": parsed.get("mode"),
-                "All Points": parsed.get("All Points", [])
-            })
-
-        df_preview = pd.DataFrame(parsed_rows)
-
-        st.session_state.preview_data = df_preview
-
-        st.success("✅ Data berhasil diparsing")
-        st.dataframe(df_preview)
+        st.info("Preview sama dengan data di atas")
 
 # =========================
 # MODE 2 – INPUT MANUAL
