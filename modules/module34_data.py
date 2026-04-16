@@ -1,5 +1,5 @@
 # =========================
-# MODULE 3 + 4 (FINAL COMPLETE - SUPER FAST CURRENT OPTIMIZED)
+# MODULE 3 + 4 (FINAL COMPLETE - SEGMENT FIXED + RETRY)
 # =========================
 
 import re
@@ -26,13 +26,15 @@ os.environ["OPENDAP_TIMEOUT"] = "60"
 # 🔥 TAMBAHAN: RETRY FUNCTION
 # =========================
 def open_dataset_with_retry(url, max_try=3, delay=2):
+
     for i in range(max_try):
         try:
             ds = xr.open_dataset(url)
             return ds
-        except Exception:
+        except Exception as e:
             print(f"[Retry {i+1}] gagal buka: {url}")
             time.sleep(delay)
+
     return None
 
 
@@ -50,10 +52,12 @@ TZ_OFFSET = {
 # DATE NORMALIZATION
 # =========================
 def normalize_date(raw):
+
     if raw is None or str(raw).strip() == "":
         return None
 
     s = str(raw)
+
     s = re.sub(r"\d{1,2}[.:]\d{2}(-\d{1,2}[.:]\d{2})?", "", s)
     s = s.replace("/", " ")
 
@@ -90,6 +94,7 @@ def normalize_date(raw):
 # ROUTE SAMPLING
 # =========================
 def generate_3_points_along_route(polyline):
+
     if not polyline or len(polyline) < 2:
         return polyline
 
@@ -109,30 +114,36 @@ def generate_3_points_along_route(polyline):
 # WEATHER CLASSIFICATION
 # =========================
 def classify_weather_from_rain(rain):
+
     if rain is None:
         return "Unknown"
 
     if rain < 0.5:
         return "Clear"
+
     elif rain < 5:
         return "Slight Rain"
+
     elif rain < 10:
         return "Moderate Rain"
+
     else:
         return "Heavy Rain"
 
-
 # =========================
-# WEATHER RANGE
+# 🔥 NEW: WEATHER RANGE BUILDER
 # =========================
 def build_weather_range(samples):
+
     labels = []
+
     for s in samples:
         rain = s["rain"]["precip"]
         label = classify_weather_from_rain(rain)
         labels.append(label)
 
     order = ["Clear", "Slight Rain", "Moderate Rain", "Heavy Rain"]
+
     labels = [l for l in labels if l in order]
 
     if not labels:
@@ -146,65 +157,50 @@ def build_weather_range(samples):
 
     return f"{order[min_idx]} to {order[max_idx]}"
 
+
 # =========================
 # GSMAP (CACHE)
 # =========================
-@st.cache_resource(ttl=1800)
+@st.cache_resource(ttl=3600)
 def load_gsmap_cached(dt):
-    try:
-        import ftplib, tempfile, os, xarray as xr
 
+    try:
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
-        Y = dt.strftime("%Y")
-        M = dt.strftime("%m")
-        D = dt.strftime("%d")
+        Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
+
+        remote_path = f"/himawari6/GSMaP/netcdf/{Y}/{M}/{D}/GSMaP_{Y}{M}{D}{H}00.nc"
+
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
+        tmp_path = tmp.name
+        tmp.close()
 
         ftp = ftplib.FTP(ftp_host, timeout=20)
         ftp.login(ftp_user, ftp_pass)
 
-        ftp.cwd(f"/now/netcdf/{Y}/{M}/{D}")
-
-        files = sorted([f for f in ftp.nlst() if f.endswith(".nc")])
-
-        if not files:
-            ftp.quit()
-            return None
-
-        datasets = []
-
-        # ambil beberapa file terakhir (representatif)
-        for fname in files[-12:]:
-            try:
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
-                tmp_path = tmp.name
-                tmp.close()
-
-                with open(tmp_path, "wb") as f:
-                    ftp.retrbinary(f"RETR {fname}", f.write)
-
-                ds = xr.open_dataset(tmp_path, decode_times=False)
-                os.remove(tmp_path)
-
-                datasets.append(ds)
-
-            except:
-                continue
+        with open(tmp_path, "wb") as f:
+            ftp.retrbinary(f"RETR {remote_path}", f.write)
 
         ftp.quit()
-        return datasets if datasets else None
+
+        ds = xr.open_dataset(tmp_path)
+        os.remove(tmp_path)
+
+        return ds
 
     except Exception as e:
         st.warning(f"GSMAP gagal load: {e}")
         return None
-        
+
+
 # =========================
-# LOAD DATASET
+# LOAD DATASET (RETRY VERSION)
 # =========================
 @st.cache_resource(ttl=3600)
 def load_datasets_cached(dt_input):
+
     dt = normalize_date(dt_input)
     if dt is None:
         return None, None, None
@@ -214,6 +210,7 @@ def load_datasets_cached(dt_input):
 
     YYYY, MM, DD = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d")
 
+    # 🔥 WAVE (RETRY)
     ds_wave = None
     for url in [
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc",
@@ -223,6 +220,7 @@ def load_datasets_cached(dt_input):
         if ds_wave is not None:
             break
 
+    # 🔥 CURRENT (RETRY)
     ds_cur = None
     for url in [
         f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc",
@@ -232,6 +230,7 @@ def load_datasets_cached(dt_input):
         if ds_cur is not None:
             break
 
+    # GSMAP tetap
     ds_rain = load_gsmap_cached(dt)
 
     return ds_wave, ds_cur, ds_rain
@@ -261,102 +260,34 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
 
 
 # =========================
-# 🔥 SMART CURRENT (BARU)
-# =========================
-def get_current_local(ds_cur, t, lat, lon):
-    try:
-        da_u = ds_cur["u"].sel(time=t, method="nearest")
-        da_v = ds_cur["v"].sel(time=t, method="nearest")
-
-        lat_vals = da_u["lat"].values
-        lon_vals = da_u["lon"].values
-
-        lat_idx = np.abs(lat_vals - lat).argmin()
-        lon_idx = np.abs(lon_vals - lon).argmin()
-
-        candidates = []
-
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                try:
-                    u = da_u.isel(lat=lat_idx+i, lon=lon_idx+j).values
-                    v = da_v.isel(lat=lat_idx+i, lon=lon_idx+j).values
-
-                    if np.isnan(u) or np.isnan(v):
-                        continue
-
-                    spd = np.hypot(u, v)
-                    candidates.append((spd, u, v))
-                except:
-                    continue
-
-        if not candidates:
-            return None, None
-
-        _, best_u, best_v = max(candidates)
-        return best_u, best_v
-
-    except:
-        return None, None
-
-
-def get_current_smart(ds_cur, t, lat, lon):
-
-    u = safe_extract(ds_cur, "u", t, lat, lon, depth=0.5)
-    v = safe_extract(ds_cur, "v", t, lat, lon, depth=0.5)
-
-    if u is not None and v is not None:
-        if np.hypot(u, v) > 0.02:
-            return u, v
-
-    return get_current_local(ds_cur, t, lat, lon)
-
-
-# =========================
-# WEATHER EXTRACTION (DIUBAH DI SINI)
+# WEATHER EXTRACTION
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    rain_val = 0.0
+    rain_val = None
 
     if ds_rain is not None:
-        datasets = ds_rain if isinstance(ds_rain, list) else [ds_rain]
-    
-        for ds in datasets:
-            try:
-                if "hourlyPrecipRate" in ds:
-    
-                    da = ds["hourlyPrecipRate"]
-    
-                    lat_vals = da["latitude"].values
-                    lon_vals = da["longitude"].values
-    
-                    lat_idx = np.abs(lat_vals - lat).argmin()
-                    lon_idx = np.abs(lon_vals - lon).argmin()
-    
-                    lat_start = max(0, lat_idx - 5)
-                    lat_end   = lat_idx + 6
-    
-                    lon_start = max(0, lon_idx - 5)
-                    lon_end   = lon_idx + 6
-    
-                    window = da.isel(
-                        latitude=slice(lat_start, lat_end),
-                        longitude=slice(lon_start, lon_end)
-                    )
-    
-                    val = float(window.max().values)
-    
-                    if not np.isnan(val):
-                        rain_val = max(rain_val, val)
-    
-            except:
-                continue
-    
-    # 🔥 INI POSISI YANG BENAR (SETELAH SEMUA LOOP SELESAI)
-    rain_val = rain_val * 6
+        try:
+            var = list(ds_rain.data_vars)[0]
+            da = ds_rain[var]
 
-    u_cur, v_cur = get_current_smart(ds_cur, t, lat, lon)
+            if "time" in da.dims:
+                da = da.sel(time=t, method="nearest")
+
+            lat_name = next((n for n in ["lat","latitude"] if n in da.coords), None)
+            lon_name = next((n for n in ["lon","longitude"] if n in da.coords), None)
+
+            if lat_name and lon_name:
+                lat_idx = np.abs(da[lat_name].values - lat).argmin()
+                lon_idx = np.abs(da[lon_name].values - lon).argmin()
+
+                rain_val = float(da.isel({lat_name: lat_idx, lon_name: lon_idx}).values)
+
+                if np.isnan(rain_val):
+                    rain_val = None
+
+        except:
+            rain_val = None
 
     return {
         "wave": {
@@ -369,16 +300,17 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             "v": safe_extract(ds_wave,"vwnd",t,lat,lon)
         },
         "current": {
-            "u": u_cur,
-            "v": v_cur
+            "u": safe_extract(ds_cur,"u",t,lat,lon,depth=0.5),
+            "v": safe_extract(ds_cur,"v",t,lat,lon,depth=0.5)
         },
         "rain": {
             "precip": rain_val
         }
     }
 
+
 # =========================
-# MAIN PROCESS
+# MAIN PROCESS (FINAL)
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
@@ -393,36 +325,40 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     ).astimezone(timezone.utc).replace(tzinfo=None)
 
     route = [(p[0], p[1]) for p in polyline]
+
     segments = []
     n = len(route)
 
     for i in range(4):
+
         t0 = dt_utc0 + timedelta(hours=i * 6)
 
         start_idx = int(i * (n-1) / 4)
         end_idx   = int((i+1) * (n-1) / 4) + 1
 
         segment_route = route[start_idx:end_idx]
+
         if len(segment_route) < 2:
             segment_route = route
 
         sample_points = generate_3_points_along_route(segment_route)
 
         samples = []
-        # ambil data hujan SEKALI (1 hari penuh)
-        rain_datasets = load_gsmap_cached(t0)
-        
+
         for j, (lat, lon) in enumerate(sample_points):
+
             t = t0 + timedelta(hours=j * 3)
-        
-            samples.append(
-                extract_hourly_weather(ds_wave, ds_cur, rain_datasets, t, lat, lon)
-            )
-        
+
+            sample = extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon)
+            samples.append(sample)
+
+        # 🔥 WEATHER RANGE (FINAL)
+        weather = build_weather_range(samples)
+
         segments.append({
             "interval": f"T{i*6}-T{(i+1)*6}",
             "samples": samples,
-            "weather": build_weather_range(samples)
+            "weather": weather
         })
 
     return {
