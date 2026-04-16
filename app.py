@@ -730,7 +730,13 @@ if st.button("📄 Generate Laporan"):
     # ambil data perusahaan (khusus manual)
     company_info = st.session_state.get("company_info", {})
 
-    for row in st.session_state.selected_data.to_dict("records"):
+    df_data = st.session_state.get("selected_data")
+
+    if df_data is None or df_data.empty:
+        st.warning("Data belum tersedia. Silakan preview/input dulu.")
+        st.stop()
+    
+    for row in df_data.to_dict("records"):
 
         new_row = row.copy()
 
