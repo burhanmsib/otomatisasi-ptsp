@@ -305,6 +305,8 @@ def parse_coordinate(text):
         "all": coords
     }
 
+st.info("ℹ️ Nilai koordinat hasil parsing mungkin berbeda format, namun perhitungan rute dan analisis tetap menggunakan data yang benar.")
+
 # =========================
 # MODE INPUT
 # =========================
