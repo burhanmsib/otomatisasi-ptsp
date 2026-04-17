@@ -224,9 +224,6 @@ def extract_coordinates(text):
     return clean_results
 
 
-# =========================
-# 🔥 CLEANING FUNCTION (WAJIB)
-# =========================
 def clean_coordinate(text):
     import re
 
@@ -234,27 +231,24 @@ def clean_coordinate(text):
         return text
 
     # =========================
-    # FIX DETIK > 59 (kasus Telegram error)
-    # contoh: 350" → 35.0"
+    # FIX DETIK BERLEBIH (SMART)
     # =========================
-    def fix_seconds(match):
-        val = match.group(1)
-        try:
-            num = float(val)
-            if num > 59:
-                num = num / 10
-            return f'{num}"'
-        except:
-            return val + '"'
+    def fix_dms(match):
+        deg = float(match.group(1))
+        minute = float(match.group(2))
+        sec = float(match.group(3))
 
-    text = re.sub(r'(\d{2,})"', fix_seconds, text)
+        # normalisasi
+        minute += int(sec // 60)
+        sec = sec % 60
 
-    # =========================
-    # NORMALISASI SPASI
-    # =========================
-    text = text.replace("  ", " ")
-    text = text.replace(" -", " - ")
-    text = text.replace("- ", " - ")
+        deg += int(minute // 60)
+        minute = minute % 60
+
+        return f"{int(deg):02d}° {int(minute):02d}' {sec:.2f}\""
+
+    pattern = r"(\d+)[°º]\s*(\d+)'\s*(\d+\.?\d*)\""
+    text = re.sub(pattern, fix_dms, text)
 
     return text.strip()
 
