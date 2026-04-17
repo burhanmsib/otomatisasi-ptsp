@@ -91,7 +91,7 @@ def normalize_text(text):
     # separator
     text = text.replace(" TO ", " | ")
     text = text.replace("–", " | ")
-    text = text.replace("-", " ")
+    # text = text.replace("-", " ")
     text = text.replace("/", " ")
     # ubah double petik aneh
     text = text.replace("’’", '"')
@@ -266,7 +266,7 @@ def clean_coordinate(text):
 def parse_coordinate(text):
 
     # 🔥 TAMBAHAN (TIDAK MENGUBAH LOGIC)
-    text = clean_coordinate(text)
+    # text = clean_coordinate(text)
 
     coords = extract_coordinates(text)
 
