@@ -91,10 +91,10 @@ def normalize_text(text):
     # separator
     text = text.replace(" TO ", " | ")
     text = text.replace("–", " | ")
-    # text = text.replace("-", " ")
+    text = text.replace("-", " ")
     text = text.replace("/", " ")
-    text = re.sub(r'\s-\s', ' ', text)
-    text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
+    # text = re.sub(r'\s-\s', ' ', text)
+    # text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
     
     # ubah double petik aneh
     text = text.replace("’’", '"')
