@@ -225,15 +225,54 @@ def extract_coordinates(text):
 
 
 # =========================
-# MAIN PARSER
+# 🔥 CLEANING FUNCTION (WAJIB)
+# =========================
+def clean_coordinate(text):
+    import re
+
+    if not text:
+        return text
+
+    # =========================
+    # FIX DETIK > 59 (kasus Telegram error)
+    # contoh: 350" → 35.0"
+    # =========================
+    def fix_seconds(match):
+        val = match.group(1)
+        try:
+            num = float(val)
+            if num > 59:
+                num = num / 10
+            return f'{num}"'
+        except:
+            return val + '"'
+
+    text = re.sub(r'(\d{2,})"', fix_seconds, text)
+
+    # =========================
+    # NORMALISASI SPASI
+    # =========================
+    text = text.replace("  ", " ")
+    text = text.replace(" -", " - ")
+    text = text.replace("- ", " - ")
+
+    return text.strip()
+
+
+# =========================
+# MAIN PARSER (FINAL FIX)
 # =========================
 def parse_coordinate(text):
+
+    # 🔥 TAMBAHAN (TIDAK MENGUBAH LOGIC)
+    text = clean_coordinate(text)
+
     coords = extract_coordinates(text)
 
     if not coords:
         return None
 
-    # 🔵 MODE TITIK
+    # 🔵 MODE TITIK (TETAP)
     if len(coords) == 1:
         lat, lon = coords[0]
 
@@ -241,15 +280,25 @@ def parse_coordinate(text):
             "mode": "titik",
             "Koordinat Awal (Desimal)": f"{lat},{lon}",
             "Koordinat Akhir (Desimal)": f"{lat},{lon}",
-            "All Points": coords
+            "All Points": coords,
+
+            # 🔥 TAMBAHAN (AGAR CONSISTENT DENGAN CODE LAIN)
+            "awal": f"{lat},{lon}",
+            "akhir": f"{lat},{lon}",
+            "all": coords
         }
 
-    # 🟢 MODE RUTE
+    # 🟢 MODE RUTE (TETAP)
     return {
         "mode": "rute",
         "Koordinat Awal (Desimal)": f"{coords[0][0]},{coords[0][1]}",
         "Koordinat Akhir (Desimal)": f"{coords[-1][0]},{coords[-1][1]}",
-        "All Points": coords
+        "All Points": coords,
+
+        # 🔥 TAMBAHAN (BIAR COMPATIBLE DENGAN APP.PY BARU)
+        "awal": f"{coords[0][0]},{coords[0][1]}",
+        "akhir": f"{coords[-1][0]},{coords[-1][1]}",
+        "all": coords
     }
 
 # =========================
