@@ -231,24 +231,31 @@ def clean_coordinate(text):
         return text
 
     # =========================
-    # FIX DETIK BERLEBIH (SMART)
+    # FIX DETIK > 59 (SAMAKAN DENGAN SISTEM ATAS)
     # =========================
-    def fix_dms(match):
-        deg = float(match.group(1))
-        minute = float(match.group(2))
-        sec = float(match.group(3))
+    def fix_seconds(match):
+        val = match.group(1)
+        try:
+            num = float(val)
 
-        # normalisasi
-        minute += int(sec // 60)
-        sec = sec % 60
+            # 🔥 LOGIKA PENTING (JANGAN DIUBAH)
+            if num > 99:
+                num = num / 10   # 350 → 35.0
+            elif num > 59:
+                num = num / 10   # 90 → 9.0
 
-        deg += int(minute // 60)
-        minute = minute % 60
+            return f'{num}"'
+        except:
+            return val + '"'
 
-        return f"{int(deg):02d}° {int(minute):02d}' {sec:.2f}\""
+    text = re.sub(r'(\d+)"', fix_seconds, text)
 
-    pattern = r"(\d+)[°º]\s*(\d+)'\s*(\d+\.?\d*)\""
-    text = re.sub(pattern, fix_dms, text)
+    # =========================
+    # NORMALISASI SPASI
+    # =========================
+    text = text.replace("  ", " ")
+    text = text.replace(" -", " - ")
+    text = text.replace("- ", " - ")
 
     return text.strip()
 
