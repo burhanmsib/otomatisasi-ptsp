@@ -269,7 +269,7 @@ def clean_coordinate(text):
 def parse_coordinate(text):
 
     # 🔥 TAMBAHAN (TIDAK MENGUBAH LOGIC)
-    # text = clean_coordinate(text)
+    text = clean_coordinate(text)
 
     coords = extract_coordinates(text)
 
