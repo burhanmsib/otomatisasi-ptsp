@@ -324,12 +324,30 @@ if mode == "Ambil dari Google Sheet":
     st.session_state.manual_saved = False
 
 # =========================
-# MODE 1 – GOOGLE SHEET (FINAL FIX)
+# MODE 1 – GOOGLE SHEET (FINAL FIX + REFRESH)
 # =========================
 if mode == "Ambil dari Google Sheet":
 
     st.header("🟦 Data Permintaan PTSP")
 
+    # =========================
+    # 🔥 BUTTON REFRESH DATA
+    # =========================
+    col_refresh1, col_refresh2 = st.columns([1, 4])
+
+    with col_refresh1:
+        refresh = st.button("🔄 Refresh")
+
+    with col_refresh2:
+        st.caption("Klik untuk mengambil data terbaru dari Google Sheet")
+
+    if refresh:
+        st.cache_data.clear()
+        st.success("Data berhasil diperbarui")
+
+    # =========================
+    # LOAD DATA
+    # =========================
     df_requests = load_request_sheet_streamlit()
 
     if df_requests is None:
