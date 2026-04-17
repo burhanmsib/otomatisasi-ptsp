@@ -99,6 +99,7 @@ def normalize_text(text):
     # ubah double petik aneh
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
+    text = text.replace('""', '"')
 
     # JANGAN hapus koma → penting untuk decimal
     # text = text.replace(",", " ")
@@ -110,6 +111,8 @@ def normalize_text(text):
 
     # rapihin spasi
     text = " ".join(text.split())
+    text = text.replace("S-", "S -")
+    text = text.replace("N-", "N -")
 
     # pisahin angka besar (lebih aman)
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
