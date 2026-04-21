@@ -115,9 +115,9 @@ def normalize_text(text):
     import re
 
     text = text.upper()
-    text = fix_compact_full(text)
+
     # =========================
-    # SYMBOL FIX
+    # 🔥 SYMBOL FIX (WAJIB DI ATAS)
     # =========================
     text = text.replace("O", "°")
     text = text.replace("º", "°")
@@ -129,9 +129,14 @@ def normalize_text(text):
 
     text = text.replace("–", "-")
     text = text.replace("—", "-")
-        
+
     # =========================
-    # 🔥 FIX TELEGRAM FORMAT (46'535")
+    # 🔥 BARU FIX COMPACT
+    # =========================
+    text = fix_compact_full(text)
+
+    # =========================
+    # TELEGRAM FORMAT
     # =========================
     def fix_seconds(match):
         deg = match.group(1)
@@ -140,10 +145,8 @@ def normalize_text(text):
 
         try:
             sec = float(sec_raw)
-
             if sec >= 100:
                 sec = sec / 10
-
             return f"{deg}° {minute}' {sec}\""
         except:
             return match.group(0)
@@ -155,54 +158,42 @@ def normalize_text(text):
     )
 
     # =========================
-    # DMM tetap
+    # DMM
     # =========================
     text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
     # =========================
-    # SPACING ARAH
+    # SPACING
     # =========================
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
     text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
     # =========================
-    # DASH FIX (PENTING)
+    # DASH FIX
     # =========================
     text = re.sub(r'\s-\s', ' ', text)
     text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
 
     # =========================
-    # SEPARATOR
+    # CLEAN
     # =========================
     text = text.replace(" TO ", " | ")
     text = text.replace("/", " ")
 
-    # =========================
-    # FIX DOUBLE QUOTES
-    # =========================
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
     text = text.replace('""', '"')
 
-    # =========================
-    # CLEAN WORDS
-    # =========================
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
 
-    # =========================
-    # CLEAN SPACE
-    # =========================
     text = " ".join(text.split())
 
     text = text.replace("S-", "S -")
     text = text.replace("N-", "N -")
 
-    # =========================
-    # SPLIT ANGKA BESAR
-    # =========================
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
 
     text = text.replace("||", "|")
