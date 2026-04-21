@@ -67,99 +67,51 @@ import re
 # NORMALIZE TEXT (SUPER FLEX - FINAL FIX)
 # =========================
 def normalize_text(text):
-    import re
-
     text = text.upper()
 
-    # =========================
-    # SYMBOL FIX
-    # =========================
+    # simbol derajat
     text = text.replace("O", "°")
     text = text.replace("º", "°")
     text = text.replace("˚", "°")
     text = text.replace("̊", "°")
 
+    # petik
     text = text.replace("’", "'").replace("‘", "'")
     text = text.replace("”", '"').replace("“", '"')
 
-    text = text.replace("–", "-")
-    text = text.replace("—", "-")
-
-    # =========================
-    # 🔥 FIX TELEGRAM FORMAT: 46'535" → 46' 53.5"
-    # =========================
-    def fix_seconds(match):
-        deg = match.group(1)
-        minute = match.group(2)
-        sec_raw = match.group(3)
-
-        try:
-            sec = float(sec_raw)
-
-            if sec >= 100:
-                sec = sec / 10
-
-            return f"{deg}° {minute}' {sec}\""
-        except:
-            return match.group(0)
-
-    text = re.sub(
-        r"(\d{2})°?\s*(\d{2})'\s*(\d{3})\"",
-        fix_seconds,
-        text
-    )
-
-    # =========================
-    # DMM tetap (jangan rusak)
-    # =========================
+    # ubah DMM (42'068 → 42.068)
+    # hanya convert kalau TIDAK ADA titik (biar tidak merusak DMM)
     text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
-    # =========================
-    # FIX SPACING ARAH
-    # =========================
+    # pisahin angka & arah
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
     text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
-    # =========================
-    # 🔥 FIX DASH (JANGAN HAPUS TOTAL)
-    # =========================
-    text = re.sub(r'\s-\s', ' ', text)
-    text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
-
-    # =========================
-    # SEPARATOR
-    # =========================
+    # separator
     text = text.replace(" TO ", " | ")
+    text = text.replace("–", " | ")
+    text = text.replace("-", " ")
     text = text.replace("/", " ")
-
-    # =========================
-    # FIX DOUBLE QUOTES
-    # =========================
+    # ubah double petik aneh
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
-    text = text.replace('""', '"')
 
-    # =========================
-    # CLEAN WORDS
-    # =========================
+    # JANGAN hapus koma → penting untuk decimal
+    # text = text.replace(",", " ")
+
+    # bersihin kata
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
 
-    # =========================
-    # CLEAN SPACE
-    # =========================
+    # rapihin spasi
     text = " ".join(text.split())
 
-    text = text.replace("S-", "S -")
-    text = text.replace("N-", "N -")
-
-    # =========================
-    # SPLIT ANGKA BESAR
-    # =========================
+    # pisahin angka besar (lebih aman)
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
 
+    # jaga-jaga separator
     text = text.replace("||", "|")
 
     return text
