@@ -64,16 +64,13 @@ df_id = None
 import re
 
 # =========================
-# NORMALIZE TEXT (SUPER FLEX - FINAL FIX)
-# =========================
-# =========================
 # NORMALIZE TEXT (SUPER FLEX - FINAL UNIVERSAL FIX)
 # =========================
 def normalize_text(text):
     import re
 
     text = text.upper()
-
+    text = fix_compact_full(text)
     # =========================
     # SYMBOL FIX
     # =========================
@@ -89,28 +86,55 @@ def normalize_text(text):
     text = text.replace("—", "-")
 
     # =========================
-    # 🔥 FIX FORMAT PADAT (06055’024’S)
+    # 🔥 FIX FORMAT SUPER COMPACT (FINAL)
     # =========================
-    def fix_compact(match):
-        full = match.group(1)
-        sec_raw = match.group(2)
-        direction = match.group(3)
-
-        try:
-            deg = full[:2]
-            minute = full[2:4]
-            sec = float(full[4:] + sec_raw)
-
-            if sec >= 100:
-                sec = sec / 10
-
-            return f"{deg}° {minute}' {sec}\" {direction}"
-        except:
-            return match.group(0)
-
-    text = re.sub(r"(\d{5})[’'](\d{3})[’\"]*([NS])", fix_compact, text)
-    text = re.sub(r"(\d{6})[’'](\d{3})[’\"]*([EW])", fix_compact, text)
-
+    def fix_compact_full(text):
+        import re
+    
+        def convert(match):
+            raw = match.group(1)
+            sec_extra = match.group(2)
+            direction = match.group(3)
+    
+            try:
+                # contoh: 06055 + 024
+                deg = int(raw[:2])
+                minute = int(raw[2:4])
+                sec_main = int(raw[4:])  # 5
+                sec_extra = int(sec_extra)  # 024
+    
+                # gabung jadi detik
+                sec = float(f"{sec_main}.{sec_extra}")
+    
+                return f"{deg}° {minute}' {sec}\" {direction}"
+            except:
+                return match.group(0)
+    
+        # LAT
+        text = re.sub(r'(\d{5})[’\'](\d{3})([NS])', convert, text)
+    
+        # LON (3 digit degree)
+        def convert_lon(match):
+            raw = match.group(1)
+            sec_extra = match.group(2)
+            direction = match.group(3)
+    
+            try:
+                deg = int(raw[:3])
+                minute = int(raw[3:5])
+                sec_main = int(raw[5:])
+                sec_extra = int(sec_extra)
+    
+                sec = float(f"{sec_main}.{sec_extra}")
+    
+                return f"{deg}° {minute}' {sec}\" {direction}"
+            except:
+                return match.group(0)
+    
+        text = re.sub(r'(\d{6})[’\'](\d{3})([EW])', convert_lon, text)
+    
+        return text
+        
     # =========================
     # 🔥 FIX TELEGRAM FORMAT (46'535")
     # =========================
