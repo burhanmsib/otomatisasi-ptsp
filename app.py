@@ -219,9 +219,11 @@ def dms_to_decimal(deg, minute=0, second=0, direction="N"):
 
 
 # =========================
-# EXTRACT ALL FORMAT
+# EXTRACT ALL FORMAT (FINAL)
 # =========================
 def extract_coordinates(text):
+    import re
+
     text = normalize_text(text)
     results = []
 
@@ -251,59 +253,63 @@ def extract_coordinates(text):
     for m in pattern:
         lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
 
-        lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
-        lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
-
-        results.append((lat, lon))
-
-    # =========================
-    # 3. FALLBACK FORMAT
-    # =========================
-    fallback = re.findall(
-        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([NS])\s+'
-        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([EW])',
-        text
-    )
-
-    for m in fallback:
-        lat = dms_to_decimal(m[0], m[1], m[2], m[3])
-        lon = dms_to_decimal(m[4], m[5], m[6], m[7])
-        results.append((lat, lon))
-
-    # =========================
-    # 4. FORMAT DMM TANPA °
-    # contoh: 06’05.584’’S
-    # =========================
-    pattern_dmm_no_deg = re.findall(
-        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([NS])'
-        r'.{0,10}?'
-        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([EW])',
-        text
-    )
-    
-    for m in pattern:
-        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
-    
-        # =========================
-        # 🔥 FIX DMM (INI KUNCI)
-        # =========================
+        # FIX DMM
         if lat_sec in [None, ""] and lat_min and "." in str(lat_min):
             lat = float(lat_deg) + float(lat_min) / 60
         else:
             lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
-    
+
         if lon_sec in [None, ""] and lon_min and "." in str(lon_min):
             lon = float(lon_deg) + float(lon_min) / 60
         else:
             lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
-    
+
         # arah
         if lat_dir == "S":
             lat *= -1
         if lon_dir == "W":
             lon *= -1
-    
+
         results.append((lat, lon))
+
+    # =========================
+    # 3. FORMAT COMPACT (06055’024’S)
+    # =========================
+    compact = re.findall(
+        r'(\d{5})[\'’](\d{3})([NS])'
+        r'.{0,10}?'
+        r'(\d{6})[\'’](\d{3})([EW])',
+        text
+    )
+
+    for m in compact:
+        lat_raw, lat_sec_extra, lat_dir, lon_raw, lon_sec_extra, lon_dir = m
+
+        # LAT
+        lat_deg = int(lat_raw[:2])
+        lat_min = int(lat_raw[2:4])
+        lat_sec = float(f"{lat_raw[4]}.{lat_sec_extra}")
+
+        # LON
+        lon_deg = int(lon_raw[:3])
+        lon_min = int(lon_raw[3:5])
+        lon_sec = float(f"{lon_raw[5]}.{lon_sec_extra}")
+
+        lat = lat_deg + lat_min/60 + lat_sec/3600
+        lon = lon_deg + lon_min/60 + lon_sec/3600
+
+        if lat_dir == "S":
+            lat *= -1
+        if lon_dir == "W":
+            lon *= -1
+
+        results.append((lat, lon))
+
+    # =========================
+    # VALIDASI FINAL
+    # =========================
+    return [(lat, lon) for lat, lon in results if -90 <= lat <= 90 and -180 <= lon <= 180]
+
         
 def clean_coordinate(text):
     import re
