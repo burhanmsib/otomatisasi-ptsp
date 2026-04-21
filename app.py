@@ -225,88 +225,64 @@ def dms_to_decimal(deg, minute=0, second=0, direction="N"):
 # EXTRACT ALL FORMAT
 # =========================
 def extract_coordinates(text):
+    import re
+
     text = normalize_text(text)
     results = []
 
     # =========================
-    # 1. DECIMAL FORMAT
-    # =========================
-    decimal_matches = re.findall(r'(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)', text)
-    for lat, lon in decimal_matches:
-        results.append((float(lat), float(lon)))
-
-    # =========================
-    # 2. DMS / DMM FLEX
+    # POLA GLOBAL (FLEXIBLE)
     # =========================
     pattern = re.findall(
-        r'(\d{1,3})\s*°?\s*'
-        r'(\d{1,2}(?:\.\d+)?)?\'?\s*'
-        r'(\d{1,2}(?:\.\d+)?)?"?\s*'
-        r'([NS])'
-        r'.{0,15}?'
-        r'(\d{1,3})\s*°?\s*'
-        r'(\d{1,2}(?:\.\d+)?)?\'?\s*'
-        r'(\d{1,2}(?:\.\d+)?)?"?\s*'
-        r'([EW])',
+        r'(\d+)[^\dNSWE]+(\d+)?[^\dNSWE]*(\d+)?\s*([NS])'
+        r'.{0,20}?'
+        r'(\d+)[^\dNSWE]+(\d+)?[^\dNSWE]*(\d+)?\s*([EW])',
         text
     )
+
+    def convert(deg, minute, sec, direction):
+        deg = float(deg)
+
+        # =========================
+        # AUTO SPLIT (FORMAT PADAT)
+        # =========================
+        if minute is None and sec is None:
+            s = str(int(deg))
+
+            if len(s) >= 5:
+                # contoh: 06055 → 06 05 5
+                deg = float(s[:2])
+                minute = float(s[2:4])
+                sec = float(s[4:])
+            else:
+                return None
+
+        else:
+            minute = float(minute or 0)
+            sec = float(sec or 0)
+
+        # =========================
+        # HANDLE SEC ANEH (535 → 53.5)
+        # =========================
+        if sec >= 100:
+            sec = sec / 10
+
+        decimal = deg + (minute / 60) + (sec / 3600)
+
+        if direction in ["S", "W"]:
+            decimal *= -1
+
+        return decimal
 
     for m in pattern:
-        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
+        lat = convert(m[0], m[1], m[2], m[3])
+        lon = convert(m[4], m[5], m[6], m[7])
 
-        lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
-        lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
+        if lat is not None and lon is not None:
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                results.append((lat, lon))
 
-        results.append((lat, lon))
-
-    # =========================
-    # 3. FALLBACK FORMAT
-    # =========================
-    fallback = re.findall(
-        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([NS])\s+'
-        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([EW])',
-        text
-    )
-
-    for m in fallback:
-        lat = dms_to_decimal(m[0], m[1], m[2], m[3])
-        lon = dms_to_decimal(m[4], m[5], m[6], m[7])
-        results.append((lat, lon))
-
-    # =========================
-    # 4. FORMAT DMM TANPA °
-    # contoh: 06’05.584’’S
-    # =========================
-    pattern_dmm_no_deg = re.findall(
-        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([NS])'
-        r'.{0,10}?'
-        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([EW])',
-        text
-    )
-    
-    for m in pattern_dmm_no_deg:
-        lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
-    
-        lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
-        lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
-    
-        results.append((lat, lon))
-
-    # =========================
-    # VALIDASI KOORDINAT
-    # =========================
-    clean_results = []
-
-    for lat, lon in results:
-        if -90 <= lat <= 90 and -180 <= lon <= 180:
-            clean_results.append((lat, lon))
-
-    # debug kalau kosong
-    if len(clean_results) == 0:
-        print("⚠️ Koordinat tidak terbaca:", text)
-
-    return clean_results
-
+    return results
 
 def clean_coordinate(text):
     import re
