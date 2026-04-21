@@ -281,14 +281,30 @@ def extract_coordinates(text):
         text
     )
     
-    for m in pattern_dmm_no_deg:
-        lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
+    for m in pattern:
+        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
     
-        lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
-        lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
+        # =========================
+        # 🔥 FIX DMM (INI KUNCI)
+        # =========================
+        if lat_sec in [None, ""] and lat_min and "." in str(lat_min):
+            lat = float(lat_deg) + float(lat_min) / 60
+        else:
+            lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
+    
+        if lon_sec in [None, ""] and lon_min and "." in str(lon_min):
+            lon = float(lon_deg) + float(lon_min) / 60
+        else:
+            lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
+    
+        # arah
+        if lat_dir == "S":
+            lat *= -1
+        if lon_dir == "W":
+            lon *= -1
     
         results.append((lat, lon))
-
+        
 def clean_coordinate(text):
     import re
 
