@@ -64,54 +64,135 @@ df_id = None
 import re
 
 # =========================
-# NORMALIZE TEXT (SUPER FLEX)
+# 🔥 FIX FORMAT SUPER COMPACT (HARUS DI LUAR)
 # =========================
+def fix_compact_full(text):
+    import re
+
+    def convert(match):
+        raw = match.group(1)
+        sec_extra = match.group(2)
+        direction = match.group(3)
+
+        try:
+            deg = int(raw[:2])
+            minute = int(raw[2:4])
+            sec_main = int(raw[4:])
+            sec_extra = int(sec_extra)
+
+            sec = float(f"{sec_main}.{sec_extra}")
+
+            return f"{deg}° {minute}' {sec}\" {direction}"
+        except:
+            return match.group(0)
+
+    def convert_lon(match):
+        raw = match.group(1)
+        sec_extra = match.group(2)
+        direction = match.group(3)
+
+        try:
+            deg = int(raw[:3])
+            minute = int(raw[3:5])
+            sec_main = int(raw[5:])
+            sec_extra = int(sec_extra)
+
+            sec = float(f"{sec_main}.{sec_extra}")
+
+            return f"{deg}° {minute}' {sec}\" {direction}"
+        except:
+            return match.group(0)
+
+    text = re.sub(r'(\d{5})[’\'](\d{3})([NS])', convert, text)
+    text = re.sub(r'(\d{6})[’\'](\d{3})([EW])', convert_lon, text)
+
+    return text
+
 def normalize_text(text):
+    import re
+
     text = text.upper()
 
-    # simbol derajat
+    # =========================
+    # 🔥 SYMBOL FIX (WAJIB DI ATAS)
+    # =========================
     text = text.replace("O", "°")
     text = text.replace("º", "°")
     text = text.replace("˚", "°")
     text = text.replace("̊", "°")
 
-    # petik
     text = text.replace("’", "'").replace("‘", "'")
     text = text.replace("”", '"').replace("“", '"')
 
-    # ubah DMM (42'068 → 42.068)
-    # hanya convert kalau TIDAK ADA titik (biar tidak merusak DMM)
+    text = text.replace("–", "-")
+    text = text.replace("—", "-")
+
+    # =========================
+    # 🔥 BARU FIX COMPACT
+    # =========================
+    text = fix_compact_full(text)
+
+    # =========================
+    # TELEGRAM FORMAT
+    # =========================
+    def fix_seconds(match):
+        deg = match.group(1)
+        minute = match.group(2)
+        sec_raw = match.group(3)
+
+        try:
+            sec = float(sec_raw)
+            if sec >= 100:
+                sec = sec / 10
+            return f"{deg}° {minute}' {sec}\""
+        except:
+            return match.group(0)
+
+    text = re.sub(
+        r"(\d{2})°?\s*(\d{2})'\s*(\d{3})\"",
+        fix_seconds,
+        text
+    )
+
+    # =========================
+    # DMM
+    # =========================
     text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
-    # pisahin angka & arah
+    # =========================
+    # SPACING
+    # =========================
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
     text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
-    # separator
+    # =========================
+    # DASH FIX
+    # =========================
+    text = re.sub(r'\s-\s', ' ', text)
+    text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
+
+    # =========================
+    # CLEAN
+    # =========================
     text = text.replace(" TO ", " | ")
-    text = text.replace("–", " | ")
-    text = text.replace("-", " ")
     text = text.replace("/", " ")
-    # ubah double petik aneh
+
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
+    text = text.replace('""', '"')
 
-    # JANGAN hapus koma → penting untuk decimal
-    # text = text.replace(",", " ")
-
-    # bersihin kata
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
 
-    # rapihin spasi
     text = " ".join(text.split())
 
-    # pisahin angka besar (lebih aman)
+    text = text.replace("S-", "S -")
+    text = text.replace("N-", "N -")
+
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
 
-    # jaga-jaga separator
     text = text.replace("||", "|")
 
     return text
