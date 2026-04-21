@@ -259,29 +259,33 @@ def clean_coordinate(text):
     return text.strip()
 
 
-    import re
-    
+def parse_coordinate(text):
+    import re  # 🔥 WAJIB ADA DI SINI (biar tidak error)
+
+    if not text:
+        return None
+
     # =========================
-    # 🔥 PRIORITAS DECIMAL (WAJIB UNTUK INPUT MANUAL)
+    # 🔥 PRIORITAS DECIMAL
     # =========================
     decimal_match = re.findall(
         r'(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)',
         text
     )
-    
+
     if decimal_match:
         coords = []
-    
+
         for lat, lon in decimal_match:
             try:
                 lat = round(float(lat), 6)
                 lon = round(float(lon), 6)
-    
+
                 if -90 <= lat <= 90 and -180 <= lon <= 180:
                     coords.append((lat, lon))
             except:
                 continue
-    
+
         if coords:
             if len(coords) == 1:
                 lat, lon = coords[0]
@@ -294,7 +298,7 @@ def clean_coordinate(text):
                     "akhir": f"{lat},{lon}",
                     "all": coords
                 }
-    
+
             return {
                 "mode": "rute",
                 "Koordinat Awal (Desimal)": f"{coords[0][0]},{coords[0][1]}",
@@ -304,6 +308,37 @@ def clean_coordinate(text):
                 "akhir": f"{coords[-1][0]},{coords[-1][1]}",
                 "all": coords
             }
+
+    # =========================
+    # 🔥 FALLBACK KE SYSTEM LAMA
+    # =========================
+    text = clean_coordinate(text)
+    coords = extract_coordinates(text)
+
+    if not coords:
+        return None
+
+    if len(coords) == 1:
+        lat, lon = coords[0]
+        return {
+            "mode": "titik",
+            "Koordinat Awal (Desimal)": f"{lat},{lon}",
+            "Koordinat Akhir (Desimal)": f"{lat},{lon}",
+            "All Points": coords,
+            "awal": f"{lat},{lon}",
+            "akhir": f"{lat},{lon}",
+            "all": coords
+        }
+
+    return {
+        "mode": "rute",
+        "Koordinat Awal (Desimal)": f"{coords[0][0]},{coords[0][1]}",
+        "Koordinat Akhir (Desimal)": f"{coords[-1][0]},{coords[-1][1]}",
+        "All Points": coords,
+        "awal": f"{coords[0][0]},{coords[0][1]}",
+        "akhir": f"{coords[-1][0]},{coords[-1][1]}",
+        "all": coords
+    }
             
     st.info("ℹ️ Nilai koordinat hasil parsing mungkin berbeda format, namun perhitungan rute dan analisis tetap menggunakan data yang benar.")
 
