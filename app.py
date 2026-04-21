@@ -64,138 +64,54 @@ df_id = None
 import re
 
 # =========================
-# 🔥 FIX FORMAT SUPER COMPACT (HARUS DI LUAR)
-# =========================
-def fix_compact_full(text):
-    import re
-
-    def convert(match):
-        raw = match.group(1)
-        sec_extra = match.group(2)
-        direction = match.group(3)
-
-        try:
-            deg = int(raw[:2])
-            minute = int(raw[2:4])
-            sec_main = int(raw[4:])
-            sec_extra = int(sec_extra)
-
-            sec = float(f"{sec_main}.{sec_extra}")
-
-            return f"{deg}° {minute}' {sec}\" {direction}"
-        except:
-            return match.group(0)
-
-    def convert_lon(match):
-        raw = match.group(1)
-        sec_extra = match.group(2)
-        direction = match.group(3)
-
-        try:
-            deg = int(raw[:3])
-            minute = int(raw[3:5])
-            sec_main = int(raw[5:])
-            sec_extra = int(sec_extra)
-
-            sec = float(f"{sec_main}.{sec_extra}")
-
-            return f"{deg}° {minute}' {sec}\" {direction}"
-        except:
-            return match.group(0)
-
-    text = re.sub(r'(\d{5})[’\'](\d{3})([NS])', convert, text)
-    text = re.sub(r'(\d{6})[’\'](\d{3})([EW])', convert_lon, text)
-
-    return text
-
-# =========================
-# NORMALIZE TEXT (SUPER FLEX - FINAL UNIVERSAL FIX)
+# NORMALIZE TEXT (SUPER FLEX)
 # =========================
 def normalize_text(text):
-    import re
-
     text = text.upper()
 
-    # =========================
-    # 🔥 SYMBOL FIX (WAJIB DI ATAS)
-    # =========================
+    # simbol derajat
     text = text.replace("O", "°")
     text = text.replace("º", "°")
     text = text.replace("˚", "°")
     text = text.replace("̊", "°")
 
+    # petik
     text = text.replace("’", "'").replace("‘", "'")
     text = text.replace("”", '"').replace("“", '"')
 
-    text = text.replace("–", "-")
-    text = text.replace("—", "-")
-
-    # =========================
-    # 🔥 BARU FIX COMPACT
-    # =========================
-    text = fix_compact_full(text)
-
-    # =========================
-    # TELEGRAM FORMAT
-    # =========================
-    def fix_seconds(match):
-        deg = match.group(1)
-        minute = match.group(2)
-        sec_raw = match.group(3)
-
-        try:
-            sec = float(sec_raw)
-            if sec >= 100:
-                sec = sec / 10
-            return f"{deg}° {minute}' {sec}\""
-        except:
-            return match.group(0)
-
-    text = re.sub(
-        r"(\d{2})°?\s*(\d{2})'\s*(\d{3})\"",
-        fix_seconds,
-        text
-    )
-
-    # =========================
-    # DMM
-    # =========================
+    # ubah DMM (42'068 → 42.068)
+    # hanya convert kalau TIDAK ADA titik (biar tidak merusak DMM)
     text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
-    # =========================
-    # SPACING
-    # =========================
+    # pisahin angka & arah
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
     text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
-    # =========================
-    # DASH FIX
-    # =========================
-    text = re.sub(r'\s-\s', ' ', text)
-    text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
-
-    # =========================
-    # CLEAN
-    # =========================
+    # separator
     text = text.replace(" TO ", " | ")
+    text = text.replace("–", " | ")
+    text = text.replace("-", " ")
     text = text.replace("/", " ")
-
+    # ubah double petik aneh
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
-    text = text.replace('""', '"')
 
+    # JANGAN hapus koma → penting untuk decimal
+    # text = text.replace(",", " ")
+
+    # bersihin kata
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
 
+    # rapihin spasi
     text = " ".join(text.split())
 
-    text = text.replace("S-", "S -")
-    text = text.replace("N-", "N -")
-
+    # pisahin angka besar (lebih aman)
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
 
+    # jaga-jaga separator
     text = text.replace("||", "|")
 
     return text
@@ -225,64 +141,72 @@ def dms_to_decimal(deg, minute=0, second=0, direction="N"):
 # EXTRACT ALL FORMAT
 # =========================
 def extract_coordinates(text):
-    import re
-
     text = normalize_text(text)
     results = []
 
     # =========================
-    # POLA GLOBAL (FLEXIBLE)
+    # 1. DECIMAL FORMAT
+    # =========================
+    decimal_matches = re.findall(r'(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)', text)
+    for lat, lon in decimal_matches:
+        results.append((float(lat), float(lon)))
+
+    # =========================
+    # 2. DMS / DMM FLEX
     # =========================
     pattern = re.findall(
-        r'(\d+)[^\dNSWE]+(\d+)?[^\dNSWE]*(\d+)?\s*([NS])'
-        r'.{0,20}?'
-        r'(\d+)[^\dNSWE]+(\d+)?[^\dNSWE]*(\d+)?\s*([EW])',
+        r'(\d{1,3})\s*°?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?\'?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?"?\s*'
+        r'([NS])'
+        r'.{0,15}?'
+        r'(\d{1,3})\s*°?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?\'?\s*'
+        r'(\d{1,2}(?:\.\d+)?)?"?\s*'
+        r'([EW])',
         text
     )
 
-    def convert(deg, minute, sec, direction):
-        deg = float(deg)
-
-        # =========================
-        # AUTO SPLIT (FORMAT PADAT)
-        # =========================
-        if minute is None and sec is None:
-            s = str(int(deg))
-
-            if len(s) >= 5:
-                # contoh: 06055 → 06 05 5
-                deg = float(s[:2])
-                minute = float(s[2:4])
-                sec = float(s[4:])
-            else:
-                return None
-
-        else:
-            minute = float(minute or 0)
-            sec = float(sec or 0)
-
-        # =========================
-        # HANDLE SEC ANEH (535 → 53.5)
-        # =========================
-        if sec >= 100:
-            sec = sec / 10
-
-        decimal = deg + (minute / 60) + (sec / 3600)
-
-        if direction in ["S", "W"]:
-            decimal *= -1
-
-        return decimal
-
     for m in pattern:
-        lat = convert(m[0], m[1], m[2], m[3])
-        lon = convert(m[4], m[5], m[6], m[7])
+        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
 
-        if lat is not None and lon is not None:
-            if -90 <= lat <= 90 and -180 <= lon <= 180:
-                results.append((lat, lon))
+        lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
+        lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
 
-    return results
+        results.append((lat, lon))
+
+    # =========================
+    # 3. FALLBACK FORMAT
+    # =========================
+    fallback = re.findall(
+        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([NS])\s+'
+        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([EW])',
+        text
+    )
+
+    for m in fallback:
+        lat = dms_to_decimal(m[0], m[1], m[2], m[3])
+        lon = dms_to_decimal(m[4], m[5], m[6], m[7])
+        results.append((lat, lon))
+
+    # =========================
+    # 4. FORMAT DMM TANPA °
+    # contoh: 06’05.584’’S
+    # =========================
+    pattern_dmm_no_deg = re.findall(
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([NS])'
+        r'.{0,10}?'
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([EW])',
+        text
+    )
+    
+    for m in pattern_dmm_no_deg:
+        lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
+    
+        lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
+        lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
+    
+        results.append((lat, lon))
 
 def clean_coordinate(text):
     import re
