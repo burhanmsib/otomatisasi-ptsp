@@ -228,11 +228,39 @@ def extract_coordinates(text):
     results = []
 
     # =========================
-    # 1. DECIMAL FORMAT
+    # 1. DECIMAL (KOMA)
     # =========================
-    decimal_matches = re.findall(r'(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)', text)
+    decimal_matches = re.findall(
+        r'(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)',
+        text
+    )
+
     for lat, lon in decimal_matches:
-        results.append((float(lat), float(lon)))
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                results.append((lat, lon))
+        except:
+            continue
+
+    # =========================
+    # 2. DECIMAL (TANPA KOMA)
+    # =========================
+    decimal_space = re.findall(
+        r'(-?\d{1,3}\.\d+)\s+(-?\d{1,3}\.\d+)',
+        text
+    )
+
+    for lat, lon in decimal_space:
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                results.append((lat, lon))
+        except:
+            continue
+
 
     # =========================
     # 2. DMS / DMM FLEX
