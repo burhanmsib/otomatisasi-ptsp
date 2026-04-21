@@ -64,135 +64,54 @@ df_id = None
 import re
 
 # =========================
-# 🔥 FIX FORMAT SUPER COMPACT (HARUS DI LUAR)
+# NORMALIZE TEXT (SUPER FLEX)
 # =========================
-def fix_compact_full(text):
-    import re
-
-    def convert(match):
-        raw = match.group(1)
-        sec_extra = match.group(2)
-        direction = match.group(3)
-
-        try:
-            deg = int(raw[:2])
-            minute = int(raw[2:4])
-            sec_main = int(raw[4:])
-            sec_extra = int(sec_extra)
-
-            sec = float(f"{sec_main}.{sec_extra}")
-
-            return f"{deg}° {minute}' {sec}\" {direction}"
-        except:
-            return match.group(0)
-
-    def convert_lon(match):
-        raw = match.group(1)
-        sec_extra = match.group(2)
-        direction = match.group(3)
-
-        try:
-            deg = int(raw[:3])
-            minute = int(raw[3:5])
-            sec_main = int(raw[5:])
-            sec_extra = int(sec_extra)
-
-            sec = float(f"{sec_main}.{sec_extra}")
-
-            return f"{deg}° {minute}' {sec}\" {direction}"
-        except:
-            return match.group(0)
-
-    text = re.sub(r'(\d{5})[’\'](\d{3})([NS])', convert, text)
-    text = re.sub(r'(\d{6})[’\'](\d{3})([EW])', convert_lon, text)
-
-    return text
-
 def normalize_text(text):
-    import re
-
     text = text.upper()
 
-    # =========================
-    # 🔥 SYMBOL FIX (WAJIB DI ATAS)
-    # =========================
+    # simbol derajat
     text = text.replace("O", "°")
     text = text.replace("º", "°")
     text = text.replace("˚", "°")
     text = text.replace("̊", "°")
 
+    # petik
     text = text.replace("’", "'").replace("‘", "'")
     text = text.replace("”", '"').replace("“", '"')
 
-    text = text.replace("–", "-")
-    text = text.replace("—", "-")
-
-    # =========================
-    # 🔥 BARU FIX COMPACT
-    # =========================
-    text = fix_compact_full(text)
-
-    # =========================
-    # TELEGRAM FORMAT
-    # =========================
-    def fix_seconds(match):
-        deg = match.group(1)
-        minute = match.group(2)
-        sec_raw = match.group(3)
-
-        try:
-            sec = float(sec_raw)
-            if sec >= 100:
-                sec = sec / 10
-            return f"{deg}° {minute}' {sec}\""
-        except:
-            return match.group(0)
-
-    text = re.sub(
-        r"(\d{2})°?\s*(\d{2})'\s*(\d{3})\"",
-        fix_seconds,
-        text
-    )
-
-    # =========================
-    # DMM
-    # =========================
+    # ubah DMM (42'068 → 42.068)
+    # hanya convert kalau TIDAK ADA titik (biar tidak merusak DMM)
     text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
-    # =========================
-    # SPACING
-    # =========================
+    # pisahin angka & arah
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
     text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
-    # =========================
-    # DASH FIX
-    # =========================
-    text = re.sub(r'\s-\s', ' ', text)
-    text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
-
-    # =========================
-    # CLEAN
-    # =========================
+    # separator
     text = text.replace(" TO ", " | ")
+    text = text.replace("–", " | ")
+    text = text.replace("-", " ")
     text = text.replace("/", " ")
-
+    # ubah double petik aneh
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
-    text = text.replace('""', '"')
 
+    # JANGAN hapus koma → penting untuk decimal
+    # text = text.replace(",", " ")
+
+    # bersihin kata
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
 
+    # rapihin spasi
     text = " ".join(text.split())
 
-    text = text.replace("S-", "S -")
-    text = text.replace("N-", "N -")
-
+    # pisahin angka besar (lebih aman)
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
 
+    # jaga-jaga separator
     text = text.replace("||", "|")
 
     return text
@@ -219,48 +138,18 @@ def dms_to_decimal(deg, minute=0, second=0, direction="N"):
 
 
 # =========================
-# EXTRACT ALL FORMAT (FINAL)
+# EXTRACT ALL FORMAT
 # =========================
 def extract_coordinates(text):
-    import re
-
     text = normalize_text(text)
     results = []
 
     # =========================
-    # 1. DECIMAL (KOMA)
+    # 1. DECIMAL FORMAT
     # =========================
-    decimal_matches = re.findall(
-        r'(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)',
-        text
-    )
-
+    decimal_matches = re.findall(r'(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)', text)
     for lat, lon in decimal_matches:
-        try:
-            lat = float(lat)
-            lon = float(lon)
-            if -90 <= lat <= 90 and -180 <= lon <= 180:
-                results.append((lat, lon))
-        except:
-            continue
-
-    # =========================
-    # 2. DECIMAL (TANPA KOMA)
-    # =========================
-    decimal_space = re.findall(
-        r'(-?\d{1,3}\.\d+)\s+(-?\d{1,3}\.\d+)',
-        text
-    )
-
-    for lat, lon in decimal_space:
-        try:
-            lat = float(lat)
-            lon = float(lon)
-            if -90 <= lat <= 90 and -180 <= lon <= 180:
-                results.append((lat, lon))
-        except:
-            continue
-
+        results.append((float(lat), float(lon)))
 
     # =========================
     # 2. DMS / DMM FLEX
@@ -281,63 +170,58 @@ def extract_coordinates(text):
     for m in pattern:
         lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m
 
-        # FIX DMM
-        if lat_sec in [None, ""] and lat_min and "." in str(lat_min):
-            lat = float(lat_deg) + float(lat_min) / 60
-        else:
-            lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
-
-        if lon_sec in [None, ""] and lon_min and "." in str(lon_min):
-            lon = float(lon_deg) + float(lon_min) / 60
-        else:
-            lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
-
-        # arah
-        if lat_dir == "S":
-            lat *= -1
-        if lon_dir == "W":
-            lon *= -1
+        lat = dms_to_decimal(lat_deg, lat_min or 0, lat_sec or 0, lat_dir)
+        lon = dms_to_decimal(lon_deg, lon_min or 0, lon_sec or 0, lon_dir)
 
         results.append((lat, lon))
 
     # =========================
-    # 3. FORMAT COMPACT (06055’024’S)
+    # 3. FALLBACK FORMAT
     # =========================
-    compact = re.findall(
-        r'(\d{5})[\'’](\d{3})([NS])'
-        r'.{0,10}?'
-        r'(\d{6})[\'’](\d{3})([EW])',
+    fallback = re.findall(
+        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([NS])\s+'
+        r'(\d{1,3})\s+(\d{1,2})\s+(\d{1,2})\s*([EW])',
         text
     )
 
-    for m in compact:
-        lat_raw, lat_sec_extra, lat_dir, lon_raw, lon_sec_extra, lon_dir = m
-
-        # LAT
-        lat_deg = int(lat_raw[:2])
-        lat_min = int(lat_raw[2:4])
-        lat_sec = float(f"{lat_raw[4]}.{lat_sec_extra}")
-
-        # LON
-        lon_deg = int(lon_raw[:3])
-        lon_min = int(lon_raw[3:5])
-        lon_sec = float(f"{lon_raw[5]}.{lon_sec_extra}")
-
-        lat = lat_deg + lat_min/60 + lat_sec/3600
-        lon = lon_deg + lon_min/60 + lon_sec/3600
-
-        if lat_dir == "S":
-            lat *= -1
-        if lon_dir == "W":
-            lon *= -1
-
+    for m in fallback:
+        lat = dms_to_decimal(m[0], m[1], m[2], m[3])
+        lon = dms_to_decimal(m[4], m[5], m[6], m[7])
         results.append((lat, lon))
 
     # =========================
-    # VALIDASI FINAL
+    # 4. FORMAT DMM TANPA °
+    # contoh: 06’05.584’’S
     # =========================
-    return [(lat, lon) for lat, lon in results if -90 <= lat <= 90 and -180 <= lon <= 180]
+    pattern_dmm_no_deg = re.findall(
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([NS])'
+        r'.{0,10}?'
+        r'(\d{1,3})[\'’]\s*(\d{1,2}\.\d+)[\'’’"]*\s*([EW])',
+        text
+    )
+    
+    for m in pattern_dmm_no_deg:
+        lat_deg, lat_min, lat_dir, lon_deg, lon_min, lon_dir = m
+    
+        lat = dms_to_decimal(lat_deg, lat_min, 0, lat_dir)
+        lon = dms_to_decimal(lon_deg, lon_min, 0, lon_dir)
+    
+        results.append((lat, lon))
 
+    # =========================
+    # VALIDASI KOORDINAT
+    # =========================
+    clean_results = []
+
+    for lat, lon in results:
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            clean_results.append((lat, lon))
+
+    # debug kalau kosong
+    if len(clean_results) == 0:
+        print("⚠️ Koordinat tidak terbaca:", text)
+
+    return clean_results
         
 def clean_coordinate(text):
     import re
