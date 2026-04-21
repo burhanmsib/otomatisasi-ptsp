@@ -66,52 +66,126 @@ import re
 # =========================
 # NORMALIZE TEXT (SUPER FLEX - FINAL FIX)
 # =========================
+# =========================
+# NORMALIZE TEXT (SUPER FLEX - FINAL UNIVERSAL FIX)
+# =========================
 def normalize_text(text):
+    import re
+
     text = text.upper()
 
-    # simbol derajat
+    # =========================
+    # SYMBOL FIX
+    # =========================
     text = text.replace("O", "°")
     text = text.replace("º", "°")
     text = text.replace("˚", "°")
     text = text.replace("̊", "°")
 
-    # petik
     text = text.replace("’", "'").replace("‘", "'")
     text = text.replace("”", '"').replace("“", '"')
 
-    # ubah DMM (42'068 → 42.068)
-    # hanya convert kalau TIDAK ADA titik (biar tidak merusak DMM)
+    text = text.replace("–", "-")
+    text = text.replace("—", "-")
+
+    # =========================
+    # 🔥 FIX FORMAT PADAT (06055’024’S)
+    # =========================
+    def fix_compact(match):
+        full = match.group(1)
+        sec_raw = match.group(2)
+        direction = match.group(3)
+
+        try:
+            deg = full[:2]
+            minute = full[2:4]
+            sec = float(full[4:] + sec_raw)
+
+            if sec >= 100:
+                sec = sec / 10
+
+            return f"{deg}° {minute}' {sec}\" {direction}"
+        except:
+            return match.group(0)
+
+    text = re.sub(r"(\d{5})[’'](\d{3})[’\"]*([NS])", fix_compact, text)
+    text = re.sub(r"(\d{6})[’'](\d{3})[’\"]*([EW])", fix_compact, text)
+
+    # =========================
+    # 🔥 FIX TELEGRAM FORMAT (46'535")
+    # =========================
+    def fix_seconds(match):
+        deg = match.group(1)
+        minute = match.group(2)
+        sec_raw = match.group(3)
+
+        try:
+            sec = float(sec_raw)
+
+            if sec >= 100:
+                sec = sec / 10
+
+            return f"{deg}° {minute}' {sec}\""
+        except:
+            return match.group(0)
+
+    text = re.sub(
+        r"(\d{2})°?\s*(\d{2})'\s*(\d{3})\"",
+        fix_seconds,
+        text
+    )
+
+    # =========================
+    # DMM tetap
+    # =========================
     text = re.sub(r"(\d+)'(\d{3})\b", r"\1.\2", text)
 
-    # pisahin angka & arah
+    # =========================
+    # SPACING ARAH
+    # =========================
     text = re.sub(r"(\d)([NS])", r"\1 \2", text)
     text = re.sub(r"(\d)([EW])", r"\1 \2", text)
     text = re.sub(r"([NSEW])(\d)", r"\1 \2", text)
 
-    # separator
+    # =========================
+    # DASH FIX (PENTING)
+    # =========================
+    text = re.sub(r'\s-\s', ' ', text)
+    text = re.sub(r'([NS])-(\d)', r'\1 -\2', text)
+
+    # =========================
+    # SEPARATOR
+    # =========================
     text = text.replace(" TO ", " | ")
-    text = text.replace("–", " | ")
-    text = text.replace("-", " ")
     text = text.replace("/", " ")
-    # ubah double petik aneh
+
+    # =========================
+    # FIX DOUBLE QUOTES
+    # =========================
     text = text.replace("’’", '"')
     text = text.replace("''", '"')
+    text = text.replace('""', '"')
 
-    # JANGAN hapus koma → penting untuk decimal
-    # text = text.replace(",", " ")
-
-    # bersihin kata
+    # =========================
+    # CLEAN WORDS
+    # =========================
     text = text.replace("FROM", "")
     text = text.replace("KE", "")
     text = text.replace("DARI", "")
 
-    # rapihin spasi
+    # =========================
+    # CLEAN SPACE
+    # =========================
     text = " ".join(text.split())
 
-    # pisahin angka besar (lebih aman)
+    text = text.replace("S-", "S -")
+    text = text.replace("N-", "N -")
+
+    # =========================
+    # SPLIT ANGKA BESAR
+    # =========================
     text = re.sub(r"(\d{3})(\d{2})", r"\1 \2", text)
 
-    # jaga-jaga separator
     text = text.replace("||", "|")
 
     return text
