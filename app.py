@@ -418,54 +418,54 @@ if mode == "Ambil dari Google Sheet":
     st.success(f"{len(df_id)} data ditemukan")
     st.dataframe(df_id)
 
-    # =========================
-    # 🔥 PARSE OTOMATIS (TANPA PREVIEW UI)
-    # =========================
-    parsed_rows = []
+    # # =========================
+    # # 🔥 PARSE OTOMATIS (TANPA PREVIEW UI)
+    # # =========================
+    # parsed_rows = []
 
-    for _, row in df_id.iterrows():
+    # for _, row in df_id.iterrows():
 
-        koordinat = row.get("Koordinat", "")
+    #     koordinat = row.get("Koordinat", "")
 
-        parsed = parse_coordinate(koordinat)
+    #     parsed = parse_coordinate(koordinat)
 
-        if parsed is None:
-            st.warning(f"Koordinat tidak valid: {koordinat}")
-            continue
+    #     if parsed is None:
+    #         st.warning(f"Koordinat tidak valid: {koordinat}")
+    #         continue
 
-        parsed_rows.append({
-            "Tanggal Koordinat": str(
-                row.get("Tanggal Koordinat") 
-                or row.get("Tanggal") 
-                or ""
-            ),
+    #     parsed_rows.append({
+    #         "Tanggal Koordinat": str(
+    #             row.get("Tanggal Koordinat") 
+    #             or row.get("Tanggal") 
+    #             or ""
+    #         ),
 
-            "Koordinat": koordinat,
+    #         "Koordinat": koordinat,
 
-            # 🔥 PENTING UNTUK REPORT
-            "Nama Perusahaan": row.get("Nama Perusahaan", ""),
-            "Alamat Perusahaan": row.get("Alamat Perusahaan", ""),
-            "Nomor Surat": row.get("Nomor Surat", ""),
+    #         # 🔥 PENTING UNTUK REPORT
+    #         "Nama Perusahaan": row.get("Nama Perusahaan", ""),
+    #         "Alamat Perusahaan": row.get("Alamat Perusahaan", ""),
+    #         "Nomor Surat": row.get("Nomor Surat", ""),
 
-            # 🔥 UNTUK SISTEM
-            "Koordinat Awal": koordinat,
-            "Koordinat Akhir": koordinat,
+    #         # 🔥 UNTUK SISTEM
+    #         "Koordinat Awal": koordinat,
+    #         "Koordinat Akhir": koordinat,
 
-            "Koordinat Awal (Desimal)": parsed.get("awal"),
-            "Koordinat Akhir (Desimal)": parsed.get("akhir"),
+    #         "Koordinat Awal (Desimal)": parsed.get("awal"),
+    #         "Koordinat Akhir (Desimal)": parsed.get("akhir"),
 
-            "Mode": parsed.get("mode"),
-            "All Points": parsed.get("all", [])
-        })
+    #         "Mode": parsed.get("mode"),
+    #         "All Points": parsed.get("all", [])
+    #     })
 
-    if not parsed_rows:
-        st.error("Tidak ada koordinat yang valid")
-        st.stop()
+    # if not parsed_rows:
+    #     st.error("Tidak ada koordinat yang valid")
+    #     st.stop()
 
-    df_preview = pd.DataFrame(parsed_rows)
+    # df_preview = pd.DataFrame(parsed_rows)
 
-    # 🔥 SIMPAN KE SESSION (INI KUNCI)
-    st.session_state.preview_data = df_preview
+    # # 🔥 SIMPAN KE SESSION (INI KUNCI)
+    # st.session_state.preview_data = df_preview
 
 # =========================
 # MODE 2 – INPUT MANUAL
