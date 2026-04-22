@@ -356,14 +356,14 @@ if mode == "Ambil dari Google Sheet":
     st.session_state.manual_saved = False
 
 # =========================
-# MODE 1 – GOOGLE SHEET (FINAL FIX + REFRESH)
+# MODE 1 – GOOGLE SHEET (SIMPLIFIED)
 # =========================
 if mode == "Ambil dari Google Sheet":
 
     st.header("🟦 Data Permintaan PTSP")
 
     # =========================
-    # 🔥 BUTTON REFRESH DATA
+    # REFRESH BUTTON
     # =========================
     col_refresh1, col_refresh2 = st.columns([1, 4])
 
@@ -388,6 +388,9 @@ if mode == "Ambil dari Google Sheet":
 
     st.session_state.df_requests = df_requests
 
+    # =========================
+    # PILIH ID
+    # =========================
     st.header("🆔 Pilih ID Surat")
 
     id_list = sorted(df_requests["Id"].astype(str).unique())
@@ -416,92 +419,53 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
     # =========================
-    # 🔥 PARSE OTOMATIS (FINAL FIX)
+    # 🔥 PARSE OTOMATIS (TANPA PREVIEW UI)
     # =========================
     parsed_rows = []
-    
-    # =========================
-    # 🔥 FUNCTION AMBIL DATA FLEXIBLE
-    # =========================
-    def get_val(row, keys):
-        for k in keys:
-            if k in row and str(row.get(k)).strip():
-                return row.get(k)
-        return ""
-    
+
     for _, row in df_id.iterrows():
-    
+
         koordinat = row.get("Koordinat", "")
-    
+
         parsed = parse_coordinate(koordinat)
-    
+
         if parsed is None:
-            st.error(f"Koordinat tidak valid: {koordinat}")
-            st.stop()
-    
-        # =========================
-        # 🔥 AMBIL DATA (ANTI SALAH KOLOM)
-        # =========================
-        nama_perusahaan = get_val(row, [
-            "Nama Perusahaan", "Perusahaan", "Company", "Client"
-        ])
-    
-        alamat_perusahaan = get_val(row, [
-            "Alamat Perusahaan", "Alamat", "Address"
-        ])
-    
-        nomor_surat = get_val(row, [
-            "Nomor Surat", "No Surat", "Ref", "Reference"
-        ])
-    
+            st.warning(f"Koordinat tidak valid: {koordinat}")
+            continue
+
         parsed_rows.append({
             "Tanggal Koordinat": str(
                 row.get("Tanggal Koordinat") 
                 or row.get("Tanggal") 
-                or row.get("Date") 
                 or ""
             ),
-    
+
             "Koordinat": koordinat,
-    
-            # =========================
-            # 🔥 FIX UTAMA (PASTI MASUK)
-            # =========================
-            "Nama Perusahaan": nama_perusahaan,
-            "Alamat Perusahaan": alamat_perusahaan,
-            "Nomor Surat": nomor_surat,
-    
-            # =========================
-            # 🔥 KOORDINAT UNTUK REPORT
-            # =========================
+
+            # 🔥 PENTING UNTUK REPORT
+            "Nama Perusahaan": row.get("Nama Perusahaan", ""),
+            "Alamat Perusahaan": row.get("Alamat Perusahaan", ""),
+            "Nomor Surat": row.get("Nomor Surat", ""),
+
+            # 🔥 UNTUK SISTEM
             "Koordinat Awal": koordinat,
             "Koordinat Akhir": koordinat,
-    
-            # =========================
-            # DESIMAL UNTUK PROCESSING
-            # =========================
+
             "Koordinat Awal (Desimal)": parsed.get("awal"),
             "Koordinat Akhir (Desimal)": parsed.get("akhir"),
-    
+
             "Mode": parsed.get("mode"),
             "All Points": parsed.get("all", [])
         })
-    
-    df_parsed = pd.DataFrame(parsed_rows)
-    # =========================
-    # 🔥 SIMPAN KE STATE (INI KUNCI FIX)
-    # =========================
-    st.session_state.selected_data = df_parsed
-    st.session_state.preview_data = df_parsed  # optional (biar tetap bisa preview)
 
-    st.success("✅ Data siap digunakan (tanpa perlu preview)")
-    st.dataframe(df_parsed)
+    if not parsed_rows:
+        st.error("Tidak ada koordinat yang valid")
+        st.stop()
 
-    # =========================
-    # (OPSIONAL) BUTTON PREVIEW
-    # =========================
-    if st.button("Preview Data"):
-        st.info("Preview sama dengan data di atas")
+    df_preview = pd.DataFrame(parsed_rows)
+
+    # 🔥 SIMPAN KE SESSION (INI KUNCI)
+    st.session_state.preview_data = df_preview
 
 # =========================
 # MODE 2 – INPUT MANUAL
