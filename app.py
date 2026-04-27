@@ -544,6 +544,7 @@ else:
 
         # 🔥 FIX PENTING (INI YANG HILANG)
         st.session_state.selected_data = df_preview
+        st.session_state.selected_data = df_id
 
         st.success("✅ Data berhasil diparsing")
         st.dataframe(df_preview)
