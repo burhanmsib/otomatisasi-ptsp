@@ -195,17 +195,32 @@ def build_title(doc, row):
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
     t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
 
-    ka = row.get("Koordinat Awal", "")
-    kb = row.get("Koordinat Akhir", "")
-
-    # 🔥 FIX TITIK VS RUTE
-    if ka and kb:
-        if str(ka) == str(kb):
-            coord_text = str(ka)
+    # 🔥 FIX: pakai format asli (DMS)
+    coord_text = row.get("Koordinat", "")
+    
+    if not coord_text:
+        # fallback ke decimal kalau kosong
+        ka = row.get("Koordinat Awal", "")
+        kb = row.get("Koordinat Akhir", "")
+    
+        if ka and kb:
+            if str(ka) == str(kb):
+                coord_text = str(ka)
+            else:
+                coord_text = f"{ka} to {kb}"
         else:
-            coord_text = f"{ka} to {kb}"
-    else:
-        coord_text = "-"
+            coord_text = "-"
+    # ka = row.get("Koordinat Awal", "")
+    # kb = row.get("Koordinat Akhir", "")
+
+    # # 🔥 FIX TITIK VS RUTE
+    # if ka and kb:
+    #     if str(ka) == str(kb):
+    #         coord_text = str(ka)
+    #     else:
+    #         coord_text = f"{ka} to {kb}"
+    # else:
+    #     coord_text = "-"
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports\n").bold = True
