@@ -576,7 +576,11 @@ if df_preview is not None:
         # =========================
         # 🔵 MODE TITIK
         # =========================
-        if len(df_preview) == 1 and df_preview.iloc[0]["Mode"] == "titik":
+        mode_val = df_preview.iloc[0].get("Mode", "rute")
+
+        if len(df_preview) == 1 and mode_val == "titik":
+            if "Mode" not in df_preview.columns:
+                df_preview["Mode"] = "rute"
 
             latlon = df_preview.iloc[0]["Koordinat Awal (Desimal)"]
 
