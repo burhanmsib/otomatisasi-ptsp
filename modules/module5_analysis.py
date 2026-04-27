@@ -274,8 +274,34 @@ def analyze_segment(samples):
         if s.get("rain", {}).get("precip") is not None
     ]
 
-    rain_max = max(rain_vals) if rain_vals else None
-    weather_txt = classify_weather_bmkg(rain_max)
+    # ===============================
+    # WEATHER (PAKAI RANGE, BUKAN MAX)
+    # ===============================
+    if not rain_vals:
+        weather_txt = "Unknown"
+    else:
+        labels = [classify_weather_bmkg(r) for r in rain_vals if r is not None]
+    
+        order = [
+            "Clear",
+            "Slight Rain",
+            "Moderate Rain",
+            "Heavy Rain",
+            "Heavy Rain with Thunderstorm"
+        ]
+    
+        valid = [l for l in labels if l in order]
+    
+        if not valid:
+            weather_txt = "Clear"
+        else:
+            min_idx = min(order.index(l) for l in valid)
+            max_idx = max(order.index(l) for l in valid)
+    
+            if min_idx == max_idx:
+                weather_txt = order[min_idx]
+            else:
+                weather_txt = f"{order[min_idx]} to {order[max_idx]}"
 
     # ===== WAVE =====
     hs_vals = [
