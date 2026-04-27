@@ -418,6 +418,9 @@ if mode == "Ambil dari Google Sheet":
     st.success(f"{len(df_id)} data ditemukan")
     st.dataframe(df_id)
 
+    st.session_state.selected_data = df_id
+    
+
     # # =========================
     # # 🔥 PARSE OTOMATIS (TANPA PREVIEW UI)
     # # =========================
@@ -529,8 +532,8 @@ else:
                 "Koordinat": koordinat,
             
                 # 🔥 TAMBAHAN
-                "Koordinat Awal": koordinat,
-                "Koordinat Akhir": koordinat,
+                "Koordinat Awal": parsed.get("awal"),
+                "Koordinat Akhir": parsed.get("akhir"),
             
                 "Koordinat Awal (Desimal)": parsed.get("Koordinat Awal (Desimal)"),
                 "Koordinat Akhir (Desimal)": parsed.get("Koordinat Akhir (Desimal)"),
@@ -544,7 +547,6 @@ else:
 
         # 🔥 FIX PENTING (INI YANG HILANG)
         st.session_state.selected_data = df_preview
-        st.session_state.selected_data = df_id
 
         st.success("✅ Data berhasil diparsing")
         st.dataframe(df_preview)
