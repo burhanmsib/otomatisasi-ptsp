@@ -1,5 +1,5 @@
 # =========================
-# MODULE 3 + 4 (FINAL COMPLETE - SEGMENT FIXED + RETRY)
+# MODULE 3 + 4 (POLYGON VERSION - FINAL)
 # =========================
 
 import re
@@ -13,33 +13,27 @@ import time
 
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
-from shapely.geometry import LineString
-
+from shapely.geometry import LineString, Point
 
 # =========================
-# 🔥 TAMBAHAN: TIMEOUT
+# TIMEOUT
 # =========================
 os.environ["OPENDAP_TIMEOUT"] = "60"
 
-
 # =========================
-# 🔥 TAMBAHAN: RETRY FUNCTION
+# RETRY
 # =========================
 def open_dataset_with_retry(url, max_try=3, delay=2):
-
     for i in range(max_try):
         try:
-            ds = xr.open_dataset(url)
-            return ds
-        except Exception as e:
-            print(f"[Retry {i+1}] gagal buka: {url}")
+            return xr.open_dataset(url)
+        except:
             time.sleep(delay)
-
     return None
 
 
 # =========================
-# CONSTANTS
+# CONSTANT
 # =========================
 TZ_OFFSET = {
     "WIB": 7,
@@ -52,12 +46,10 @@ TZ_OFFSET = {
 # DATE NORMALIZATION
 # =========================
 def normalize_date(raw):
-
     if raw is None or str(raw).strip() == "":
         return None
 
     s = str(raw)
-
     s = re.sub(r"\d{1,2}[.:]\d{2}(-\d{1,2}[.:]\d{2})?", "", s)
     s = s.replace("/", " ")
 
@@ -71,19 +63,6 @@ def normalize_date(raw):
     for indo, eng in month_map.items():
         s = s.replace(indo, eng)
 
-    s = s.strip()
-
-    formats = [
-        "%d.%m.%Y", "%d-%m-%Y", "%d %B %Y",
-        "%Y-%m-%d", "%d %b %Y"
-    ]
-
-    for fmt in formats:
-        try:
-            return datetime.strptime(s, fmt)
-        except:
-            continue
-
     try:
         return parser.parse(s, dayfirst=True)
     except:
@@ -91,86 +70,43 @@ def normalize_date(raw):
 
 
 # =========================
-# ROUTE SAMPLING
+# 🔥 POLYGON SAMPLING
 # =========================
-def generate_3_points_along_route(polyline):
+def generate_polygon_sampling_points(pointA, pointB, buffer_deg=0.2, grid_size=4):
 
-    if not polyline or len(polyline) < 2:
-        return polyline
+    lat1, lon1 = pointA
+    lat2, lon2 = pointB
 
-    line = LineString([(lon, lat) for lat, lon in polyline])
+    line = LineString([(lon1, lat1), (lon2, lat2)])
+    polygon = line.buffer(buffer_deg)
 
-    fractions = [0.0, 0.5, 1.0]
+    minx, miny, maxx, maxy = polygon.bounds
+
     points = []
 
-    for f in fractions:
-        p = line.interpolate(f, normalized=True)
-        points.append((p.y, p.x))
+    for lat in np.linspace(miny, maxy, grid_size):
+        for lon in np.linspace(minx, maxx, grid_size):
+            p = Point(lon, lat)
+            if polygon.contains(p):
+                points.append((lat, lon))
+
+    if not points:
+        return [pointA, pointB]
 
     return points
 
 
 # =========================
-# WEATHER CLASSIFICATION
-# =========================
-def classify_weather_from_rain(rain):
-
-    if rain is None:
-        return "Unknown"
-
-    if rain < 0.5:
-        return "Clear"
-
-    elif rain < 5:
-        return "Slight Rain"
-
-    elif rain < 10:
-        return "Moderate Rain"
-
-    else:
-        return "Heavy Rain"
-
-# =========================
-# 🔥 NEW: WEATHER RANGE BUILDER
-# =========================
-def build_weather_range(samples):
-
-    labels = []
-
-    for s in samples:
-        rain = s["rain"]["precip"]
-        label = classify_weather_from_rain(rain)
-        labels.append(label)
-
-    order = ["Clear", "Slight Rain", "Moderate Rain", "Heavy Rain"]
-
-    labels = [l for l in labels if l in order]
-
-    if not labels:
-        return "Clear"
-
-    min_idx = min(order.index(l) for l in labels)
-    max_idx = max(order.index(l) for l in labels)
-
-    if min_idx == max_idx:
-        return order[min_idx]
-
-    return f"{order[min_idx]} to {order[max_idx]}"
-
-
-# =========================
-# GSMAP (CACHE)
+# GSMAP (RAIN)
 # =========================
 @st.cache_resource(ttl=3600)
 def load_gsmap_cached(dt):
-
     try:
         ftp_host = st.secrets["ftp"]["host"]
         ftp_user = st.secrets["ftp"]["user"]
         ftp_pass = st.secrets["ftp"]["pass"]
 
         Y, M, D, H = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d"), dt.strftime("%H")
-
         remote_path = f"/himawari6/GSMaP/netcdf/{Y}/{M}/{D}/GSMaP_{Y}{M}{D}{H}00.nc"
 
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".nc")
@@ -190,13 +126,12 @@ def load_gsmap_cached(dt):
 
         return ds
 
-    except Exception as e:
-        st.warning(f"GSMAP gagal load: {e}")
+    except:
         return None
 
 
 # =========================
-# LOAD DATASET (RETRY VERSION)
+# LOAD DATASET
 # =========================
 @st.cache_resource(ttl=3600)
 def load_datasets_cached(dt_input):
@@ -210,27 +145,14 @@ def load_datasets_cached(dt_input):
 
     YYYY, MM, DD = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d")
 
-    # 🔥 WAVE (RETRY)
-    ds_wave = None
-    for url in [
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc",
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_0000.nc",
-    ]:
-        ds_wave = open_dataset_with_retry(url)
-        if ds_wave is not None:
-            break
+    ds_wave = open_dataset_with_retry(
+        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc"
+    )
 
-    # 🔥 CURRENT (RETRY)
-    ds_cur = None
-    for url in [
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc",
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_0000.nc",
-    ]:
-        ds_cur = open_dataset_with_retry(url)
-        if ds_cur is not None:
-            break
+    ds_cur = open_dataset_with_retry(
+        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc"
+    )
 
-    # GSMAP tetap
     ds_rain = load_gsmap_cached(dt)
 
     return ds_wave, ds_cur, ds_rain
@@ -274,17 +196,10 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             if "time" in da.dims:
                 da = da.sel(time=t, method="nearest")
 
-            lat_name = next((n for n in ["lat","latitude"] if n in da.coords), None)
-            lon_name = next((n for n in ["lon","longitude"] if n in da.coords), None)
+            lat_idx = np.abs(da["lat"].values - lat).argmin()
+            lon_idx = np.abs(da["lon"].values - lon).argmin()
 
-            if lat_name and lon_name:
-                lat_idx = np.abs(da[lat_name].values - lat).argmin()
-                lon_idx = np.abs(da[lon_name].values - lon).argmin()
-
-                rain_val = float(da.isel({lat_name: lat_idx, lon_name: lon_idx}).values)
-
-                if np.isnan(rain_val):
-                    rain_val = None
+            rain_val = float(da.isel(lat=lat_idx, lon=lon_idx).values)
 
         except:
             rain_val = None
@@ -292,16 +207,14 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
     return {
         "wave": {
             "hs": safe_extract(ds_wave,"hs",t,lat,lon),
-            "tp": safe_extract(ds_wave,"t01",t,lat,lon),
-            "dir": safe_extract(ds_wave,"dir",t,lat,lon)
         },
         "wind": {
             "u": safe_extract(ds_wave,"uwnd",t,lat,lon),
             "v": safe_extract(ds_wave,"vwnd",t,lat,lon)
         },
         "current": {
-            "u": safe_extract(ds_cur,"u",t,lat,lon,depth=0.5),
-            "v": safe_extract(ds_cur,"v",t,lat,lon,depth=0.5)
+            "u": safe_extract(ds_cur,"u",t,lat,lon),
+            "v": safe_extract(ds_cur,"v",t,lat,lon)
         },
         "rain": {
             "precip": rain_val
@@ -310,7 +223,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
 
 # =========================
-# MAIN PROCESS (FINAL)
+# MAIN PROCESS
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
@@ -327,42 +240,31 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     route = [(p[0], p[1]) for p in polyline]
 
     segments = []
-    n = len(route)
 
-    for i in range(4):
+    for i in range(len(route)-1):
 
         t0 = dt_utc0 + timedelta(hours=i * 6)
 
-        start_idx = int(i * (n-1) / 4)
-        end_idx   = int((i+1) * (n-1) / 4) + 1
+        pointA = route[i]
+        pointB = route[i+1]
 
-        segment_route = route[start_idx:end_idx]
-
-        if len(segment_route) < 2:
-            segment_route = route
-
-        sample_points = generate_3_points_along_route(segment_route)
+        # 🔥 POLYGON SAMPLING
+        sample_points = generate_polygon_sampling_points(pointA, pointB)
 
         samples = []
 
-        for j, (lat, lon) in enumerate(sample_points):
-
-            t = t0 + timedelta(hours=j * 3)
-
-            sample = extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon)
-            samples.append(sample)
-
-        # 🔥 WEATHER RANGE (FINAL)
-        weather = build_weather_range(samples)
+        for lat, lon in sample_points:
+            data = extract_hourly_weather(
+                ds_wave, ds_cur, ds_rain,
+                t0,
+                lat,
+                lon
+            )
+            samples.append(data)
 
         segments.append({
-            "interval": f"T{i*6}-T{(i+1)*6}",
-            "samples": samples,
-            "weather": weather
+            "time": t0,
+            "samples": samples
         })
 
-    return {
-        "tanggal": dt_local,
-        "tz": tz,
-        "segments": segments
-    }
+    return segments
