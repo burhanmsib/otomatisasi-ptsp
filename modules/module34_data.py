@@ -223,7 +223,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
 
 # =========================
-# MAIN PROCESS
+# MAIN PROCESS (POLYGON FINAL - COMPATIBLE)
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
@@ -240,32 +240,58 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     route = [(p[0], p[1]) for p in polyline]
 
     segments = []
+    n = len(route)
 
-    for i in range(len(route)-1):
+    for i in range(4):
 
         t0 = dt_utc0 + timedelta(hours=i * 6)
 
-        pointA = route[i]
-        pointB = route[i+1]
+        start_idx = int(i * (n-1) / 4)
+        end_idx   = int((i+1) * (n-1) / 4) + 1
 
-        # 🔥 POLYGON SAMPLING
-        sample_points = generate_polygon_sampling_points(pointA, pointB)
+        segment_route = route[start_idx:end_idx]
+
+        if len(segment_route) < 2:
+            segment_route = route
+
+        # =========================
+        # 🔥 POLYGON SAMPLING (GANTI LINE)
+        # =========================
+        pointA = segment_route[0]
+        pointB = segment_route[-1]
+
+        sample_points = generate_polygon_sampling_points(
+            pointA, pointB,
+            buffer_deg=0.2,   # ±20–25 km
+            grid_size=4       # max ~10 titik
+        )
 
         samples = []
 
-        for lat, lon in sample_points:
-            data = extract_hourly_weather(
+        for j, (lat, lon) in enumerate(sample_points):
+
+            # 🔥 tetap pakai timestep lama (3 jam)
+            t = t0 + timedelta(hours=j * 3)
+
+            sample = extract_hourly_weather(
                 ds_wave, ds_cur, ds_rain,
-                t0,
-                lat,
-                lon
+                t, lat, lon
             )
-            samples.append(data)
+            samples.append(sample)
+
+        # =========================
+        # 🔥 WEATHER RANGE (TETAP)
+        # =========================
+        weather = build_weather_range(samples)
 
         segments.append({
-            "tanggal": row.get("Tanggal Koordinat"),
-            "time": t0,
-            "samples": samples
+            "interval": f"T{i*6}-T{(i+1)*6}",
+            "samples": samples,
+            "weather": weather
         })
 
-    return segments
+    return {
+        "tanggal": dt_local,
+        "tz": tz,
+        "segments": segments
+    }
