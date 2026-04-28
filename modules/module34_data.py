@@ -263,6 +263,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
             samples.append(data)
 
         segments.append({
+            "tanggal": row.get("Tanggal Koordinat"),
             "time": t0,
             "samples": samples
         })
