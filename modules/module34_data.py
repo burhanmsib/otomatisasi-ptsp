@@ -95,6 +95,48 @@ def generate_polygon_sampling_points(pointA, pointB, buffer_deg=0.2, grid_size=4
 
     return points
 
+# =========================
+# 🔥 WEATHER RANGE BUILDER
+# =========================
+def classify_weather_from_rain(rain):
+
+    if rain is None:
+        return "Clear"
+
+    if rain < 0.5:
+        return "Clear"
+    elif rain < 5:
+        return "Slight Rain"
+    elif rain < 10:
+        return "Moderate Rain"
+    else:
+        return "Heavy Rain"
+
+
+def build_weather_range(samples):
+
+    labels = []
+
+    for s in samples:
+        rain = s.get("rain", {}).get("precip")
+        label = classify_weather_from_rain(rain)
+        labels.append(label)
+
+    order = ["Clear", "Slight Rain", "Moderate Rain", "Heavy Rain"]
+
+    valid = [l for l in labels if l in order]
+
+    if not valid:
+        return "Clear"
+
+    min_idx = min(order.index(l) for l in valid)
+    max_idx = max(order.index(l) for l in valid)
+
+    if min_idx == max_idx:
+        return order[min_idx]
+
+    return f"{order[min_idx]} to {order[max_idx]}"
+
 
 # =========================
 # GSMAP (RAIN)
