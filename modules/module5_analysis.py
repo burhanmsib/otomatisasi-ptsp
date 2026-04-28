@@ -345,7 +345,7 @@ def analyze_segment(samples):
 
     # ===== CURRENT =====
     cur_dirs, cur_spds = [], []
-
+    cur_spds = [c for c in cur_spds if c > 2]  # buang noise kecil
     for s in samples:
         u = s.get("current", {}).get("u")
         v = s.get("current", {}).get("v")
