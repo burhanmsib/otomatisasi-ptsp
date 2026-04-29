@@ -224,48 +224,58 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
 
 
 # =========================
-# GSMAP SAFE EXTRACT (FIX)
+# WEATHER EXTRACTION (FINAL FIX - STABLE)
 # =========================
-rain_val = None
+def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-if ds_rain is not None:
-    try:
-        var = list(ds_rain.data_vars)[0]
-        da = ds_rain[var]
+    rain_val = None
 
-        # 🔥 handle time
-        if "time" in da.dims:
-            da = da.sel(time=t, method="nearest")
+    # =========================
+    # GSMAP SAFE EXTRACT
+    # =========================
+    if ds_rain is not None:
+        try:
+            var = list(ds_rain.data_vars)[0]
+            da = ds_rain[var]
 
-        # 🔥 fleksibel nama koordinat
-        lat_name = "lat" if "lat" in da.coords else "latitude"
-        lon_name = "lon" if "lon" in da.coords else "longitude"
+            # 🔥 handle time
+            if "time" in da.dims:
+                da = da.sel(time=t, method="nearest")
 
-        lat_vals = da[lat_name].values
-        lon_vals = da[lon_name].values
+            # 🔥 fleksibel nama koordinat
+            lat_name = "lat" if "lat" in da.coords else "latitude"
+            lon_name = "lon" if "lon" in da.coords else "longitude"
 
-        lat_idx = np.abs(lat_vals - lat).argmin()
-        lon_idx = np.abs(lon_vals - lon).argmin()
+            lat_vals = da[lat_name].values
+            lon_vals = da[lon_name].values
 
-        rain_val = float(da.isel({lat_name: lat_idx, lon_name: lon_idx}).values)
+            lat_idx = np.abs(lat_vals - lat).argmin()
+            lon_idx = np.abs(lon_vals - lon).argmin()
 
-        if np.isnan(rain_val):
+            rain_val = float(
+                da.isel({lat_name: lat_idx, lon_name: lon_idx}).values
+            )
+
+            if np.isnan(rain_val):
+                rain_val = None
+
+        except Exception:
             rain_val = None
 
-    except Exception as e:
-        rain_val = None
-
+    # =========================
+    # 🔥 RETURN WAJIB DI LUAR
+    # =========================
     return {
         "wave": {
-            "hs": safe_extract(ds_wave,"hs",t,lat,lon),
+            "hs": safe_extract(ds_wave, "hs", t, lat, lon),
         },
         "wind": {
-            "u": safe_extract(ds_wave,"uwnd",t,lat,lon),
-            "v": safe_extract(ds_wave,"vwnd",t,lat,lon)
+            "u": safe_extract(ds_wave, "uwnd", t, lat, lon),
+            "v": safe_extract(ds_wave, "vwnd", t, lat, lon)
         },
         "current": {
-            "u": safe_extract(ds_cur,"u",t,lat,lon,depth=0.5),
-            "v": safe_extract(ds_cur,"v",t,lat,lon,depth=0.5)
+            "u": safe_extract(ds_cur, "u", t, lat, lon, depth=0.5),
+            "v": safe_extract(ds_cur, "v", t, lat, lon, depth=0.5)
         },
         "rain": {
             "precip": rain_val
