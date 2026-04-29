@@ -284,7 +284,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
 
 # =========================
-# MAIN PROCESS (FINAL - MANUAL STYLE)
+# MAIN PROCESS (FINAL - ACCURATE)
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
@@ -323,12 +323,12 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
 
         sample_points = generate_polygon_sampling_points(
             pointA, pointB,
-            buffer_deg=0.2,   # ±20–25 km
-            grid_size=4
+            buffer_deg=0.15,   # 🔥 sedikit lebih aman (hindari darat)
+            grid_size=3        # 🔥 lebih stabil & tidak noisy
         )
 
         # =========================
-        # 🔥 FINAL TIME SAMPLING (FIX)
+        # 🔥 FIX TIME (WAJIB)
         # =========================
         times = [
             t0,
@@ -338,6 +338,8 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         samples = []
 
         for t in times:
+            t = t.replace(minute=0, second=0)
+
             for lat, lon in sample_points:
 
                 sample = extract_hourly_weather(
@@ -346,9 +348,6 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
                 )
                 samples.append(sample)
 
-        # =========================
-        # 🔥 WEATHER RANGE
-        # =========================
         weather = build_weather_range(samples)
 
         segments.append({
