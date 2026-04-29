@@ -253,6 +253,32 @@ def rounded_range_with_padding(min_val, max_val):
 
     return r_min, r_max
 
+import math
+
+def compute_speed(u, v):
+    return math.sqrt(u**2 + v**2)
+
+def compute_direction(u, v):
+    angle = (math.degrees(math.atan2(u, v)) + 360) % 360
+    return angle
+
+def dominant_direction(u_list, v_list):
+    angles = []
+
+    for u, v in zip(u_list, v_list):
+        if u is None or v is None:
+            continue
+        angles.append(compute_direction(u, v))
+
+    if not angles:
+        return None
+
+    sin_sum = sum(math.sin(math.radians(a)) for a in angles)
+    cos_sum = sum(math.cos(math.radians(a)) for a in angles)
+
+    return math.degrees(math.atan2(sin_sum, cos_sum)) % 360
+
+
 
 # -------------------------
 # CORE ANALYSIS (6 JAM)
