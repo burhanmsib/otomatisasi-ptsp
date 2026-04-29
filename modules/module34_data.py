@@ -224,27 +224,36 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
 
 
 # =========================
-# WEATHER EXTRACTION
+# GSMAP SAFE EXTRACT (FIX)
 # =========================
-def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
+rain_val = None
 
-    rain_val = None
+if ds_rain is not None:
+    try:
+        var = list(ds_rain.data_vars)[0]
+        da = ds_rain[var]
 
-    if ds_rain is not None:
-        try:
-            var = list(ds_rain.data_vars)[0]
-            da = ds_rain[var]
+        # 🔥 handle time
+        if "time" in da.dims:
+            da = da.sel(time=t, method="nearest")
 
-            if "time" in da.dims:
-                da = da.sel(time=t, method="nearest")
+        # 🔥 fleksibel nama koordinat
+        lat_name = "lat" if "lat" in da.coords else "latitude"
+        lon_name = "lon" if "lon" in da.coords else "longitude"
 
-            lat_idx = np.abs(da["lat"].values - lat).argmin()
-            lon_idx = np.abs(da["lon"].values - lon).argmin()
+        lat_vals = da[lat_name].values
+        lon_vals = da[lon_name].values
 
-            rain_val = float(da.isel(lat=lat_idx, lon=lon_idx).values)
+        lat_idx = np.abs(lat_vals - lat).argmin()
+        lon_idx = np.abs(lon_vals - lon).argmin()
 
-        except:
+        rain_val = float(da.isel({lat_name: lat_idx, lon_name: lon_idx}).values)
+
+        if np.isnan(rain_val):
             rain_val = None
+
+    except Exception as e:
+        rain_val = None
 
     return {
         "wave": {
