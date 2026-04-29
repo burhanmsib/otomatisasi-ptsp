@@ -284,7 +284,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
 
 # =========================
-# MAIN PROCESS (POLYGON FINAL - COMPATIBLE)
+# MAIN PROCESS (FINAL - MANUAL STYLE)
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
@@ -316,7 +316,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
             segment_route = route
 
         # =========================
-        # 🔥 POLYGON SAMPLING (GANTI LINE)
+        # 🔥 POLYGON SAMPLING
         # =========================
         pointA = segment_route[0]
         pointB = segment_route[-1]
@@ -324,24 +324,30 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         sample_points = generate_polygon_sampling_points(
             pointA, pointB,
             buffer_deg=0.2,   # ±20–25 km
-            grid_size=4       # max ~10 titik
+            grid_size=4
         )
+
+        # =========================
+        # 🔥 FINAL TIME SAMPLING (FIX)
+        # =========================
+        times = [
+            t0,
+            t0 + timedelta(hours=3)
+        ]
 
         samples = []
 
-        for j, (lat, lon) in enumerate(sample_points):
+        for t in times:
+            for lat, lon in sample_points:
 
-            # 🔥 tetap pakai timestep lama (3 jam)
-            t = t0 + timedelta(hours=j * 3)
-
-            sample = extract_hourly_weather(
-                ds_wave, ds_cur, ds_rain,
-                t, lat, lon
-            )
-            samples.append(sample)
+                sample = extract_hourly_weather(
+                    ds_wave, ds_cur, ds_rain,
+                    t, lat, lon
+                )
+                samples.append(sample)
 
         # =========================
-        # 🔥 WEATHER RANGE (TETAP)
+        # 🔥 WEATHER RANGE
         # =========================
         weather = build_weather_range(samples)
 
