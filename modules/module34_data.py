@@ -71,52 +71,42 @@ def normalize_date(raw):
 # =========================
 # 🔥 POLYGON SAMPLING (FINAL - ANALYST STYLE)
 # =========================
-def generate_polygon_sampling_points(pointA, pointB, buffer_deg=0.25, n_points=9):
+def generate_polygon_sampling_points(pointA, pointB, buffer_deg=0.25):
 
     lat1, lon1 = pointA
     lat2, lon2 = pointB
 
-    # 🔥 1. garis rute
     line = LineString([(lon1, lat1), (lon2, lat2)])
-
-    # 🔥 2. polygon buffer (±15–20 km)
     polygon = line.buffer(buffer_deg)
-
-    # 🔥 3. ambil titik di sepanjang garis (3 titik)
-    fractions = np.linspace(0, 1, 3)
 
     points = []
 
+    # 3 posisi sepanjang garis
+    fractions = np.linspace(0, 1, 3)
+
+    dx = lon2 - lon1
+    dy = lat2 - lat1
+    length = np.sqrt(dx**2 + dy**2)
+
+    if length == 0:
+        return [pointA, pointB]
+
+    nx = -dy / length
+    ny = dx / length
+
     for f in fractions:
-        lon_center = lon1 + f * (lon2 - lon1)
-        lat_center = lat1 + f * (lat2 - lat1)
+        lon_center = lon1 + f * dx
+        lat_center = lat1 + f * dy
 
-        # 🔥 4. buat offset kiri-kanan (tegak lurus garis)
-        dx = lon2 - lon1
-        dy = lat2 - lat1
-
-        length = np.sqrt(dx**2 + dy**2)
-        if length == 0:
-            continue
-
-        # normal vector
-        nx = -dy / length
-        ny = dx / length
-
-        # 🔥 5. ambil 3 titik: kiri - tengah - kanan
-        offsets = [-0.5, 0, 0.5]  # proporsi buffer
-
-        for o in offsets:
-            lon = lon_center + nx * buffer_deg * o
-            lat = lat_center + ny * buffer_deg * o
+        for offset in [-0.5, 0, 0.5]:
+            lon = lon_center + nx * buffer_deg * offset
+            lat = lat_center + ny * buffer_deg * offset
 
             p = Point(lon, lat)
 
-            # pastikan masih dalam polygon
             if polygon.contains(p):
                 points.append((lat, lon))
 
-    # 🔥 fallback
     if not points:
         return [pointA, pointB]
 
