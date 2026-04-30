@@ -447,14 +447,36 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
             coord_map = {}
 
             for row in module1_rows:
-                coord = str(row.get("Koordinat", "") or "").strip()
+
+                ka = str(row.get("Koordinat Awal", "") or "").strip()
+                kb = str(row.get("Koordinat Akhir", "") or "").strip()
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-
-                if coord not in coord_map:
-                    coord_map[coord] = []
-
-                if dt:
-                    coord_map[coord].append(dt)
+            
+                if not ka or not kb:
+                    continue
+            
+                dt_str = format_date_en(dt) if dt else ""
+            
+                bullet_text = (
+                    f"• From ({ka}) to ({kb}) for {dt_str}"
+                )
+            
+                new_p = insert_paragraph_after(current_p)
+                clear_paragraph(new_p)
+                new_p.add_run(bullet_text)
+            
+                style_paragraph(
+                    new_p,
+                    size=11,
+                    align="justify",
+                    space_before=0,
+                    space_after=0,
+                    line_spacing=1.0,
+                    left_indent_cm=0.5,
+                    first_line_indent_cm=-0.3
+                )
+            
+                current_p = new_p
 
             # =========================
             # 🔥 BUILD BULLET (FORMAT ASLI)
