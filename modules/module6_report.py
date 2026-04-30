@@ -222,7 +222,7 @@ def build_title(doc, row):
 
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports\n").bold = True
-    p.add_run("Coordinate: ").bold = True
+    p.add_run("Coordinate from ").bold = True
     p.add_run(f"{coord_text}\n")
     p.add_run(f"for {t_str}")
 
