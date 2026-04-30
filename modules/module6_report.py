@@ -198,18 +198,16 @@ def build_title(doc, row):
     # 🔥 FIX: pakai format asli (DMS)
     coord_text = row.get("Koordinat", "")
     
-    if not coord_text:
-        # fallback ke decimal kalau kosong
-        ka = row.get("Koordinat Awal", "")
-        kb = row.get("Koordinat Akhir", "")
+    ka = str(row.get("Koordinat Awal", "") or "").strip()
+    kb = str(row.get("Koordinat Akhir", "") or "").strip()
     
-        if ka and kb:
-            if str(ka) == str(kb):
-                coord_text = str(ka)
-            else:
-                coord_text = f"{ka} to {kb}"
+    if ka and kb:
+        if ka == kb:
+            coord_text = ka
         else:
-            coord_text = "-"
+            coord_text = f"{ka} to {kb}"
+    else:
+        coord_text = "-"
     # ka = row.get("Koordinat Awal", "")
     # kb = row.get("Koordinat Akhir", "")
 
