@@ -340,7 +340,8 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
 
         sample_points = generate_polygon_sampling_points(
             pointA, pointB,
-            buffer_deg=0.25,   # 🔥 sedikit lebih aman (hindari darat)      
+            buffer_deg=0.25
+        )# 🔥 sedikit lebih aman (hindari darat)      
             
         # =========================
         # 🔥 FIX TIME (WAJIB)
