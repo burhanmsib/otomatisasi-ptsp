@@ -1,15 +1,11 @@
 # =========================
-# MODULE 2 – ROUTE ENGINE (FINAL VERSION)
+# MODULE 2 – ROUTE ENGINE (FINAL FIXED)
 # =========================
 
 import streamlit as st
 from streamlit_folium import st_folium
-from shapely.geometry import LineString
 import folium
 from folium.plugins import Draw
-
-REQUIRED_POINTS = 5
-
 
 # =========================
 # HELPER – PARSE KOORDINAT
@@ -20,26 +16,6 @@ def parse_decimal_coordinate(value):
         return float(parts[0]), float(parts[1])
     except Exception:
         return None, None
-
-
-# =========================
-# INTERPOLASI 5 TITIK
-# =========================
-def split_route_into_5(points_latlon):
-
-    if len(points_latlon) < 2:
-        return None
-
-    line = LineString([(lon, lat) for lat, lon in points_latlon])
-
-    fractions = [0.0, 0.25, 0.50, 0.75, 1.0]
-    result = []
-
-    for f in fractions:
-        p = line.interpolate(f, normalized=True)
-        result.append((p.y, p.x))
-
-    return result
 
 
 # =========================
@@ -92,7 +68,7 @@ def process_route_segment_module2_streamlit(row, map_key):
     # =========================
     if mode == "Titik Tunggal":
 
-        st.info("Gunakan ini jika hanya 1 koordinat (sesuai format laporan PDF)")
+        st.info("Gunakan ini jika hanya 1 koordinat")
 
         lat = st.number_input("Latitude", key=f"lat_{map_key}")
         lon = st.number_input("Longitude", key=f"lon_{map_key}")
@@ -105,7 +81,7 @@ def process_route_segment_module2_streamlit(row, map_key):
                 "tanggal": row.get("Tanggal Koordinat"),
                 "awal": (lat, lon),
                 "akhir": (lat, lon),
-                "titik5": [(lat, lon)]  # penting untuk module 3
+                "titik5": [(lat, lon)]
             }
 
         return None
@@ -121,9 +97,7 @@ def process_route_segment_module2_streamlit(row, map_key):
         st.error("Format koordinat desimal tidak valid.")
         return None
 
-    st.caption(
-        f"{row.get('Koordinat Awal')} ➜ {row.get('Koordinat Akhir')}"
-    )
+    st.caption(f"{row.get('Koordinat Awal')} ➜ {row.get('Koordinat Akhir')}")
 
     # =========================
     # MAP DRAW
@@ -166,7 +140,6 @@ def process_route_segment_module2_streamlit(row, map_key):
     output = st_folium(
         m,
         height=800,
-        width=None,
         key=f"draw_map_{map_key}",
         returned_objects=["last_active_drawing"]
     )
@@ -174,7 +147,7 @@ def process_route_segment_module2_streamlit(row, map_key):
     drawing = output.get("last_active_drawing")
 
     if drawing is None:
-        st.info("Gambar rute dengan TEPAT 5 titik.")
+        st.info("Gambar rute bebas mengikuti jalur laut (tidak harus 5 titik)")
         return None
 
     geom = drawing.get("geometry", {})
@@ -185,20 +158,19 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     coords = geom.get("coordinates", [])
 
-    if len(coords) != REQUIRED_POINTS:
-        st.error(f"Rute harus TEPAT {REQUIRED_POINTS} titik. Sekarang: {len(coords)} titik.")
+    # =========================
+    # VALIDASI MINIMAL
+    # =========================
+    if len(coords) < 2:
+        st.error("Rute minimal 2 titik.")
         return None
 
+    # 🔥 INI BAGIAN PALING PENTING
+    # ambil polyline ASLI (tidak diubah!)
     points_latlon = [(pt[1], pt[0]) for pt in coords]
 
-    titik5 = split_route_into_5(points_latlon)
-
-    if titik5 is None:
-        st.error("Gagal membuat 5 titik.")
-        return None
-
     # =========================
-    # MAP FINAL
+    # MAP FINAL (SAMA DENGAN YANG DIGAMBAR)
     # =========================
     m2 = folium.Map(
         location=[(lat1 + lat2) / 2, (lon1 + lon2) / 2],
@@ -207,20 +179,19 @@ def process_route_segment_module2_streamlit(row, map_key):
     )
 
     folium.PolyLine(
-        locations=titik5,
+        locations=points_latlon,
         color="#1565C0",
         weight=6,
     ).add_to(m2)
 
-    for i, (lat, lon) in enumerate(titik5, start=1):
+    for i, (lat, lon) in enumerate(points_latlon, start=1):
         numbered_marker(lat, lon, i).add_to(m2)
 
-    st.success("✅ Rute valid & tersimpan")
+    st.success("✅ Rute valid & tersimpan (persis seperti gambar)")
 
     st_folium(
         m2,
         height=800,
-        width=None,
         key=f"final_map_{map_key}"
     )
 
@@ -228,5 +199,5 @@ def process_route_segment_module2_streamlit(row, map_key):
         "tanggal": row.get("Tanggal Koordinat"),
         "awal": (lat1, lon1),
         "akhir": (lat2, lon2),
-        "titik5": titik5
+        "titik5": points_latlon  # 🔥 sekarang full polyline
     }
