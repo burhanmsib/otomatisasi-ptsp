@@ -1,14 +1,12 @@
 # =========================
-# MODULE 2 – FINAL (ROUTE + SEGMENT VISUAL)
+# MODULE 2 – FINAL CLEAN
 # =========================
 
 import streamlit as st
 from streamlit_folium import st_folium
 import folium
-from folium.plugins import Draw, PolyLineTextPath
+from folium.plugins import Draw
 from shapely.geometry import LineString
-import numpy as np
-
 
 # =========================
 # HELPER – PARSE KOORDINAT
@@ -22,7 +20,7 @@ def parse_decimal_coordinate(value):
 
 
 # =========================
-# SPLIT → 4 SEGMENT (UNTUK ANALISIS)
+# SPLIT → 4 SEGMENT (5 TITIK)
 # =========================
 def split_route_into_4_segments(points_latlon):
 
@@ -42,68 +40,6 @@ def split_route_into_4_segments(points_latlon):
 
 
 # =========================
-# SPLIT POLYLINE → SEGMENT BENTUK ASLI (UNTUK VISUAL)
-# =========================
-def split_polyline_into_segments(full_route, n_segments=4):
-
-    if len(full_route) < 2:
-        return [full_route]
-
-    line = LineString([(lon, lat) for lat, lon in full_route])
-    segments = []
-
-    for i in range(n_segments):
-
-        start_f = i / n_segments
-        end_f = (i + 1) / n_segments
-
-        start_d = line.length * start_f
-        end_d = line.length * end_f
-
-        coords = []
-
-        for d in np.linspace(start_d, end_d, 25):
-            p = line.interpolate(d)
-            coords.append((p.y, p.x))
-
-        segments.append(coords)
-
-    return segments
-
-
-# =========================
-# DRAW ROUTE WITH SEGMENTS + ARROW
-# =========================
-def draw_route_with_segments(map_obj, full_route):
-
-    segments = split_polyline_into_segments(full_route, 4)
-
-    colors = ["red", "blue", "green", "orange"]
-
-    for i, seg in enumerate(segments):
-
-        line = folium.PolyLine(
-            locations=seg,
-            color=colors[i],
-            weight=5,
-            opacity=0.9
-        ).add_to(map_obj)
-
-        PolyLineTextPath(
-            line,
-            "➤➤➤",
-            repeat=True,
-            offset=7,
-            attributes={
-                "fill": colors[i],
-                "font-size": "12"
-            }
-        ).add_to(map_obj)
-
-    return map_obj
-
-
-# =========================
 # MAIN FUNCTION
 # =========================
 def process_route_segment_module2_streamlit(row, map_key):
@@ -111,10 +47,9 @@ def process_route_segment_module2_streamlit(row, map_key):
     st.subheader("Mode Input Lokasi")
 
     st.info(
-        "Klik untuk membuat jalur rute (belokan).\n"
-        "Klik berkali-kali mengikuti jalur laut.\n"
-        "Double klik untuk selesai.\n"
-        "Jika salah, gambar ulang."
+        "Klik beberapa titik untuk membuat jalur rute (belokan).\n"
+        "Semakin banyak titik, semakin detail jalurnya.\n"
+        "Double klik untuk menyelesaikan."
     )
 
     mode = st.radio(
@@ -154,14 +89,28 @@ def process_route_segment_module2_streamlit(row, map_key):
         st.error("Format koordinat tidak valid")
         return None
 
+    # =========================
+    # MAP DRAW
+    # =========================
     m = folium.Map(
         location=[(lat1 + lat2) / 2, (lon1 + lon2) / 2],
         zoom_start=6,
         tiles="OpenStreetMap"
     )
 
-    folium.Marker([lat1, lon1], tooltip="Start", icon=folium.Icon(color="green")).add_to(m)
-    folium.Marker([lat2, lon2], tooltip="End", icon=folium.Icon(color="red")).add_to(m)
+    # 🔥 START
+    folium.Marker(
+        [lat1, lon1],
+        tooltip="Start Point",
+        icon=folium.Icon(color="green", icon="play")
+    ).add_to(m)
+
+    # 🔥 END
+    folium.Marker(
+        [lat2, lon2],
+        tooltip="End Point",
+        icon=folium.Icon(color="red", icon="flag")
+    ).add_to(m)
 
     Draw(
         draw_options={
@@ -176,8 +125,7 @@ def process_route_segment_module2_streamlit(row, map_key):
             "rectangle": False,
             "marker": False,
             "circlemarker": False
-        },
-        edit_options={"edit": False}
+        }
     ).add_to(m)
 
     output = st_folium(
@@ -205,14 +153,14 @@ def process_route_segment_module2_streamlit(row, map_key):
         st.error("Minimal 2 titik")
         return None
 
-    # 🔥 polyline asli (TIDAK DIUBAH)
+    # 🔥 POLYLINE ASLI
     full_route = [(pt[1], pt[0]) for pt in coords]
 
-    # 🔥 titik untuk analisis
+    # 🔥 5 TITIK (SEGMENT)
     titik5 = split_route_into_4_segments(full_route)
 
     # =========================
-    # MAP FINAL (SEGMENTED + ARROW)
+    # MAP FINAL (CLEAN)
     # =========================
     m2 = folium.Map(
         location=[(lat1 + lat2) / 2, (lon1 + lon2) / 2],
@@ -220,9 +168,50 @@ def process_route_segment_module2_streamlit(row, map_key):
         tiles="OpenStreetMap"
     )
 
-    m2 = draw_route_with_segments(m2, full_route)
+    # 🔥 GARIS RUTE
+    folium.PolyLine(
+        locations=full_route,
+        color="#1565C0",
+        weight=6
+    ).add_to(m2)
 
-    st.success("Rute tersimpan (mengikuti jalur & segmented)")
+    # 🔥 START
+    folium.Marker(
+        [lat1, lon1],
+        tooltip="Start Point",
+        icon=folium.Icon(color="green", icon="play")
+    ).add_to(m2)
+
+    # 🔥 END
+    folium.Marker(
+        [lat2, lon2],
+        tooltip="End Point",
+        icon=folium.Icon(color="red", icon="flag")
+    ).add_to(m2)
+
+    # 🔥 TITIK 1–5
+    for i, (lat, lon) in enumerate(titik5, start=1):
+        folium.Marker(
+            [lat, lon],
+            tooltip=f"Titik {i}",
+            icon=folium.DivIcon(html=f"""
+                <div style="
+                    background:#0D47A1;
+                    color:white;
+                    border-radius:50%;
+                    width:28px;
+                    height:28px;
+                    text-align:center;
+                    line-height:28px;
+                    font-weight:bold;
+                    border:2px solid white;
+                ">
+                    {i}
+                </div>
+            """)
+        ).add_to(m2)
+
+    st.success("Rute tersimpan")
 
     st_folium(
         m2,
