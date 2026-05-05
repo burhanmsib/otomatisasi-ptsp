@@ -6,6 +6,7 @@ import streamlit as st
 from streamlit_folium import st_folium
 import folium
 from folium.plugins import Draw
+from shapely.geometry import LineString
 
 # =========================
 # HELPER – PARSE KOORDINAT
@@ -16,6 +17,26 @@ def parse_decimal_coordinate(value):
         return float(parts[0]), float(parts[1])
     except Exception:
         return None, None
+
+
+# =========================
+# 🔥 SPLIT MENJADI 4 SEGMENT (5 TITIK)
+# =========================
+def split_route_into_4_segments(points_latlon):
+
+    if len(points_latlon) < 2:
+        return None
+
+    line = LineString([(lon, lat) for lat, lon in points_latlon])
+
+    fractions = [0.0, 0.25, 0.5, 0.75, 1.0]
+    result = []
+
+    for f in fractions:
+        p = line.interpolate(f, normalized=True)
+        result.append((p.y, p.x))
+
+    return result
 
 
 # =========================
@@ -81,7 +102,8 @@ def process_route_segment_module2_streamlit(row, map_key):
                 "tanggal": row.get("Tanggal Koordinat"),
                 "awal": (lat, lon),
                 "akhir": (lat, lon),
-                "titik5": [(lat, lon)]
+                "titik5": [(lat, lon)],
+                "polyline_full": [(lat, lon)]
             }
 
         return None
@@ -166,12 +188,14 @@ def process_route_segment_module2_streamlit(row, map_key):
         st.error("Rute minimal 2 titik.")
         return None
 
-    # 🔥 INI BAGIAN PALING PENTING
-    # ambil polyline ASLI (tidak diubah!)
-    points_latlon = [(pt[1], pt[0]) for pt in coords]
+    # 🔥 POLYLINE ASLI (TIDAK DIUBAH)
+    full_route = [(pt[1], pt[0]) for pt in coords]
+
+    # 🔥 5 TITIK UNTUK 4 SEGMENT
+    titik5 = split_route_into_4_segments(full_route)
 
     # =========================
-    # MAP FINAL (SAMA DENGAN YANG DIGAMBAR)
+    # MAP FINAL (SAMA DENGAN GAMBAR USER)
     # =========================
     m2 = folium.Map(
         location=[(lat1 + lat2) / 2, (lon1 + lon2) / 2],
@@ -180,12 +204,12 @@ def process_route_segment_module2_streamlit(row, map_key):
     )
 
     folium.PolyLine(
-        locations=points_latlon,
+        locations=full_route,
         color="#1565C0",
         weight=6,
     ).add_to(m2)
 
-    for i, (lat, lon) in enumerate(points_latlon, start=1):
+    for i, (lat, lon) in enumerate(full_route, start=1):
         numbered_marker(lat, lon, i).add_to(m2)
 
     st.success("✅ Rute valid & tersimpan (persis seperti gambar)")
@@ -201,5 +225,10 @@ def process_route_segment_module2_streamlit(row, map_key):
         "tanggal": row.get("Tanggal Koordinat"),
         "awal": (lat1, lon1),
         "akhir": (lat2, lon2),
-        "titik5": points_latlon  # 🔥 sekarang full polyline
+
+        # 🔥 untuk analisis (4 segmen)
+        "titik5": titik5,
+
+        # 🔥 untuk visual & akurasi rute
+        "polyline_full": full_route
     }
