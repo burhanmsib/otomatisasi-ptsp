@@ -69,46 +69,54 @@ def normalize_date(raw):
         return None
 
 # =========================
-# 🔥 POLYGON SAMPLING (FINAL - ANALYST STYLE)
+# 🔥 SPLIT POLYLINE (FIX UTAMA)
 # =========================
-def generate_polygon_sampling_points(pointA, pointB, buffer_deg=0.25):
+def split_polyline_into_segments(full_route, n_segments=4):
 
-    lat1, lon1 = pointA
-    lat2, lon2 = pointB
+    if len(full_route) < 2:
+        return [full_route]
 
-    line = LineString([(lon1, lat1), (lon2, lat2)])
+    line = LineString([(lon, lat) for lat, lon in full_route])
+    segments = []
+
+    for i in range(n_segments):
+
+        start_f = i / n_segments
+        end_f = (i + 1) / n_segments
+
+        start_d = line.length * start_f
+        end_d = line.length * end_f
+
+        coords = []
+
+        for d in np.linspace(start_d, end_d, 25):
+            p = line.interpolate(d)
+            coords.append((p.y, p.x))
+
+        segments.append(coords)
+
+    return segments
+
+# =========================
+# 🔥 POLYGON SAMPLING
+# =========================
+def generate_polygon_sampling_points(segment_route, buffer_deg=0.25):
+
+    line = LineString([(lon, lat) for lat, lon in segment_route])
     polygon = line.buffer(buffer_deg)
+
+    minx, miny, maxx, maxy = polygon.bounds
 
     points = []
 
-    # 3 posisi sepanjang garis
-    fractions = np.linspace(0, 1, 3)
-
-    dx = lon2 - lon1
-    dy = lat2 - lat1
-    length = np.sqrt(dx**2 + dy**2)
-
-    if length == 0:
-        return [pointA, pointB]
-
-    nx = -dy / length
-    ny = dx / length
-
-    for f in fractions:
-        lon_center = lon1 + f * dx
-        lat_center = lat1 + f * dy
-
-        for offset in [-0.5, 0, 0.5]:
-            lon = lon_center + nx * buffer_deg * offset
-            lat = lat_center + ny * buffer_deg * offset
-
+    for lat in np.linspace(miny, maxy, 4):
+        for lon in np.linspace(minx, maxx, 4):
             p = Point(lon, lat)
-
             if polygon.contains(p):
                 points.append((lat, lon))
 
     if not points:
-        return [pointA, pointB]
+        return segment_route
 
     return points
 
@@ -301,7 +309,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
 
 # =========================
-# MAIN PROCESS (FINAL - ACCURATE)
+# MAIN PROCESS (FINAL FIX)
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
@@ -317,35 +325,20 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
 
     route = [(p[0], p[1]) for p in polyline]
 
+    # 🔥 SPLIT BERDASARKAN PANJANG (FIX UTAMA)
+    segments_route = split_polyline_into_segments(route, 4)
+
     segments = []
-    n = len(route)
 
     for i in range(4):
 
         t0 = dt_utc0 + timedelta(hours=i * 6)
 
-        start_idx = int(i * (n-1) / 4)
-        end_idx   = int((i+1) * (n-1) / 4) + 1
+        segment_route = segments_route[i]
 
-        segment_route = route[start_idx:end_idx]
+        # 🔥 polygon mengikuti bentuk segmen
+        sample_points = generate_polygon_sampling_points(segment_route)
 
-        if len(segment_route) < 2:
-            segment_route = route
-
-        # =========================
-        # 🔥 POLYGON SAMPLING
-        # =========================
-        pointA = segment_route[0]
-        pointB = segment_route[-1]
-
-        sample_points = generate_polygon_sampling_points(
-            pointA, pointB,
-            buffer_deg=0.25
-        )# 🔥 sedikit lebih aman (hindari darat)      
-            
-        # =========================
-        # 🔥 FIX TIME (WAJIB)
-        # =========================
         times = [
             t0,
             t0 + timedelta(hours=3)
