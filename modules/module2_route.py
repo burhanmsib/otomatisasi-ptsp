@@ -1,5 +1,5 @@
 # =========================
-# MODULE 2 – ROUTE ENGINE (FINAL FIXED)
+# MODULE 2 – ROUTE ENGINE (FINAL UX + FLEXIBLE)
 # =========================
 
 import streamlit as st
@@ -20,7 +20,7 @@ def parse_decimal_coordinate(value):
 
 
 # =========================
-# 🔥 SPLIT MENJADI 4 SEGMENT (5 TITIK)
+# SPLIT → 4 SEGMENT (5 TITIK)
 # =========================
 def split_route_into_4_segments(points_latlon):
 
@@ -74,6 +74,14 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     st.subheader("Mode Input Lokasi")
 
+    # 🔥 UX INSTRUCTION (PENTING)
+    st.info(
+        "Klik pada peta untuk membuat jalur rute (belokan). "
+        "Klik berkali-kali untuk mengikuti jalur laut. "
+        "Double klik untuk menyelesaikan gambar. "
+        "Titik bisa digeser kembali jika ingin mengedit."
+    )
+
     # =========================
     # MODE PILIHAN
     # =========================
@@ -88,8 +96,6 @@ def process_route_segment_module2_streamlit(row, map_key):
     # MODE 1: TITIK TUNGGAL
     # =========================
     if mode == "Titik Tunggal":
-
-        st.info("Gunakan ini jika hanya 1 koordinat")
 
         lat = st.number_input("Latitude", key=f"lat_{map_key}")
         lon = st.number_input("Longitude", key=f"lon_{map_key}")
@@ -116,7 +122,7 @@ def process_route_segment_module2_streamlit(row, map_key):
     lat2, lon2 = parse_decimal_coordinate(row.get("Koordinat Akhir (Desimal)"))
 
     if None in (lat1, lon1, lat2, lon2):
-        st.error("Format koordinat desimal tidak valid.")
+        st.error("Format koordinat tidak valid")
         return None
 
     st.caption(f"{row.get('Koordinat Awal')} ➜ {row.get('Koordinat Akhir')}")
@@ -132,14 +138,14 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     folium.Marker(
         [lat1, lon1],
-        tooltip="Start Point",
-        icon=folium.Icon(color="green", icon="play")
+        tooltip="Start",
+        icon=folium.Icon(color="green")
     ).add_to(m)
 
     folium.Marker(
         [lat2, lon2],
-        tooltip="End Point",
-        icon=folium.Icon(color="red", icon="flag")
+        tooltip="End",
+        icon=folium.Icon(color="red")
     ).add_to(m)
 
     Draw(
@@ -147,7 +153,7 @@ def process_route_segment_module2_streamlit(row, map_key):
             "polyline": {
                 "shapeOptions": {
                     "color": "#1565C0",
-                    "weight": 6,
+                    "weight": 5,
                 }
             },
             "polygon": False,
@@ -156,7 +162,8 @@ def process_route_segment_module2_streamlit(row, map_key):
             "marker": False,
             "circlemarker": False,
         },
-        edit_options={"edit": False}
+        # 🔥 SEKARANG BISA EDIT GARIS
+        edit_options={"edit": True}
     ).add_to(m)
 
     output = st_folium(
@@ -170,32 +177,30 @@ def process_route_segment_module2_streamlit(row, map_key):
     drawing = output.get("last_active_drawing")
 
     if drawing is None:
-        st.info("Gambar rute bebas mengikuti jalur laut (tidak harus 5 titik)")
         return None
 
     geom = drawing.get("geometry", {})
 
     if geom.get("type") != "LineString":
-        st.warning("Objek harus berupa polyline.")
+        st.warning("Harus berupa garis (polyline)")
         return None
 
     coords = geom.get("coordinates", [])
 
-    # =========================
-    # VALIDASI MINIMAL
-    # =========================
     if len(coords) < 2:
-        st.error("Rute minimal 2 titik.")
+        st.error("Minimal 2 titik")
         return None
 
-    # 🔥 POLYLINE ASLI (TIDAK DIUBAH)
+    # =========================
+    # 🔥 POLYLINE ASLI (INI KUNCI)
+    # =========================
     full_route = [(pt[1], pt[0]) for pt in coords]
 
-    # 🔥 5 TITIK UNTUK 4 SEGMENT
+    # 🔥 AUTO SEGMENT (4 SEGMENT)
     titik5 = split_route_into_4_segments(full_route)
 
     # =========================
-    # MAP FINAL (SAMA DENGAN GAMBAR USER)
+    # MAP FINAL
     # =========================
     m2 = folium.Map(
         location=[(lat1 + lat2) / 2, (lon1 + lon2) / 2],
@@ -206,13 +211,13 @@ def process_route_segment_module2_streamlit(row, map_key):
     folium.PolyLine(
         locations=full_route,
         color="#1565C0",
-        weight=6,
+        weight=6
     ).add_to(m2)
 
     for i, (lat, lon) in enumerate(full_route, start=1):
         numbered_marker(lat, lon, i).add_to(m2)
 
-    st.success("✅ Rute valid & tersimpan (persis seperti gambar)")
+    st.success("✅ Rute tersimpan (fleksibel & mengikuti jalur)")
 
     st_folium(
         m2,
@@ -226,9 +231,9 @@ def process_route_segment_module2_streamlit(row, map_key):
         "awal": (lat1, lon1),
         "akhir": (lat2, lon2),
 
-        # 🔥 untuk analisis (4 segmen)
+        # 🔥 untuk analisis
         "titik5": titik5,
 
-        # 🔥 untuk visual & akurasi rute
+        # 🔥 untuk rute asli
         "polyline_full": full_route
     }
