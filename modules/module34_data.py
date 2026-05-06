@@ -99,27 +99,112 @@ def split_polyline_into_segments(full_route, n_segments=4):
 
 # =========================
 # 🔥 POLYGON SAMPLING
+# SUPPORT:
+# - titik tunggal
+# - polyline/rute
 # =========================
-def generate_polygon_sampling_points(segment_route, buffer_deg=0.25):
+def generate_polygon_sampling_points(
+    segment_route,
+    route_buffer=0.25
+):
 
-    line = LineString([(lon, lat) for lat, lon in segment_route])
-    polygon = line.buffer(buffer_deg)
+    # =========================
+    # VALIDASI TITIK
+    # =========================
+    valid_points = []
 
-    minx, miny, maxx, maxy = polygon.bounds
+    for p in segment_route:
 
-    points = []
+        if (
+            isinstance(p, (list, tuple))
+            and len(p) == 2
+        ):
 
-    for lat in np.linspace(miny, maxy, 4):
-        for lon in np.linspace(minx, maxx, 4):
-            p = Point(lon, lat)
-            if polygon.contains(p):
-                points.append((lat, lon))
+            lat, lon = p
 
-    if not points:
-        return segment_route
+            if (
+                lat is not None
+                and lon is not None
+            ):
+                valid_points.append((lat, lon))
 
-    return points
+    # =========================
+    # TIDAK ADA TITIK
+    # =========================
+    if not valid_points:
+        return []
 
+    # =========================
+    # MODE TITIK
+    # =========================
+    if len(valid_points) == 1:
+
+        lat, lon = valid_points[0]
+
+        # 🔥 buffer titik lebih kecil
+        point_buffer = 0.12
+
+        points = []
+
+        for dlat in np.linspace(
+            -point_buffer,
+            point_buffer,
+            3
+        ):
+
+            for dlon in np.linspace(
+                -point_buffer,
+                point_buffer,
+                3
+            ):
+
+                points.append((
+                    lat + dlat,
+                    lon + dlon
+                ))
+
+        return points
+
+    # =========================
+    # MODE RUTE / POLYLINE
+    # =========================
+    try:
+
+        line = LineString([
+            (lon, lat)
+            for lat, lon in valid_points
+        ])
+
+        # 🔥 hindari geometry invalid
+        if line.is_empty or not line.is_valid:
+            return valid_points
+
+        polygon = line.buffer(route_buffer)
+
+        minx, miny, maxx, maxy = polygon.bounds
+
+        points = []
+
+        for lat in np.linspace(miny, maxy, 4):
+
+            for lon in np.linspace(minx, maxx, 4):
+
+                p = Point(lon, lat)
+
+                if polygon.contains(p):
+                    points.append((lat, lon))
+
+        # 🔥 fallback
+        if not points:
+            return valid_points
+
+        return points
+
+    except:
+
+        # 🔥 fallback aman
+        return valid_points
+        
 # =========================
 # 🔥 WEATHER RANGE BUILDER
 # =========================
