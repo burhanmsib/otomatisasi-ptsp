@@ -143,11 +143,23 @@ def build_weather_range(samples):
     labels = []
 
     for s in samples:
+
+        # 🔥 skip kalau bukan dict
+        if not isinstance(s, dict):
+            continue
+
         rain = s.get("rain", {}).get("precip")
+
         label = classify_weather_from_rain(rain)
+
         labels.append(label)
 
-    order = ["Clear", "Slight Rain", "Moderate Rain", "Heavy Rain"]
+    order = [
+        "Clear",
+        "Slight Rain",
+        "Moderate Rain",
+        "Heavy Rain"
+    ]
 
     valid = [l for l in labels if l in order]
 
@@ -386,7 +398,9 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
                     ds_wave, ds_cur, ds_rain,
                     t, lat, lon
                 )
-                samples.append(sample)
+                
+                if isinstance(sample, dict):
+                    samples.append(sample)
 
         weather = build_weather_range(samples)
 
