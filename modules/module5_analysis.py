@@ -4,6 +4,7 @@
 # =========================
 
 import math
+import numpy as np
 from datetime import datetime, timedelta, timezone
 
 # -------------------------
@@ -358,9 +359,22 @@ def analyze_segment(samples):
     
         dir_txt = format_direction_range(d_start, d_end)
     
+        # w_min, w_max = rounded_range_with_padding(
+        #     min(wind_spds),
+        #     max(wind_spds)
+        # )
+
+        # =========================
+        # REPRESENTATIVE RANGE
+        # (lebih mendekati analisis manual)
+        # =========================
+        
+        p20 = np.percentile(wind_spds, 20)
+        p80 = np.percentile(wind_spds, 80)
+        
         w_min, w_max = rounded_range_with_padding(
-            min(wind_spds),
-            max(wind_spds)
+            p20,
+            p80
         )
     
         wind_txt = f"{dir_txt}, {w_min} - {w_max} knots"
