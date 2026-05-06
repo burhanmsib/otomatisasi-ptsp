@@ -313,17 +313,26 @@ def analyze_segment(samples):
 
     wave_txt = wave_category_range(hs_vals)
 
-    # ===== WIND =====
+        # ===== WIND =====
     wind_dirs, wind_spds = [], []
 
     for s in samples:
-        u = s.get("wind", {}).get("u")
-        v = s.get("wind", {}).get("v")
+
+        wind = s.get("wind", {})
+
+        u = wind.get("u")
+        v = wind.get("v")
+
+        # 🔥 langsung pakai hasil knot dari Module 3–4
+        spd = wind.get("speed_knot")
 
         d = uv_to_dir_from(u, v)
-        spd = ms_to_knots(math.hypot(u, v)) if u is not None and v is not None else None
 
-        if d is not None and spd is not None:
+        if (
+            d is not None
+            and spd is not None
+            and not math.isnan(spd)
+        ):
             wind_dirs.append(d)
             wind_spds.append(spd)
 
@@ -331,16 +340,23 @@ def analyze_segment(samples):
     beaufort = "N/A"
 
     if wind_dirs and wind_spds:
+
         d_start = wind_dirs[0]
         d_end = limit_direction(d_start, wind_dirs[-1])
+
         dir_txt = format_direction_range(d_start, d_end)
 
         w_min, w_max = rounded_range_with_padding(
-            min(wind_spds), max(wind_spds)
+            min(wind_spds),
+            max(wind_spds)
         )
 
         wind_txt = f"{dir_txt}, {w_min} - {w_max} knots"
-        beaufort = beaufort_range_from_knots(w_min, w_max)
+
+        beaufort = beaufort_range_from_knots(
+            w_min,
+            w_max
+        )
 
     # ===== CURRENT =====
     cur_dirs, cur_spds = [], []
