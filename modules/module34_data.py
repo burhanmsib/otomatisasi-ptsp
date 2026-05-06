@@ -398,9 +398,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
                     ds_wave, ds_cur, ds_rain,
                     t, lat, lon
                 )
-                
-                if isinstance(sample, dict):
-                    samples.append(sample)
+                samples.append(sample)
 
         weather = build_weather_range(samples)
 
