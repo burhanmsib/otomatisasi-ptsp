@@ -69,33 +69,84 @@ def normalize_date(raw):
         return None
 
 # =========================
-# 🔥 SPLIT POLYLINE (FIX UTAMA)
+# 🔥 SPLIT POLYLINE
+# SUPPORT:
+# - titik tunggal
+# - polyline
 # =========================
-def split_polyline_into_segments(full_route, n_segments=4):
+def split_polyline_into_segments(
+    full_route,
+    n_segments=4
+):
 
+    # =========================
+    # TIDAK ADA TITIK
+    # =========================
+    if not full_route:
+        return []
+
+    # =========================
+    # MODE TITIK
+    # =========================
     if len(full_route) < 2:
-        return [full_route]
 
-    line = LineString([(lon, lat) for lat, lon in full_route])
-    segments = []
+        # 🔥 tetap 4 segmen
+        return [
+            full_route
+            for _ in range(n_segments)
+        ]
 
-    for i in range(n_segments):
+    try:
 
-        start_f = i / n_segments
-        end_f = (i + 1) / n_segments
+        line = LineString([
+            (lon, lat)
+            for lat, lon in full_route
+        ])
 
-        start_d = line.length * start_f
-        end_d = line.length * end_f
+        # 🔥 geometry invalid
+        if line.is_empty or not line.is_valid:
 
-        coords = []
+            return [
+                full_route
+                for _ in range(n_segments)
+            ]
 
-        for d in np.linspace(start_d, end_d, 25):
-            p = line.interpolate(d)
-            coords.append((p.y, p.x))
+        segments = []
 
-        segments.append(coords)
+        for i in range(n_segments):
 
-    return segments
+            start_f = i / n_segments
+            end_f = (i + 1) / n_segments
+
+            start_d = line.length * start_f
+            end_d = line.length * end_f
+
+            coords = []
+
+            for d in np.linspace(
+                start_d,
+                end_d,
+                25
+            ):
+
+                p = line.interpolate(d)
+
+                coords.append((
+                    p.y,
+                    p.x
+                ))
+
+            segments.append(coords)
+
+        return segments
+
+    except:
+
+        # 🔥 fallback aman
+        return [
+            full_route
+            for _ in range(n_segments)
+        ]
 
 # =========================
 # 🔥 POLYGON SAMPLING
@@ -166,7 +217,7 @@ def generate_polygon_sampling_points(
         return points
 
     # =========================
-    # MODE RUTE / POLYLINE
+    # MODE RUTE
     # =========================
     try:
 
@@ -175,7 +226,7 @@ def generate_polygon_sampling_points(
             for lat, lon in valid_points
         ])
 
-        # 🔥 hindari geometry invalid
+        # 🔥 geometry invalid
         if line.is_empty or not line.is_valid:
             return valid_points
 
