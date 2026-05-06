@@ -260,7 +260,7 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
         return 0.0
 
 # =========================
-# WIND SPEED (m/s → knot)
+# WIND SPEED
 # =========================
 def wind_speed(u, v):
 
@@ -268,13 +268,10 @@ def wind_speed(u, v):
         return 0.0
 
     try:
-        # 🔥 speed asli dalam m/s
-        ms = np.sqrt(u**2 + v**2)
+        # 🔥 kemungkinan dataset sudah knot
+        spd = np.sqrt(u**2 + v**2)
 
-        # 🔥 convert ke knot
-        knot = ms * 1.94384
-
-        return float(knot)
+        return float(spd)
 
     except:
         return 0.0
