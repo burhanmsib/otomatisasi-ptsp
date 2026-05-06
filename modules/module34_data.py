@@ -247,6 +247,26 @@ def safe_extract(ds, var, t, lat, lon, depth=None):
     except:
         return 0.0
 
+# =========================
+# WIND SPEED (m/s → knot)
+# =========================
+def wind_speed(u, v):
+
+    if u is None or v is None:
+        return 0.0
+
+    try:
+        # 🔥 speed asli dalam m/s
+        ms = np.sqrt(u**2 + v**2)
+
+        # 🔥 convert ke knot
+        knot = ms * 1.94384
+
+        return float(knot)
+
+    except:
+        return 0.0
+
 
 # =========================
 # WEATHER EXTRACTION (FINAL FIX - STABLE)
@@ -287,26 +307,37 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         except Exception:
             rain_val = None
 
-    # =========================
-    # 🔥 RETURN WAJIB DI LUAR
-    # =========================
-    return {
-        "wave": {
-            "hs": safe_extract(ds_wave, "hs", t, lat, lon),
-        },
-        "wind": {
-            "u": safe_extract(ds_wave, "uwnd", t, lat, lon),
-            "v": safe_extract(ds_wave, "vwnd", t, lat, lon)
-        },
-        "current": {
-            "u": safe_extract(ds_cur, "u", t, lat, lon, depth=0.5),
-            "v": safe_extract(ds_cur, "v", t, lat, lon, depth=0.5)
-        },
-        "rain": {
-            "precip": rain_val
+        # =========================
+        # 🔥 WIND
+        # =========================
+        u_wind = safe_extract(ds_wave, "uwnd", t, lat, lon)
+        v_wind = safe_extract(ds_wave, "vwnd", t, lat, lon)
+    
+        wind_knot = wind_speed(u_wind, v_wind)
+    
+        # =========================
+        # 🔥 RETURN
+        # =========================
+        return {
+            "wave": {
+                "hs": safe_extract(ds_wave, "hs", t, lat, lon),
+            },
+    
+            "wind": {
+                "u": u_wind,
+                "v": v_wind,
+                "speed_knot": wind_knot
+            },
+    
+            "current": {
+                "u": safe_extract(ds_cur, "u", t, lat, lon, depth=0.5),
+                "v": safe_extract(ds_cur, "v", t, lat, lon, depth=0.5)
+            },
+    
+            "rain": {
+                "precip": rain_val
+            }
         }
-    }
-
 
 # =========================
 # MAIN PROCESS (FINAL FIX)
