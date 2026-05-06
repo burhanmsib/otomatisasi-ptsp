@@ -549,17 +549,42 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         tzinfo=timezone(timedelta(hours=tz_offset))
     ).astimezone(timezone.utc).replace(tzinfo=None)
 
-    route = [(p[0], p[1]) for p in polyline]
+    route = [
+        (p[0], p[1])
+        for p in polyline
+        if (
+            isinstance(p, (list, tuple))
+            and len(p) >= 2
+        )
+    ]
+    
+    # 🔥 kalau route kosong
+    if not route:
+        return None
 
-    # 🔥 SPLIT BERDASARKAN PANJANG (FIX UTAMA)
-    segments_route = split_polyline_into_segments(route, 4)
-
+    segments_route = split_polyline_into_segments(
+        route,
+        4
+    )
+    
+    # 🔥 fallback kalau gagal split
+    if not segments_route:
+        segments_route = [[route[0]]] * 4
+    
+    # 🔥 pastikan tetap 4 segmen
+    while len(segments_route) < 4:
+        segments_route.append(
+            segments_route[-1]
+        )
+    
     segments = []
-
+    
     for i in range(4):
-
-        t0 = dt_utc0 + timedelta(hours=i * 6)
-
+    
+        t0 = dt_utc0 + timedelta(
+            hours=i * 6
+        )
+    
         segment_route = segments_route[i]
 
         # 🔥 polygon mengikuti bentuk segmen
