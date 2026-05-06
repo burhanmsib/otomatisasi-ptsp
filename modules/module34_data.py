@@ -285,69 +285,119 @@ def wind_speed(u, v):
 # =========================
 def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
-    rain_val = None
-
-    # =========================
-    # GSMAP SAFE EXTRACT
-    # =========================
-    if ds_rain is not None:
-        try:
-            var = list(ds_rain.data_vars)[0]
-            da = ds_rain[var]
-
-            # 🔥 handle time
-            if "time" in da.dims:
-                da = da.sel(time=t, method="nearest")
-
-            # 🔥 fleksibel nama koordinat
-            lat_name = "lat" if "lat" in da.coords else "latitude"
-            lon_name = "lon" if "lon" in da.coords else "longitude"
-
-            lat_vals = da[lat_name].values
-            lon_vals = da[lon_name].values
-
-            lat_idx = np.abs(lat_vals - lat).argmin()
-            lon_idx = np.abs(lon_vals - lon).argmin()
-
-            rain_val = float(
-                da.isel({lat_name: lat_idx, lon_name: lon_idx}).values
-            )
-
-            if np.isnan(rain_val):
-                rain_val = None
-
-        except Exception:
-            rain_val = None
+    try:
 
         # =========================
-        # 🔥 WIND
+        # GSMAP SAFE EXTRACT
+        # =========================
+        rain_val = None
+
+        if ds_rain is not None:
+
+            try:
+                var = list(ds_rain.data_vars)[0]
+                da = ds_rain[var]
+
+                if "time" in da.dims:
+                    da = da.sel(time=t, method="nearest")
+
+                lat_name = "lat" if "lat" in da.coords else "latitude"
+                lon_name = "lon" if "lon" in da.coords else "longitude"
+
+                lat_vals = da[lat_name].values
+                lon_vals = da[lon_name].values
+
+                lat_idx = np.abs(lat_vals - lat).argmin()
+                lon_idx = np.abs(lon_vals - lon).argmin()
+
+                rain_val = float(
+                    da.isel({
+                        lat_name: lat_idx,
+                        lon_name: lon_idx
+                    }).values
+                )
+
+                if np.isnan(rain_val):
+                    rain_val = None
+
+            except:
+                rain_val = None
+
+        # =========================
+        # WIND
         # =========================
         u_wind = safe_extract(ds_wave, "uwnd", t, lat, lon)
         v_wind = safe_extract(ds_wave, "vwnd", t, lat, lon)
-    
+
         wind_knot = wind_speed(u_wind, v_wind)
-    
+
         # =========================
-        # 🔥 RETURN
+        # RETURN
         # =========================
         return {
+
             "wave": {
-                "hs": safe_extract(ds_wave, "hs", t, lat, lon),
+                "hs": safe_extract(
+                    ds_wave,
+                    "hs",
+                    t,
+                    lat,
+                    lon
+                ),
             },
-    
+
             "wind": {
                 "u": u_wind,
                 "v": v_wind,
                 "speed_knot": wind_knot
             },
-    
+
             "current": {
-                "u": safe_extract(ds_cur, "u", t, lat, lon, depth=0.5),
-                "v": safe_extract(ds_cur, "v", t, lat, lon, depth=0.5)
+                "u": safe_extract(
+                    ds_cur,
+                    "u",
+                    t,
+                    lat,
+                    lon,
+                    depth=0.5
+                ),
+
+                "v": safe_extract(
+                    ds_cur,
+                    "v",
+                    t,
+                    lat,
+                    lon,
+                    depth=0.5
+                )
             },
-    
+
             "rain": {
                 "precip": rain_val
+            }
+        }
+
+    except Exception:
+
+        # 🔥 RETURN AMAN
+        return {
+            "wave": {
+                "hs": None
+            },
+
+            "wind": {
+                "u": None,
+                "v": None,
+                "speed_knot": None
+            },
+
+            "current": {
+                "u": None,
+                "v": None
+            },
+
+            "rain": {
+                "precip": None
             }
         }
 
@@ -398,7 +448,8 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
                     ds_wave, ds_cur, ds_rain,
                     t, lat, lon
                 )
-                samples.append(sample)
+                if isinstance(sample, dict):
+                    samples.append(sample)
 
         weather = build_weather_range(samples)
 
