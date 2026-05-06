@@ -46,11 +46,11 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     st.subheader("Mode Input Lokasi")
 
-    st.info(
-        "Klik beberapa titik untuk membuat jalur rute (belokan).\n"
-        "Semakin banyak titik, semakin detail jalurnya.\n"
-        "Double klik untuk menyelesaikan."
-    )
+    # st.info(
+    #     "Klik beberapa titik untuk membuat jalur rute (belokan).\n"
+    #     "Semakin banyak titik, semakin detail jalurnya.\n"
+    #     "Double klik untuk menyelesaikan."
+    # )
 
     mode = st.radio(
         "Pilih Mode",
