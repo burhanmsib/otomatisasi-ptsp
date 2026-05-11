@@ -397,30 +397,68 @@ def analyze_segment(samples):
 
     # ===== CURRENT =====
     cur_dirs, cur_spds = [], []
+    
     for s in samples:
-        u = s.get("current", {}).get("u")
-        v = s.get("current", {}).get("v")
-
+    
+        current = s.get("current", {})
+    
+        u = current.get("u")
+        v = current.get("v")
+    
         d = uv_to_dir_to(u, v)
-        spd = math.hypot(u, v) if u is not None and v is not None else None
-
-        if d is not None and spd is not None:
+    
+        spd = (
+            math.hypot(u, v)
+            if u is not None and v is not None
+            else None
+        )
+    
+        if (
+            d is not None
+            and spd is not None
+            and not math.isnan(spd)
+        ):
             cur_dirs.append(d)
             cur_spds.append(spd)
-
-    cur_spds = [c for c in cur_spds if c > 2]
+    
+    # =========================
+    # FILTER NOISE KECIL
+    # =========================
+    filtered_spds = [
+        c for c in cur_spds
+        if c > 2
+    ]
+    
+    # 🔥 fallback kalau semua kecil
+    if filtered_spds:
+        cur_spds = filtered_spds
+    
     cur_txt = "Variable"
+    
     if cur_dirs and cur_spds:
+    
         d_start = cur_dirs[0]
-        d_end = limit_direction(d_start, cur_dirs[-1])
-        dir_txt = format_direction_range(d_start, d_end)
-
-        c_min, c_max = rounded_range_with_padding(
-            min(cur_spds), max(cur_spds)
+    
+        d_end = limit_direction(
+            d_start,
+            cur_dirs[-1]
         )
-
-        cur_txt = f"{dir_txt}, {c_min} - {c_max} cm/s"
-
+    
+        dir_txt = format_direction_range(
+            d_start,
+            d_end
+        )
+    
+        c_min, c_max = rounded_range_with_padding(
+            min(cur_spds),
+            max(cur_spds)
+        )
+    
+        cur_txt = (
+            f"{dir_txt}, "
+            f"{c_min} - {c_max} cm/s"
+        )
+    
     return {
         "WEATHER": weather_txt,
         "WIND": wind_txt,
