@@ -341,7 +341,7 @@ def build_wave_category_table(doc):
 
 def build_satellite_image_table(doc, tanggal_str):
     dt = parse_date_flexible(tanggal_str)
-    tanggal_fmt = format_date_id(dt) if dt else tanggal_str
+    tanggal_fmt = format_date_en(dt) if dt else tanggal_str
 
     table = doc.add_table(rows=2, cols=2)
     set_table_border(table)
