@@ -116,17 +116,28 @@ def clockwise_span(start, end):
 
 
 def limit_direction(start, end, max_span=90):
+
     if start is None or end is None:
         return None
 
-    span = clockwise_span(start, end)
-    if span is None:
+    start = normalize_deg(start)
+    end = normalize_deg(end)
+
+    if start is None or end is None:
         return None
 
-    if span <= max_span:
-        return end
+    # =========================
+    # CLOCKWISE SPAN
+    # =========================
+    span = (end - start) % 360
 
-    return (start + max_span) % 360
+    # =========================
+    # MAKSIMAL 90 DERAJAT
+    # =========================
+    if span > max_span:
+        end = (start + max_span) % 360
+
+    return end
 
 
 def format_direction_range(start_deg, end_deg):
