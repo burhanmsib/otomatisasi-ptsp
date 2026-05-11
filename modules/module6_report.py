@@ -75,7 +75,12 @@ def format_date_id(dt: datetime):
 def format_date_en(dt: datetime):
     if not dt:
         return ""
-    return dt.strftime("%B %d, %Y")
+
+    return (
+        f"{dt.strftime('%B')} "
+        f"{dt.day}, "
+        f"{dt.year}"
+    )
 
 
 # =========================
@@ -193,8 +198,12 @@ def remove_template_markers(doc):
 def build_title(doc, row):
 
     dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-    t_str = format_date_id(dt) if dt else row.get("Tanggal Koordinat", "")
 
+    t_str = (
+        format_date_en(dt)
+        if dt
+        else row.get("Tanggal Koordinat", "")
+    )
     # 🔥 FIX: pakai format asli (DMS)
     coord_text = row.get("Koordinat", "")
     
