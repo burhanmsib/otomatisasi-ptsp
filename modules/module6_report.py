@@ -408,7 +408,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
         "$nama_perusahaan": nama_perusahaan,
         "$alamat_perusahaan": alamat_perusahaan,
         "$no_surat": ref_no,
-        "$tanggal_hari_ini": format_date_id(datetime.now()),
+        "$tanggal_hari_ini": format_date_en(datetime.now()),
         "$jumlah_laporan_section": str(valid_report_count),
     }
 
