@@ -592,7 +592,8 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
 
         times = [
             t0,
-            t0 + timedelta(hours=3)
+            t0 + timedelta(hours=3),
+            t0 + timedelta(hours=6)
         ]
 
         samples = []
