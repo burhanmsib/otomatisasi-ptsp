@@ -426,7 +426,7 @@ def analyze_segment(samples):
     # =========================
     filtered_spds = [
         c for c in cur_spds
-        if c > 2
+        if c > 0.5
     ]
     
     # 🔥 fallback kalau semua kecil
@@ -449,9 +449,22 @@ def analyze_segment(samples):
             d_end
         )
     
+        # =========================
+        # REPRESENTATIVE CURRENT
+        # =========================
+        p20 = np.percentile(
+            cur_spds,
+            20
+        )
+    
+        p80 = np.percentile(
+            cur_spds,
+            80
+        )
+    
         c_min, c_max = rounded_range_with_padding(
-            min(cur_spds),
-            max(cur_spds)
+            p20,
+            p80
         )
     
         cur_txt = (
@@ -466,7 +479,6 @@ def analyze_segment(samples):
         "WAVE": wave_txt,
         "BEAUFORT": beaufort
     }
-
 
 # -------------------------
 # LOCAL TIME BUILDER
