@@ -156,7 +156,7 @@ def split_polyline_into_segments(
 # =========================
 def generate_polygon_sampling_points(
     segment_route,
-    route_buffer=0.25
+    route_buffer=0.12
 ):
 
     # =========================
@@ -412,11 +412,75 @@ def wind_speed(u, v):
     except:
         return 0.0
 
+# =========================
+# FIND NEAREST VALID CURRENT
+# =========================
+def find_nearest_valid_current(
+    ds_cur,
+    t,
+    lat,
+    lon,
+    radius_deg=0.08,
+    step=0.02
+):
+
+    offsets = np.arange(
+        -radius_deg,
+        radius_deg + step,
+        step
+    )
+
+    for dlat in offsets:
+        for dlon in offsets:
+
+            lat2 = lat + dlat
+            lon2 = lon + dlon
+
+            try:
+
+                u = safe_extract(
+                    ds_cur,
+                    "u",
+                    t,
+                    lat2,
+                    lon2,
+                    depth=0.5
+                )
+
+                v = safe_extract(
+                    ds_cur,
+                    "v",
+                    t,
+                    lat2,
+                    lon2,
+                    depth=0.5
+                )
+
+                if (
+                    u is not None
+                    and v is not None
+                    and not np.isnan(u)
+                    and not np.isnan(v)
+                ):
+                    return u, v
+
+            except:
+                pass
+
+    return None, None
+
 
 # =========================
 # WEATHER EXTRACTION (FINAL FIX - STABLE)
 # =========================
-def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
+def extract_hourly_weather(
+    ds_wave,
+    ds_cur,
+    ds_rain,
+    t,
+    lat,
+    lon
+):
 
     try:
 
@@ -428,20 +492,39 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         if ds_rain is not None:
 
             try:
+
                 var = list(ds_rain.data_vars)[0]
+
                 da = ds_rain[var]
 
                 if "time" in da.dims:
-                    da = da.sel(time=t, method="nearest")
+                    da = da.sel(
+                        time=t,
+                        method="nearest"
+                    )
 
-                lat_name = "lat" if "lat" in da.coords else "latitude"
-                lon_name = "lon" if "lon" in da.coords else "longitude"
+                lat_name = (
+                    "lat"
+                    if "lat" in da.coords
+                    else "latitude"
+                )
+
+                lon_name = (
+                    "lon"
+                    if "lon" in da.coords
+                    else "longitude"
+                )
 
                 lat_vals = da[lat_name].values
                 lon_vals = da[lon_name].values
 
-                lat_idx = np.abs(lat_vals - lat).argmin()
-                lon_idx = np.abs(lon_vals - lon).argmin()
+                lat_idx = np.abs(
+                    lat_vals - lat
+                ).argmin()
+
+                lon_idx = np.abs(
+                    lon_vals - lon
+                ).argmin()
 
                 rain_val = float(
                     da.isel({
@@ -459,10 +542,62 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         # =========================
         # WIND
         # =========================
-        u_wind = safe_extract(ds_wave, "uwnd", t, lat, lon)
-        v_wind = safe_extract(ds_wave, "vwnd", t, lat, lon)
+        u_wind = safe_extract(
+            ds_wave,
+            "uwnd",
+            t,
+            lat,
+            lon
+        )
 
-        wind_knot = wind_speed(u_wind, v_wind)
+        v_wind = safe_extract(
+            ds_wave,
+            "vwnd",
+            t,
+            lat,
+            lon
+        )
+
+        wind_knot = wind_speed(
+            u_wind,
+            v_wind
+        )
+
+        # =========================
+        # CURRENT
+        # =========================
+        u_cur = safe_extract(
+            ds_cur,
+            "u",
+            t,
+            lat,
+            lon,
+            depth=0.5
+        )
+
+        v_cur = safe_extract(
+            ds_cur,
+            "v",
+            t,
+            lat,
+            lon,
+            depth=0.5
+        )
+
+        # 🔥 fallback nearest valid current
+        if (
+            u_cur is None
+            or v_cur is None
+            or np.isnan(u_cur)
+            or np.isnan(v_cur)
+        ):
+
+            u_cur, v_cur = find_nearest_valid_current(
+                ds_cur,
+                t,
+                lat,
+                lon
+            )
 
         # =========================
         # RETURN
@@ -486,23 +621,8 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             },
 
             "current": {
-                "u": safe_extract(
-                    ds_cur,
-                    "u",
-                    t,
-                    lat,
-                    lon,
-                    depth=0.5
-                ),
-
-                "v": safe_extract(
-                    ds_cur,
-                    "v",
-                    t,
-                    lat,
-                    lon,
-                    depth=0.5
-                )
+                "u": u_cur,
+                "v": v_cur
             },
 
             "rain": {
@@ -514,6 +634,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
         # 🔥 RETURN AMAN
         return {
+
             "wave": {
                 "hs": None
             },
