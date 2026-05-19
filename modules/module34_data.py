@@ -413,59 +413,61 @@ def wind_speed(u, v):
         return 0.0
 
 # =========================
-# FIND NEAREST VALID CURRENT
+# LIGHTWEIGHT CURRENT FALLBACK
 # =========================
 def find_nearest_valid_current(
     ds_cur,
     t,
     lat,
-    lon,
-    radius_deg=0.08,
-    step=0.02
+    lon
 ):
 
-    offsets = np.arange(
-        -radius_deg,
-        radius_deg + step,
-        step
-    )
+    # =========================
+    # HANYA 5 TITIK
+    # =========================
+    offsets = [
+        (0, 0),
+        (0.03, 0),
+        (-0.03, 0),
+        (0, 0.03),
+        (0, -0.03),
+    ]
 
-    for dlat in offsets:
-        for dlon in offsets:
+    for dlat, dlon in offsets:
 
-            lat2 = lat + dlat
-            lon2 = lon + dlon
+        lat2 = lat + dlat
+        lon2 = lon + dlon
 
-            try:
+        try:
 
-                u = safe_extract(
-                    ds_cur,
-                    "u",
-                    t,
-                    lat2,
-                    lon2,
-                    depth=0.5
-                )
+            u = safe_extract(
+                ds_cur,
+                "u",
+                t,
+                lat2,
+                lon2,
+                depth=0.5
+            )
 
-                v = safe_extract(
-                    ds_cur,
-                    "v",
-                    t,
-                    lat2,
-                    lon2,
-                    depth=0.5
-                )
+            v = safe_extract(
+                ds_cur,
+                "v",
+                t,
+                lat2,
+                lon2,
+                depth=0.5
+            )
 
-                if (
-                    u is not None
-                    and v is not None
-                    and not np.isnan(u)
-                    and not np.isnan(v)
-                ):
-                    return u, v
+            if (
+                u is not None
+                and v is not None
+                and not np.isnan(u)
+                and not np.isnan(v)
+            ):
+                return u, v
 
-            except:
-                pass
+        except:
+            pass
 
     return None, None
 
