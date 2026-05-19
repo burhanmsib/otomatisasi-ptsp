@@ -5,6 +5,7 @@
 
 import math
 import numpy as np
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 # -------------------------
@@ -41,6 +42,88 @@ def ms_to_knots(ms):
     if ms is None or (isinstance(ms, float) and math.isnan(ms)):
         return None
     return ms * 1.94384449
+
+# =========================
+# COMPASS TO DEGREE
+# =========================
+def compass_to_deg(name):
+
+    mapping = {
+        "North": 0,
+        "Northeast": 45,
+        "East": 90,
+        "Southeast": 135,
+        "South": 180,
+        "Southwest": 225,
+        "West": 270,
+        "Northwest": 315
+    }
+
+    return mapping.get(name)
+
+
+# =========================
+# DOMINANT DIRECTION RANGE
+# =========================
+def get_dominant_direction_range(
+    directions_deg
+):
+
+    if not directions_deg:
+        return "Variable"
+
+    # =========================
+    # CONVERT TO COMPASS
+    # =========================
+    compass_dirs = [
+        deg_to_compass(d)
+        for d in directions_deg
+        if d is not None
+    ]
+
+    if not compass_dirs:
+        return "Variable"
+
+    # =========================
+    # COUNT FREQUENCY
+    # =========================
+    counts = Counter(compass_dirs)
+
+    # ambil 2 arah paling sering
+    dominant = counts.most_common(2)
+
+    dirs = [
+        d[0]
+        for d in dominant
+    ]
+
+    # =========================
+    # HANYA 1 DOMINAN
+    # =========================
+    if len(dirs) == 1:
+        return dirs[0]
+
+    # =========================
+    # CONVERT KE DEGREE
+    # =========================
+    d1 = compass_to_deg(dirs[0])
+    d2 = compass_to_deg(dirs[1])
+
+    if d1 is None or d2 is None:
+        return "Variable"
+
+    # =========================
+    # BATASI MAX 90°
+    # =========================
+    d2 = limit_direction(
+        d1,
+        d2
+    )
+
+    return format_direction_range(
+        d1,
+        d2
+    )
 
 # ===============================
 # WEATHER CLASSIFICATION (BMKG)
@@ -365,10 +448,9 @@ def analyze_segment(samples):
     
     if wind_dirs and wind_spds:
     
-        d_start = wind_dirs[0]
-        d_end = limit_direction(d_start, wind_dirs[-1])
-    
-        dir_txt = format_direction_range(d_start, d_end)
+        dir_txt = get_dominant_direction_range(
+            wind_dirs
+        )
     
         # w_min, w_max = rounded_range_with_padding(
         #     min(wind_spds),
@@ -437,16 +519,8 @@ def analyze_segment(samples):
     
     if cur_dirs and cur_spds:
     
-        d_start = cur_dirs[0]
-    
-        d_end = limit_direction(
-            d_start,
-            cur_dirs[-1]
-        )
-    
-        dir_txt = format_direction_range(
-            d_start,
-            d_end
+        dir_txt = get_dominant_direction_range(
+            cur_dirs
         )
     
         # =========================
