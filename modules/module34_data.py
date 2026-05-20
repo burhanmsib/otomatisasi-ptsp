@@ -413,66 +413,6 @@ def wind_speed(u, v):
         return 0.0
 
 # =========================
-# LIGHTWEIGHT CURRENT FALLBACK
-# =========================
-def find_nearest_valid_current(
-    ds_cur,
-    t,
-    lat,
-    lon
-):
-
-    # =========================
-    # HANYA 5 TITIK
-    # =========================
-    offsets = [
-        (0, 0),
-        (0.03, 0),
-        (-0.03, 0),
-        (0, 0.03),
-        (0, -0.03),
-    ]
-
-    for dlat, dlon in offsets:
-
-        lat2 = lat + dlat
-        lon2 = lon + dlon
-
-        try:
-
-            u = safe_extract(
-                ds_cur,
-                "u",
-                t,
-                lat2,
-                lon2,
-                depth=0.5
-            )
-
-            v = safe_extract(
-                ds_cur,
-                "v",
-                t,
-                lat2,
-                lon2,
-                depth=0.5
-            )
-
-            if (
-                u is not None
-                and v is not None
-                and not np.isnan(u)
-                and not np.isnan(v)
-            ):
-                return u, v
-
-        except:
-            pass
-
-    return None, None
-
-
-# =========================
 # WEATHER EXTRACTION (FINAL FIX - STABLE)
 # =========================
 def extract_hourly_weather(
@@ -585,22 +525,7 @@ def extract_hourly_weather(
             lon,
             depth=0.5
         )
-
-        # 🔥 fallback nearest valid current
-        if (
-            u_cur is None
-            or v_cur is None
-            or np.isnan(u_cur)
-            or np.isnan(v_cur)
-        ):
-
-            u_cur, v_cur = find_nearest_valid_current(
-                ds_cur,
-                t,
-                lat,
-                lon
-            )
-
+        
         # =========================
         # RETURN
         # =========================
