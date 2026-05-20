@@ -376,50 +376,24 @@ def load_datasets_cached(dt_input):
 # =========================
 # SAFE EXTRACT
 # =========================
-def safe_extract(
-    ds,
-    var,
-    t,
-    lat,
-    lon,
-    depth=None
-):
+def safe_extract(ds, var, t, lat, lon, depth=None):
 
     if ds is None or var not in ds:
-        return None
+        return 0.0
 
     try:
-
         da = ds[var]
 
         if "time" in da.dims:
-            da = da.sel(
-                time=t,
-                method="nearest"
-            )
+            da = da.sel(time=t, method="nearest")
 
         if depth is not None and "depth" in da.dims:
-            da = da.sel(
-                depth=0,
-                method="nearest"
-            )
+            da = da.sel(depth=0, method="nearest")
 
-        val = float(
-            da.sel(
-                lat=lat,
-                lon=lon,
-                method="nearest"
-            ).values
-        )
-
-        # 🔥 NaN dianggap kosong
-        if np.isnan(val):
-            return None
-
-        return val
+        return float(da.sel(lat=lat, lon=lon, method="nearest").values)
 
     except:
-        return None
+        return 0.0
 
 # =========================
 # WIND SPEED
@@ -441,14 +415,7 @@ def wind_speed(u, v):
 # =========================
 # WEATHER EXTRACTION (FINAL FIX - STABLE)
 # =========================
-def extract_hourly_weather(
-    ds_wave,
-    ds_cur,
-    ds_rain,
-    t,
-    lat,
-    lon
-):
+def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     try:
 
@@ -460,39 +427,20 @@ def extract_hourly_weather(
         if ds_rain is not None:
 
             try:
-
                 var = list(ds_rain.data_vars)[0]
-
                 da = ds_rain[var]
 
                 if "time" in da.dims:
-                    da = da.sel(
-                        time=t,
-                        method="nearest"
-                    )
+                    da = da.sel(time=t, method="nearest")
 
-                lat_name = (
-                    "lat"
-                    if "lat" in da.coords
-                    else "latitude"
-                )
-
-                lon_name = (
-                    "lon"
-                    if "lon" in da.coords
-                    else "longitude"
-                )
+                lat_name = "lat" if "lat" in da.coords else "latitude"
+                lon_name = "lon" if "lon" in da.coords else "longitude"
 
                 lat_vals = da[lat_name].values
                 lon_vals = da[lon_name].values
 
-                lat_idx = np.abs(
-                    lat_vals - lat
-                ).argmin()
-
-                lon_idx = np.abs(
-                    lon_vals - lon
-                ).argmin()
+                lat_idx = np.abs(lat_vals - lat).argmin()
+                lon_idx = np.abs(lon_vals - lon).argmin()
 
                 rain_val = float(
                     da.isel({
@@ -510,48 +458,11 @@ def extract_hourly_weather(
         # =========================
         # WIND
         # =========================
-        u_wind = safe_extract(
-            ds_wave,
-            "uwnd",
-            t,
-            lat,
-            lon
-        )
+        u_wind = safe_extract(ds_wave, "uwnd", t, lat, lon)
+        v_wind = safe_extract(ds_wave, "vwnd", t, lat, lon)
 
-        v_wind = safe_extract(
-            ds_wave,
-            "vwnd",
-            t,
-            lat,
-            lon
-        )
+        wind_knot = wind_speed(u_wind, v_wind)
 
-        wind_knot = wind_speed(
-            u_wind,
-            v_wind
-        )
-
-        # =========================
-        # CURRENT
-        # =========================
-        u_cur = safe_extract(
-            ds_cur,
-            "u",
-            t,
-            lat,
-            lon,
-            depth=0.5
-        )
-
-        v_cur = safe_extract(
-            ds_cur,
-            "v",
-            t,
-            lat,
-            lon,
-            depth=0.5
-        )
-        
         # =========================
         # RETURN
         # =========================
@@ -574,8 +485,23 @@ def extract_hourly_weather(
             },
 
             "current": {
-                "u": u_cur,
-                "v": v_cur
+                "u": safe_extract(
+                    ds_cur,
+                    "u",
+                    t,
+                    lat,
+                    lon,
+                    depth=0.5
+                ),
+
+                "v": safe_extract(
+                    ds_cur,
+                    "v",
+                    t,
+                    lat,
+                    lon,
+                    depth=0.5
+                )
             },
 
             "rain": {
@@ -587,7 +513,6 @@ def extract_hourly_weather(
 
         # 🔥 RETURN AMAN
         return {
-
             "wave": {
                 "hs": None
             },
