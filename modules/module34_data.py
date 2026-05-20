@@ -376,24 +376,50 @@ def load_datasets_cached(dt_input):
 # =========================
 # SAFE EXTRACT
 # =========================
-def safe_extract(ds, var, t, lat, lon, depth=None):
+def safe_extract(
+    ds,
+    var,
+    t,
+    lat,
+    lon,
+    depth=None
+):
 
     if ds is None or var not in ds:
-        return 0.0
+        return None
 
     try:
+
         da = ds[var]
 
         if "time" in da.dims:
-            da = da.sel(time=t, method="nearest")
+            da = da.sel(
+                time=t,
+                method="nearest"
+            )
 
         if depth is not None and "depth" in da.dims:
-            da = da.sel(depth=0, method="nearest")
+            da = da.sel(
+                depth=0,
+                method="nearest"
+            )
 
-        return float(da.sel(lat=lat, lon=lon, method="nearest").values)
+        val = float(
+            da.sel(
+                lat=lat,
+                lon=lon,
+                method="nearest"
+            ).values
+        )
+
+        # 🔥 NaN dianggap kosong
+        if np.isnan(val):
+            return None
+
+        return val
 
     except:
-        return 0.0
+        return None
 
 # =========================
 # WIND SPEED
