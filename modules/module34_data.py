@@ -23,12 +23,33 @@ os.environ["OPENDAP_TIMEOUT"] = "60"
 # =========================
 # RETRY
 # =========================
-def open_dataset_with_retry(url, max_try=3, delay=2):
+def open_dataset_with_retry(
+    url,
+    max_try=3,
+    delay=2
+):
+
     for i in range(max_try):
+
         try:
-            return xr.open_dataset(url)
-        except:
+
+            ds = xr.open_dataset(
+                url,
+                engine="netcdf4"
+            )
+
+            return ds
+
+        except Exception as e:
+
+            print(
+                f"[Retry {i+1}] gagal buka: {url}"
+            )
+
+            print(e)
+
             time.sleep(delay)
+
     return None
 
 
@@ -360,14 +381,51 @@ def load_datasets_cached(dt_input):
 
     YYYY, MM, DD = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d")
 
-    ds_wave = open_dataset_with_retry(
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc"
-    )
-
-    ds_cur = open_dataset_with_retry(
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc"
-    )
-
+    # =========================
+    # WAVE
+    # PRIORITAS:
+    # 1. 1200
+    # 2. 0000
+    # =========================
+    ds_wave = None
+    
+    wave_urls = [
+    
+        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc",
+    
+        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_0000.nc",
+    ]
+    
+    for url in wave_urls:
+    
+        ds_wave = open_dataset_with_retry(url)
+    
+        if ds_wave is not None:
+            print(f"WAVE loaded: {url}")
+            break
+        
+    # =========================
+    # CURRENT
+    # PRIORITAS:
+    # 1. 1200
+    # 2. 0000
+    # =========================
+    ds_cur = None
+    
+    current_urls = [
+    
+        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc",
+    
+        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_0000.nc",
+    ]
+    
+    for url in current_urls:
+    
+        ds_cur = open_dataset_with_retry(url)
+    
+        if ds_cur is not None:
+            print(f"CURRENT loaded: {url}")
+            break
     ds_rain = load_gsmap_cached(dt)
 
     return ds_wave, ds_cur, ds_rain
