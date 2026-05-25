@@ -10,8 +10,8 @@ import pytz
 # =========================
 from modules.module1_request import (
     load_request_sheet_streamlit,
-    save_manual_input,
-    generate_id
+    save_manual_input
+    # generate_id
 )
 from modules.module2_route import process_route_segment_module2_streamlit
 from modules.module34_data import process_module34, load_datasets_cached
@@ -60,6 +60,54 @@ init_state()
 # FIX df_id
 # =========================
 df_id = None
+
+# =========================
+# GENERATE PTSP ID
+# =========================
+def generate_ptsp_id(df):
+
+    try:
+
+        # sheet kosong
+        if df is None or df.empty:
+            return "PTSP-001"
+
+        ids = []
+
+        # kolom Id wajib ada
+        if "Id" not in df.columns:
+            return "PTSP-001"
+
+        for val in df["Id"].astype(str):
+
+            if val.startswith("PTSP-"):
+
+                try:
+
+                    num = int(
+                        val.replace(
+                            "PTSP-",
+                            ""
+                        )
+                    )
+
+                    ids.append(num)
+
+                except:
+                    pass
+
+        if not ids:
+            return "PTSP-001"
+
+        next_num = max(ids) + 1
+
+        return f"PTSP-{next_num:03d}"
+
+    except Exception as e:
+
+        print("ERROR GENERATE ID:", e)
+
+        return "PTSP-001"
 
 import re
 
@@ -631,16 +679,32 @@ if df_preview is not None:
     # SAVE (KHUSUS MANUAL — TIDAK DIUBAH)
     # =========================
     if st.session_state.get("preview_data") is not None:
-
+    
         if st.button("Simpan Data Manual"):
-
+    
             jakarta_tz = pytz.timezone("Asia/Jakarta")
             now_wib = datetime.datetime.now(jakarta_tz)
-
-            id_surat = generate_id()
-
+    
+            # =========================
+            # LOAD DATA EXISTING
+            # =========================
+            try:
+    
+                existing_df = load_request_sheet_streamlit()
+    
+            except:
+    
+                existing_df = pd.DataFrame()
+    
+            # =========================
+            # GENERATE NEXT ID
+            # =========================
+            id_surat = generate_ptsp_id(
+                existing_df
+            )
+    
             for _, row in st.session_state.preview_data.iterrows():
-
+    
                 data = {
                     "Id": id_surat,
                     "Requester": requester or "unknown",
@@ -651,39 +715,48 @@ if df_preview is not None:
                     "Informasi": "-",
                     "Tanggal Koordinat": row["Tanggal Koordinat"],
                     "Koordinat": row["Koordinat"],
-                    "Koordinat Awal": row["Koordinat"],
-                    "Koordinat Akhir": row["Koordinat"],
+    
+                    # 🔥 FIX TITIK / RUTE
+                    "Koordinat Awal": row["Koordinat Awal"],
+                    "Koordinat Akhir": row["Koordinat Akhir"],
+    
                     "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
                     "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
+    
                     "Water Checker Awal": "",
                     "Water Checker Akhir": ""
                 }
-
+    
                 save_manual_input(data)
-
+    
             st.success(f"Data tersimpan dengan ID: {id_surat}")
             st.code(id_surat)
-
-            # 🔥 FIX UTAMA (JANGAN DIHAPUS)
+    
+            # =========================
+            # FIX df_id
+            # =========================
             df_id = pd.DataFrame([
                 {
                     "Id": id_surat,
                     "Tanggal Koordinat": row["Tanggal Koordinat"],
                     "Koordinat": row["Koordinat"],
-                    "Koordinat Awal": row["Koordinat"],
-                    "Koordinat Akhir": row["Koordinat"],
+    
+                    # 🔥 FIX TITIK / RUTE
+                    "Koordinat Awal": row["Koordinat Awal"],
+                    "Koordinat Akhir": row["Koordinat Akhir"],
+    
                     "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
                     "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
                 }
                 for _, row in st.session_state.preview_data.iterrows()
             ])
-
+    
             # 🔥 SIMPAN KE SESSION
             st.session_state.df_id_manual = df_id
             st.session_state.manual_saved = True
-
+    
     if not st.session_state.get("manual_saved", False):
-        pass  # 🔥 jangan stop global (biar Google Sheet tetap jalan)
+        pass
 
 # =========================
 # 🔥 FIX STATE df_id (WAJIB)
