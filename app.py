@@ -63,22 +63,31 @@ df_id = None
 
 # =========================
 # GENERATE PTSP ID
+# DIRECT FROM SHEET
 # =========================
-def generate_ptsp_id(df):
+def generate_ptsp_id():
 
     try:
 
-        # sheet kosong
-        if df is None or df.empty:
+        worksheet = get_sheet(
+            "Input_Manual"
+        )
+
+        records = worksheet.get_all_records()
+
+        # =========================
+        # SHEET KOSONG
+        # =========================
+        if not records:
             return "PTSP-001"
 
         ids = []
 
-        # kolom Id wajib ada
-        if "Id" not in df.columns:
-            return "PTSP-001"
+        for row in records:
 
-        for val in df["Id"].astype(str):
+            val = str(
+                row.get("Id", "")
+            )
 
             if val.startswith("PTSP-"):
 
@@ -105,7 +114,10 @@ def generate_ptsp_id(df):
 
     except Exception as e:
 
-        print("ERROR GENERATE ID:", e)
+        print(
+            "ERROR GENERATE ID:",
+            e
+        )
 
         return "PTSP-001"
 
@@ -434,7 +446,7 @@ if mode == "Ambil dari Google Sheet":
         st.error("Gagal load data")
         st.stop()
 
-    st.session_state.df_requests = df_requests
+    st.session_state.df_requests = df_requests    
 
     # =========================
     # PILIH ID
@@ -686,22 +698,10 @@ if df_preview is not None:
             now_wib = datetime.datetime.now(jakarta_tz)
     
             # =========================
-            # LOAD DATA EXISTING
-            # =========================
-            try:
-    
-                existing_df = load_request_sheet_streamlit()
-    
-            except:
-    
-                existing_df = pd.DataFrame()
-    
-            # =========================
             # GENERATE NEXT ID
+            # DIRECT FROM SHEET
             # =========================
-            id_surat = generate_ptsp_id(
-                existing_df
-            )
+            id_surat = generate_ptsp_id()
     
             for _, row in st.session_state.preview_data.iterrows():
     
