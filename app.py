@@ -63,7 +63,7 @@ df_id = None
 
 # =========================
 # GENERATE PTSP ID
-# DIRECT FROM SHEET
+# DIRECT COLUMN READ
 # =========================
 def generate_ptsp_id():
 
@@ -73,21 +73,21 @@ def generate_ptsp_id():
             "Input_Manual"
         )
 
-        records = worksheet.get_all_records()
+        # 🔥 baca kolom A
+        ids_raw = worksheet.col_values(1)
 
         # =========================
-        # SHEET KOSONG
+        # HANYA HEADER
         # =========================
-        if not records:
+        if len(ids_raw) <= 1:
             return "PTSP-001"
 
         ids = []
 
-        for row in records:
+        # skip header
+        for val in ids_raw[1:]:
 
-            val = str(
-                row.get("Id", "")
-            )
+            val = str(val).strip()
 
             if val.startswith("PTSP-"):
 
@@ -105,6 +105,9 @@ def generate_ptsp_id():
                 except:
                     pass
 
+        # =========================
+        # TIDAK ADA ID VALID
+        # =========================
         if not ids:
             return "PTSP-001"
 
@@ -115,7 +118,7 @@ def generate_ptsp_id():
     except Exception as e:
 
         print(
-            "ERROR GENERATE ID:",
+            "ERROR GENERATE PTSP ID:",
             e
         )
 
@@ -688,133 +691,125 @@ if df_preview is not None:
         st.exception(e)
 
     # =========================
-    # SAVE (KHUSUS MANUAL — TIDAK DIUBAH)
+    # SAVE MANUAL
     # =========================
     if st.session_state.get("preview_data") is not None:
     
         if st.button("Simpan Data Manual"):
     
-            jakarta_tz = pytz.timezone("Asia/Jakarta")
-            now_wib = datetime.datetime.now(jakarta_tz)
+            jakarta_tz = pytz.timezone(
+                "Asia/Jakarta"
+            )
+    
+            now_wib = datetime.datetime.now(
+                jakarta_tz
+            )
     
             # =========================
-            # GENERATE PTSP ID
-            # DIRECT COLUMN READ
+            # GENERATE NEXT ID
             # =========================
-            def generate_ptsp_id():
-            
-                try:
-            
-                    worksheet = get_sheet(
-                        "Input_Manual"
-                    )
-            
-                    # 🔥 baca seluruh kolom A
-                    ids_raw = worksheet.col_values(1)
-            
-                    # =========================
-                    # HEADER SAJA
-                    # =========================
-                    if len(ids_raw) <= 1:
-                        return "PTSP-001"
-            
-                    ids = []
-            
-                    # skip header
-                    for val in ids_raw[1:]:
-            
-                        val = str(val).strip()
-            
-                        if val.startswith("PTSP-"):
-            
-                            try:
-            
-                                num = int(
-                                    val.replace(
-                                        "PTSP-",
-                                        ""
-                                    )
-                                )
-            
-                                ids.append(num)
-            
-                            except:
-                                pass
-            
-                    # =========================
-                    # TIDAK ADA ID VALID
-                    # =========================
-                    if not ids:
-                        return "PTSP-001"
-            
-                    next_num = max(ids) + 1
-            
-                    return f"PTSP-{next_num:03d}"
-            
-                except Exception as e:
-            
-                    print(
-                        "ERROR GENERATE PTSP ID:",
-                        e
-                    )
-            
-                    return "PTSP-001"
+            id_surat = generate_ptsp_id()
     
+            # 🔥 simpan ke session
+            st.session_state.id_surat = id_surat
+    
+            # =========================
+            # SAVE ALL ROWS
+            # =========================
             for _, row in st.session_state.preview_data.iterrows():
     
                 data = {
-                    "Id": id_surat,
+    
+                    "Id": st.session_state.id_surat,
+    
                     "Requester": requester or "unknown",
-                    "Timestamp": now_wib.strftime("%Y-%m-%d %H:%M:%S"),
+    
+                    "Timestamp": now_wib.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+    
                     "Nama Perusahaan": nama or "-",
+    
                     "Alamat Perusahaan": alamat or "-",
+    
                     "Nomor Surat": nomor or "-",
+    
                     "Informasi": "-",
+    
                     "Tanggal Koordinat": row["Tanggal Koordinat"],
+    
                     "Koordinat": row["Koordinat"],
     
                     # 🔥 FIX TITIK / RUTE
                     "Koordinat Awal": row["Koordinat Awal"],
+    
                     "Koordinat Akhir": row["Koordinat Akhir"],
     
                     "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
+    
                     "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
     
                     "Water Checker Awal": "",
+    
                     "Water Checker Akhir": ""
                 }
     
                 save_manual_input(data)
     
-            st.success(f"Data tersimpan dengan ID: {id_surat}")
-            st.code(id_surat)
+            # =========================
+            # SUCCESS NOTIF
+            # =========================
+            st.success(
+                f"Data tersimpan dengan ID: {st.session_state.id_surat}"
+            )
+    
+            st.code(
+                st.session_state.id_surat
+            )
     
             # =========================
             # FIX df_id
             # =========================
             df_id = pd.DataFrame([
+    
                 {
-                    "Id": id_surat,
+    
+                    "Id": st.session_state.id_surat,
+    
                     "Tanggal Koordinat": row["Tanggal Koordinat"],
+    
                     "Koordinat": row["Koordinat"],
     
                     # 🔥 FIX TITIK / RUTE
                     "Koordinat Awal": row["Koordinat Awal"],
+    
                     "Koordinat Akhir": row["Koordinat Akhir"],
     
                     "Koordinat Awal (Desimal)": row["Koordinat Awal (Desimal)"],
+    
                     "Koordinat Akhir (Desimal)": row["Koordinat Akhir (Desimal)"],
+    
                 }
+    
                 for _, row in st.session_state.preview_data.iterrows()
+    
             ])
     
-            # 🔥 SIMPAN KE SESSION
+            # =========================
+            # SAVE TO SESSION
+            # =========================
             st.session_state.df_id_manual = df_id
+    
             st.session_state.manual_saved = True
     
-    if not st.session_state.get("manual_saved", False):
+    # =========================
+    # JANGAN STOP GLOBAL
+    # =========================
+    if not st.session_state.get(
+        "manual_saved",
+        False
+    ):
         pass
-
 # =========================
 # 🔥 FIX STATE df_id (WAJIB)
 # =========================
