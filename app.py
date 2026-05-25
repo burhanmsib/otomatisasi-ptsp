@@ -10,8 +10,7 @@ import pytz
 # =========================
 from modules.module1_request import (
     load_request_sheet_streamlit,
-    save_manual_input,
-    get_sheet
+    save_manual_input
 )
 from modules.module2_route import process_route_segment_module2_streamlit
 from modules.module34_data import process_module34, load_datasets_cached
@@ -63,13 +62,13 @@ df_id = None
 
 # =========================
 # GENERATE PTSP ID
-# DIRECT COLUMN READ
 # =========================
 def generate_ptsp_id():
 
     try:
 
-        worksheet = get_sheet(
+        # 🔥 buka worksheet langsung
+        worksheet = spreadsheet.worksheet(
             "Input_Manual"
         )
 
