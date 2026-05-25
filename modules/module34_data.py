@@ -147,7 +147,7 @@ def split_polyline_into_segments(
             for d in np.linspace(
                 start_d,
                 end_d,
-                25
+                10
             ):
 
                 p = line.interpolate(d)
@@ -257,9 +257,9 @@ def generate_polygon_sampling_points(
 
         points = []
 
-        for lat in np.linspace(miny, maxy, 4):
+        for lat in np.linspace(miny, maxy, 3):
 
-            for lon in np.linspace(minx, maxx, 4):
+            for lon in np.linspace(minx, maxx, 3):
 
                 p = Point(lon, lat)
 
