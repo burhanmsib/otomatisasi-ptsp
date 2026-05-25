@@ -698,10 +698,67 @@ if df_preview is not None:
             now_wib = datetime.datetime.now(jakarta_tz)
     
             # =========================
-            # GENERATE NEXT ID
-            # DIRECT FROM SHEET
+            # GENERATE PTSP ID
+            # DIRECT COLUMN READ
             # =========================
-            id_surat = generate_ptsp_id()
+            def generate_ptsp_id():
+            
+                try:
+            
+                    worksheet = get_sheet(
+                        "Input_Manual"
+                    )
+            
+                    # 🔥 baca seluruh kolom A
+                    ids_raw = worksheet.col_values(1)
+            
+                    # =========================
+                    # HEADER SAJA
+                    # =========================
+                    if len(ids_raw) <= 1:
+                        return "PTSP-001"
+            
+                    ids = []
+            
+                    # skip header
+                    for val in ids_raw[1:]:
+            
+                        val = str(val).strip()
+            
+                        if val.startswith("PTSP-"):
+            
+                            try:
+            
+                                num = int(
+                                    val.replace(
+                                        "PTSP-",
+                                        ""
+                                    )
+                                )
+            
+                                ids.append(num)
+            
+                            except:
+                                pass
+            
+                    # =========================
+                    # TIDAK ADA ID VALID
+                    # =========================
+                    if not ids:
+                        return "PTSP-001"
+            
+                    next_num = max(ids) + 1
+            
+                    return f"PTSP-{next_num:03d}"
+            
+                except Exception as e:
+            
+                    print(
+                        "ERROR GENERATE PTSP ID:",
+                        e
+                    )
+            
+                    return "PTSP-001"
     
             for _, row in st.session_state.preview_data.iterrows():
     
