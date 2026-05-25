@@ -707,9 +707,31 @@ if df_preview is not None:
             # =========================
             # GENERATE NEXT ID
             # =========================
-            id_surat = generate_ptsp_id()
-    
-            # 🔥 simpan ke session
+            try:
+            
+                ws = spreadsheet.worksheet(
+                    "Input_Manual"
+                )
+            
+                existing_rows = ws.get_all_values()
+            
+                # 🔥 kurangi header
+                total_data = max(
+                    len(existing_rows) - 1,
+                    0
+                )
+            
+                next_num = total_data + 1
+            
+                id_surat = f"PTSP-{next_num:03d}"
+            
+            except Exception as e:
+            
+                print("ERROR GENERATE ID:", e)
+            
+                id_surat = "PTSP-001"
+            
+            # 🔥 save ke session
             st.session_state.id_surat = id_surat
     
             # =========================
