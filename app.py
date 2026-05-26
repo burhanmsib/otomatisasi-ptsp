@@ -705,9 +705,15 @@ if df_preview is not None:
             )
     
             # =========================
-            # GENERATE UNIQUE ID
+            # GENERATE UNIQUE ID (WIB)
             # =========================
-            now_id = datetime.datetime.now()
+            jakarta_tz = pytz.timezone(
+                "Asia/Jakarta"
+            )
+            
+            now_id = datetime.datetime.now(
+                jakarta_tz
+            )
             
             id_surat = (
                 "PTSP-"
