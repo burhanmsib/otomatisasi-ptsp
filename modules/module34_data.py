@@ -602,13 +602,15 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         row["Tanggal Koordinat"]
     )
     
-    print(
-        "INPUT TANGGAL =",
+    with st.expander("DEBUG TANGGAL"):
+
+    st.write(
+        "INPUT:",
         row["Tanggal Koordinat"]
     )
-    
-    print(
-        "HASIL PARSE =",
+
+    st.write(
+        "PARSED:",
         dt_local
     )
     
