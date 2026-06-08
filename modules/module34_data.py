@@ -683,8 +683,6 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 # =========================
 def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
 
-    # dt_local = normalize_date(row["Tanggal Koordinat"])
-
     dt_local = normalize_date(
         row["Tanggal Koordinat"]
     )
