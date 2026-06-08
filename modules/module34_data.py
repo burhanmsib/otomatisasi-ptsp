@@ -614,29 +614,46 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
             and len(p) >= 2
         )
     ]
+
+    # =========================
+    # DETEKSI MODE
+    # =========================
+    is_point_mode = len(route) < 2
     
     # 🔥 kalau route kosong
     if not route:
         return None
 
-    segments_route = split_polyline_into_segments(
-        route,
-        4
-    )
+    # =========================
+    # MODE TITIK
+    # =========================
+    if is_point_mode:
     
-    # 🔥 fallback kalau gagal split
+        segments_route = [route]
+    
+    # =========================
+    # MODE RUTE
+    # =========================
+    else:
+    
+        segments_route = split_polyline_into_segments(
+            route,
+            4
+        )
+
     if not segments_route:
+
         segments_route = [[route[0]]] * 4
-    
-    # 🔥 pastikan tetap 4 segmen
+
     while len(segments_route) < 4:
+
         segments_route.append(
             segments_route[-1]
         )
     
     segments = []
     
-    for i in range(4):
+    for i in range(len(segments_route)):
     
         t0 = dt_utc0 + timedelta(
             hours=i * 6
@@ -670,7 +687,11 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         weather = build_weather_range(samples)
 
         segments.append({
-            "interval": f"T{i*6}-T{(i+1)*6}",
+            "interval": (
+                f"T{i*6}-T{(i+1)*6}"
+                if not is_point_mode
+                else "T0-T24"
+            ),
             "samples": samples,
             "weather": weather
         })
