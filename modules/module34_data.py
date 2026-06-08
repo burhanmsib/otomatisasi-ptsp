@@ -67,25 +67,112 @@ TZ_OFFSET = {
 # DATE NORMALIZATION
 # =========================
 def normalize_date(raw):
-    if raw is None or str(raw).strip() == "":
+
+    if raw is None:
         return None
 
-    s = str(raw)
-    s = re.sub(r"\d{1,2}[.:]\d{2}(-\d{1,2}[.:]\d{2})?", "", s)
-    s = s.replace("/", " ")
+    s = str(raw).strip()
 
-    month_map = {
-        "Januari":"January","Februari":"February","Maret":"March",
-        "April":"April","Mei":"May","Juni":"June","Juli":"July",
-        "Agustus":"August","September":"September",
-        "Oktober":"October","November":"November","Desember":"December"
-    }
+    if not s:
+        return None
 
-    for indo, eng in month_map.items():
-        s = s.replace(indo, eng)
+    # =========================
+    # FORMAT STANDAR PTSP
+    # YYYY-MM-DD
+    # =========================
 
     try:
-        return parser.parse(s, dayfirst=True)
+        return datetime.strptime(
+            s,
+            "%Y-%m-%d"
+        )
+    except:
+        pass
+
+    # =========================
+    # YYYY/MM/DD
+    # =========================
+
+    try:
+        return datetime.strptime(
+            s,
+            "%Y/%m/%d"
+        )
+    except:
+        pass
+
+    # =========================
+    # DD-MM-YYYY
+    # =========================
+
+    try:
+        return datetime.strptime(
+            s,
+            "%d-%m-%Y"
+        )
+    except:
+        pass
+
+    # =========================
+    # DD/MM/YYYY
+    # =========================
+
+    try:
+        return datetime.strptime(
+            s,
+            "%d/%m/%Y"
+        )
+    except:
+        pass
+
+    # =========================
+    # BULAN INDONESIA
+    # =========================
+
+    month_map = {
+        "Januari":"January",
+        "Februari":"February",
+        "Maret":"March",
+        "April":"April",
+        "Mei":"May",
+        "Juni":"June",
+        "Juli":"July",
+        "Agustus":"August",
+        "September":"September",
+        "Oktober":"October",
+        "November":"November",
+        "Desember":"December"
+    }
+
+    clean = s
+
+    for indo, eng in month_map.items():
+        clean = clean.replace(
+            indo,
+            eng
+        )
+
+    # =========================
+    # DD Month YYYY
+    # =========================
+
+    try:
+        return datetime.strptime(
+            clean,
+            "%d %B %Y"
+        )
+    except:
+        pass
+
+    # =========================
+    # FALLBACK TERAKHIR
+    # =========================
+
+    try:
+        return parser.parse(
+            clean,
+            dayfirst=True
+        )
     except:
         return None
 
