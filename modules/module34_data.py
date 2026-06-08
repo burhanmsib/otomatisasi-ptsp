@@ -604,15 +604,15 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     
     with st.expander("DEBUG TANGGAL"):
 
-    st.write(
-        "INPUT:",
-        row["Tanggal Koordinat"]
-    )
-
-    st.write(
-        "PARSED:",
-        dt_local
-    )
+        st.write(
+            "INPUT:",
+            row["Tanggal Koordinat"]
+        )
+    
+        st.write(
+            "PARSED:",
+            dt_local
+        )
     
     if dt_local is None:
         return None
