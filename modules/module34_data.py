@@ -214,7 +214,7 @@ def generate_polygon_sampling_points(
         lat, lon = valid_points[0]
 
         # 🔥 buffer titik lebih kecil
-        point_buffer = 0.12
+        point_buffer = 0.05
 
         points = []
 
