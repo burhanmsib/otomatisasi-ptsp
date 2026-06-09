@@ -462,12 +462,12 @@ def analyze_segment(samples):
         # (lebih mendekati analisis manual)
         # =========================
         
-        p20 = np.percentile(wind_spds, 20)
-        p80 = np.percentile(wind_spds, 80)
+        p10 = np.percentile(wind_spds, 10)
+        p90 = np.percentile(wind_spds, 90)
         
         w_min, w_max = rounded_range_with_padding(
-            p20,
-            p80
+            p10,
+            p90
         )
     
         wind_txt = f"{dir_txt}, {w_min} - {w_max} knots"
