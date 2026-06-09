@@ -264,7 +264,7 @@ def split_polyline_into_segments(
 # =========================
 def generate_polygon_sampling_points(
     segment_route,
-    route_buffer=0.12
+    route_buffer=0.08
 ):
 
     # =========================
