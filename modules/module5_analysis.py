@@ -545,6 +545,24 @@ def analyze_segment(samples):
             f"{dir_txt}, "
             f"{c_min} - {c_max} cm/s"
         )
+
+    try:
+    
+        st.session_state.debug_data.append({
+    
+            "wind_dirs": wind_dirs.copy(),
+            "wind_spds": wind_spds.copy(),
+    
+            "cur_dirs": cur_dirs.copy(),
+            "cur_spds": cur_spds.copy(),
+    
+            "wind_result": wind_txt,
+            "current_result": cur_txt
+    
+        })
+    
+    except:
+        pass
     
     return {
         "WEATHER": weather_txt,
