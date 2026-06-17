@@ -776,11 +776,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
         weather = build_weather_range(samples)
 
         segments.append({
-            "interval": (
-                f"T{i*6}-T{(i+1)*6}"
-                if not is_point_mode
-                else "T0-T24"
-            ),
+            "interval": (f"T{i*6}-T{(i+1)*6}",
             "samples": samples,
             "weather": weather
         })
