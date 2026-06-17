@@ -308,14 +308,58 @@ def build_interval_table(doc, intervals, tz="WIB"):
 
 
 def build_notes_primary(doc):
+
+    # 🔥 tambahkan ini dulu
+    p0 = doc.add_paragraph()
+    p0.add_run("*) satellite images enclosed")
+    style_paragraph(
+        p0,
+        size=11,
+        italic=True
+    )
+
     p = doc.add_paragraph()
-    p.add_run("Note:\n").bold = True
-    p.add_run("The direction of current is toward.\nThe direction of wind is from.")
-    style_paragraph(p, size=11, italic=True)
+
+    run1 = p.add_run("Note:\n")
+    run1.bold = True
+
+    run2 = p.add_run(
+        "The direction of current is "
+    )
+
+    run3 = p.add_run("toward")
+    run3.bold = True
+
+    p.add_run(".\n")
+
+    run4 = p.add_run(
+        "The direction of wind is "
+    )
+
+    run5 = p.add_run("from")
+    run5.bold = True
+
+    p.add_run(".")
+
+    style_paragraph(
+        p,
+        size=11,
+        italic=True
+    )
+
     doc.add_paragraph("")
 
 
 def build_wave_category_table(doc):
+    p = doc.add_paragraph()
+
+    run = p.add_run("Note :")
+    run.bold = True
+    
+    style_paragraph(
+        p,
+        size=11
+    )
     data = [
         ("Smooth", "0.10 – 0.50 m"),
         ("Slight", "0.50 – 1.25 m"),
@@ -327,16 +371,20 @@ def build_wave_category_table(doc):
     ]
 
     t = doc.add_table(rows=1, cols=2)
+    t.autofit = False
+
+    t.columns[0].width = Cm(3.5)
+    t.columns[1].width = Cm(3.0)
     set_table_border(t)
 
     for label, val in data:
         cells = t.add_row().cells
         cells[0].text = label
         cells[1].text = val
-        style_paragraph(cells[0].paragraphs[0], size=11, align="center")
-        style_paragraph(cells[1].paragraphs[0], size=11, align="center")
+        style_paragraph(cells[0].paragraphs[0], size=10, align="center")
+        style_paragraph(cells[1].paragraphs[0], size=10, align="center")
 
-    doc.add_paragraph("")
+    # doc.add_paragraph("")
 
 
 def build_satellite_image_table(doc, tanggal_str):
