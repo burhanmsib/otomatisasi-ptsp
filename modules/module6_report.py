@@ -365,7 +365,7 @@ def build_wave_category_table(doc):
     run.italic = True
 
     run.font.name = "Times New Roman"
-    run.font.size - Pt(11)
+    run.font.size = Pt(11)
     
     data = [
         ("Smooth", "0.10 – 0.50 m"),
