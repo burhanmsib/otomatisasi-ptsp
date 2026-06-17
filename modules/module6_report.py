@@ -465,7 +465,7 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 dt_str = format_date_en(dt) if dt else ""
             
                 bullet_text = (
-                    f"• From ({ka}) to ({kb}) for {dt_str}"
+                    f"• From {ka} to {kb} for {dt_str}"
                 )
             
                 new_p = insert_paragraph_after(current_p)
