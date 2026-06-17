@@ -731,15 +731,15 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
             4
         )
 
-    if not segments_route:
-
-        segments_route = [[route[0]]] * 4
-
-    while len(segments_route) < 4:
-
-        segments_route.append(
-            segments_route[-1]
-        )
+        if not segments_route:
+    
+            segments_route = [[route[0]]] * 4
+    
+        while len(segments_route) < 4:
+    
+            segments_route.append(
+                segments_route[-1]
+            )
     
     segments = []
     
