@@ -309,45 +309,40 @@ def build_interval_table(doc, intervals, tz="WIB"):
 
 def build_notes_primary(doc):
 
-    # 🔥 tambahkan ini dulu
     p0 = doc.add_paragraph()
-    p0.add_run("*) satellite images enclosed")
+    run0 = p0.add_run("*) satellite images enclosed")
+    run0.italic = True
+
     style_paragraph(
         p0,
-        size=11,
-        italic=True
+        size=11
     )
 
     p = doc.add_paragraph()
 
-    run1 = p.add_run("Note:\n")
-    run1.bold = True
+    r1 = p.add_run("Note:\n")
+    r1.bold = True
+    r1.italic = True
 
-    run2 = p.add_run(
-        "The direction of current is "
-    )
+    r2 = p.add_run("The direction of current is ")
 
-    run3 = p.add_run("toward")
-    run3.bold = True
+    r3 = p.add_run("toward")
+    r3.bold = True
 
     p.add_run(".\n")
 
-    run4 = p.add_run(
-        "The direction of wind is "
-    )
+    r4 = p.add_run("The direction of wind is ")
 
-    run5 = p.add_run("from")
-    run5.bold = True
+    r5 = p.add_run("from")
+    r5.bold = True
 
     p.add_run(".")
 
-    style_paragraph(
-        p,
-        size=11,
-        italic=True
-    )
+    for run in p.runs:
+        run.font.name = "Times New Roman"
+        run.font.size = Pt(11)
 
-    doc.add_paragraph("")
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
 
 def build_wave_category_table(doc):
@@ -370,21 +365,33 @@ def build_wave_category_table(doc):
         ("Very High", "9.00 – 14.00 m"),
     ]
 
-    t = doc.add_table(rows=1, cols=2)
+    t = doc.add_table(rows=0, cols=2)
     t.autofit = False
-
-    t.columns[0].width = Cm(3.5)
-    t.columns[1].width = Cm(3.0)
     set_table_border(t)
 
     for label, val in data:
-        cells = t.add_row().cells
-        cells[0].text = label
-        cells[1].text = val
-        style_paragraph(cells[0].paragraphs[0], size=10, align="center")
-        style_paragraph(cells[1].paragraphs[0], size=10, align="center")
 
-    # doc.add_paragraph("")
+        row = t.add_row()
+    
+        row.cells[0].width = Cm(2.6)
+        row.cells[1].width = Cm(2.6)
+    
+        row.cells[0].text = label
+        row.cells[1].text = val
+    
+        style_paragraph(
+            row.cells[0].paragraphs[0],
+            size=9,
+            align="center"
+        )
+    
+        style_paragraph(
+            row.cells[1].paragraphs[0],
+            size=9,
+            align="center"
+        )
+
+    doc.add_paragraph("")
 
 
 def build_satellite_image_table(doc, tanggal_str):
@@ -393,6 +400,9 @@ def build_satellite_image_table(doc, tanggal_str):
 
     table = doc.add_table(rows=2, cols=2)
     set_table_border(table)
+
+    doc.add_paragraph("")
+    doc.add_paragraph("")
 
     hdr = table.rows[0].cells[0]
     hdr.merge(table.rows[0].cells[1])
