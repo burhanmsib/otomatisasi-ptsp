@@ -381,13 +381,13 @@ def build_wave_category_table(doc):
     
         style_paragraph(
             row.cells[0].paragraphs[0],
-            size=9,
-            align="center"
+            size=10,
+            align="left"
         )
     
         style_paragraph(
             row.cells[1].paragraphs[0],
-            size=9,
+            size=10,
             align="center"
         )
 
