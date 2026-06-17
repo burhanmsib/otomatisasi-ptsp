@@ -356,7 +356,6 @@ def build_notes_primary(doc):
 
 
 def build_wave_category_table(doc):
-    doc.add_paragraph("")
     p = doc.add_paragraph()
 
     run = p.add_run("Note:")
