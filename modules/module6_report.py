@@ -321,7 +321,7 @@ def build_notes_primary(doc):
     p = doc.add_paragraph()
 
     r1 = p.add_run("Note:\n")
-    r1.bold = True
+    r1.bold = False
     r1.italic = True
     
     r2 = p.add_run(
@@ -343,6 +343,8 @@ def build_notes_primary(doc):
     r5 = p.add_run("from")
     r5.bold = True
     r5.italic = True
+
+    doc.add_paragraph("")
     
     p.add_run(".").italic = True
     
@@ -354,15 +356,17 @@ def build_notes_primary(doc):
 
 
 def build_wave_category_table(doc):
+    doc.add_paragraph("")
+    
     p = doc.add_paragraph()
 
-    run = p.add_run("Note :")
+    run = p.add_run("Note:")
     run.bold = True
+    run.italic = True
+
+    run.font.name = "Times New Roman"
+    run.font.size - Pt(11)
     
-    style_paragraph(
-        p,
-        size=11
-    )
     data = [
         ("Smooth", "0.10 – 0.50 m"),
         ("Slight", "0.50 – 1.25 m"),
