@@ -312,32 +312,40 @@ def build_notes_primary(doc):
     p0 = doc.add_paragraph()
     run0 = p0.add_run("*) satellite images enclosed")
     run0.italic = True
+    run0.font.name = "Times New Roman"
+    run0.font.size = Pt(11)
+    p0.aligment = WD_ALIGN_PARAGRAPH.LEFT
 
-    style_paragraph(
-        p0,
-        size=11
-    )
-
+    doc.add_paragraph("")
+    
     p = doc.add_paragraph()
 
     r1 = p.add_run("Note:\n")
     r1.bold = True
     r1.italic = True
-
-    r2 = p.add_run("The direction of current is ")
-
+    
+    r2 = p.add_run(
+        "The direction of current is "
+    )
+    r2.italic = True
+    
     r3 = p.add_run("toward")
     r3.bold = True
-
-    p.add_run(".\n")
-
-    r4 = p.add_run("The direction of wind is ")
-
+    r3.italic = True
+    
+    p.add_run(".\n").italic = True
+    
+    r4 = p.add_run(
+        "The direction of wind is "
+    )
+    r4.italic = True
+    
     r5 = p.add_run("from")
     r5.bold = True
-
-    p.add_run(".")
-
+    r5.italic = True
+    
+    p.add_run(".").italic = True
+    
     for run in p.runs:
         run.font.name = "Times New Roman"
         run.font.size = Pt(11)
