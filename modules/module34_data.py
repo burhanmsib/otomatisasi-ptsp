@@ -297,31 +297,30 @@ def generate_polygon_sampling_points(
     # MODE TITIK
     # =========================
     if len(valid_points) == 1:
-
+    
         lat, lon = valid_points[0]
-
-        # 🔥 buffer titik lebih kecil
+    
         point_buffer = 0.05
-
-        points = []
-
-        for dlat in np.linspace(
-            -point_buffer,
-            point_buffer,
-            3
-        ):
-
-            for dlon in np.linspace(
-                -point_buffer,
-                point_buffer,
-                3
-            ):
-
-                points.append((
-                    lat + dlat,
-                    lon + dlon
-                ))
-
+    
+        points = [
+    
+            # titik utama
+            (lat, lon),
+    
+            # utara
+            (lat + point_buffer, lon),
+    
+            # selatan
+            (lat - point_buffer, lon),
+    
+            # timur
+            (lat, lon + point_buffer),
+    
+            # barat
+            (lat, lon - point_buffer),
+    
+        ]
+    
         return points
 
     # =========================
