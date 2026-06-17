@@ -718,7 +718,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     # =========================
     if is_point_mode:
     
-        segments_route = [route]
+        segments_route = [route] * 4
     
     # =========================
     # MODE RUTE
