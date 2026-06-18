@@ -677,23 +677,33 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             }
         }
 
-# =========================
-# MAIN PROCESS (FINAL FIX)
-# =========================
-def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain=None):
+def process_module34(
+    row,
+    polyline,
+    tz="WIB",
+    ds_wave=None,
+    ds_cur=None,
+    ds_rain=None
+):
 
     dt_local = normalize_date(
         row["Tanggal Koordinat"]
     )
-    
+
     if dt_local is None:
         return None
 
     tz_offset = TZ_OFFSET.get(tz, 7)
 
     dt_utc0 = dt_local.replace(
-        tzinfo=timezone(timedelta(hours=tz_offset))
-    ).astimezone(timezone.utc).replace(tzinfo=None)
+        tzinfo=timezone(
+            timedelta(hours=tz_offset)
+        )
+    ).astimezone(
+        timezone.utc
+    ).replace(
+        tzinfo=None
+    )
 
     route = [
         (p[0], p[1])
@@ -708,8 +718,7 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     # DETEKSI MODE
     # =========================
     is_point_mode = len(route) < 2
-    
-    # 🔥 kalau route kosong
+
     if not route:
         return None
 
@@ -717,72 +726,151 @@ def process_module34(row, polyline, tz="WIB", ds_wave=None, ds_cur=None, ds_rain
     # MODE TITIK
     # =========================
     if is_point_mode:
-    
+
         segments_route = [route] * 4
-    
+
     # =========================
     # MODE RUTE
     # =========================
     else:
-    
+
         segments_route = split_polyline_into_segments(
             route,
             4
         )
 
         if not segments_route:
-    
-            segments_route = [[route[0]]] * 4
-    
+
+            segments_route = [
+                [route[0]]
+            ] * 4
+
         while len(segments_route) < 4:
-    
+
             segments_route.append(
                 segments_route[-1]
             )
-    
+
+    # ==================================
+    # 🔥 OPTIMASI MODE TITIK
+    # POLYGON DIBUAT SEKALI SAJA
+    # ==================================
+    point_sample_cache = None
+
+    if is_point_mode:
+
+        point_sample_cache = (
+            generate_polygon_sampling_points(
+                route
+            )
+        )
+
     segments = []
-    
-    for i in range(len(segments_route)):
-    
+
+    for i in range(
+        len(segments_route)
+    ):
+
         t0 = dt_utc0 + timedelta(
             hours=i * 6
         )
-    
-        segment_route = segments_route[i]
 
-        # 🔥 polygon mengikuti bentuk segmen
-        sample_points = generate_polygon_sampling_points(segment_route)
+        segment_route = (
+            segments_route[i]
+        )
+
+        # =========================
+        # MODE TITIK
+        # =========================
+        if is_point_mode:
+
+            sample_points = (
+                point_sample_cache
+            )
+
+        # =========================
+        # MODE RUTE
+        # =========================
+        else:
+
+            sample_points = (
+                generate_polygon_sampling_points(
+                    segment_route
+                )
+            )
 
         times = [
+
             t0,
-            t0 + timedelta(hours=3),
-            t0 + timedelta(hours=6)
+
+            t0 + timedelta(
+                hours=3
+            ),
+
+            t0 + timedelta(
+                hours=6
+            )
+
         ]
 
         samples = []
 
         for t in times:
-            t = t.replace(minute=0, second=0)
+
+            t = t.replace(
+                minute=0,
+                second=0
+            )
 
             for lat, lon in sample_points:
 
-                sample = extract_hourly_weather(
-                    ds_wave, ds_cur, ds_rain,
-                    t, lat, lon
+                sample = (
+                    extract_hourly_weather(
+                        ds_wave,
+                        ds_cur,
+                        ds_rain,
+                        t,
+                        lat,
+                        lon
+                    )
                 )
-                if isinstance(sample, dict):
-                    samples.append(sample)
 
-        weather = build_weather_range(samples)
+                if isinstance(
+                    sample,
+                    dict
+                ):
+                    samples.append(
+                        sample
+                    )
+
+        weather = (
+            build_weather_range(
+                samples
+            )
+        )
 
         segments.append({
-            "interval": f"T{i*6}-T{(i+1)*6}",
-            "samples": samples,
-            "weather": weather
+
+            "interval":
+            f"T{i*6}-T{(i+1)*6}",
+
+            "samples":
+            samples,
+
+            "weather":
+            weather
+
         })
 
     return {
-        "tanggal": dt_local,
-        "tz": tz,
-        "segments": segments
+
+        "tanggal":
+        dt_local,
+
+        "tz":
+        tz,
+
+        "segments":
+        segments
+
     }
