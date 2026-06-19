@@ -297,31 +297,19 @@ def generate_polygon_sampling_points(
     # MODE TITIK
     # =========================
     if len(valid_points) == 1:
-    
+
         lat, lon = valid_points[0]
     
+        # ==================================
+        # MODE TITIK
+        # Buffer 0.05 hanya sebagai area
+        # representatif analisis
+        # ==================================
         point_buffer = 0.05
     
-        points = [
-    
-            # titik utama
-            (lat, lon),
-    
-            # utara
-            (lat + point_buffer, lon),
-    
-            # selatan
-            (lat - point_buffer, lon),
-    
-            # timur
-            (lat, lon + point_buffer),
-    
-            # barat
-            (lat, lon - point_buffer),
-    
+        return [
+            (lat, lon)
         ]
-    
-        return points
 
     # =========================
     # MODE RUTE
