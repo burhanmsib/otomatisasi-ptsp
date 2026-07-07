@@ -82,6 +82,28 @@ def format_date_en(dt: datetime):
         f"{dt.year}"
     )
 
+import re
+
+def normalize_coordinate(coord):
+    """
+    Normalisasi koordinat agar selalu menggunakan format:
+    7°45'07" S / 109°01'06" E
+
+    Jika sudah ada '/', tidak diubah.
+    """
+
+    coord = str(coord).strip()
+
+    if "/" in coord:
+        return coord
+
+    return re.sub(
+        r'([NS])\s+(?=\d)',
+        r'\1 / ',
+        coord,
+        count=1
+    )
+
 
 # =========================
 # STYLE UTILITIES
@@ -207,8 +229,8 @@ def build_title(doc, row):
     # 🔥 FIX: pakai format asli (DMS)
     coord_text = row.get("Koordinat", "")
     
-    ka = str(row.get("Koordinat Awal", "") or "").strip()
-    kb = str(row.get("Koordinat Akhir", "") or "").strip()
+    ka = normalize_coordinate(row.get("Koordinat Awal", ""))
+    kb = normalize_coordinate(row.get("Koordinat Akhir", ""))
     
     if ka and kb:
         if ka == kb:
@@ -523,8 +545,8 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
 
             for row in module1_rows:
 
-                ka = str(row.get("Koordinat Awal", "") or "").strip()
-                kb = str(row.get("Koordinat Akhir", "") or "").strip()
+                ka = normalize_coordinate(row.get("Koordinat Awal", ""))
+                kb = normalize_coordinate(row.get("Koordinat Akhir", ""))
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
             
                 if not ka or not kb:
