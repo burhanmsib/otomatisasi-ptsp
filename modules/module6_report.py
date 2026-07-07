@@ -87,28 +87,44 @@ import re
 
 def normalize_coordinate(coord):
     """
-    Normalisasi koordinat agar selalu menjadi:
+    Normalisasi koordinat agar pemisah lintang dan bujur
+    selalu menggunakan '/'.
 
-    7°45'07" S / 109°01'06" E
-
-    Berlaku untuk format:
-    S 109...
-    S-109...
-    S/109...
+    Support:
+    - Decimal : -8.74,116.00
+    - DMS : 7°45'07" S 109°01'06" E
+    - DMS : 7°45'07"S-109°01'06"E
     """
 
     coord = str(coord).strip()
 
-    # kalau sudah ada "/", biarkan
+    if not coord:
+        return coord
+
+    # Sudah benar
     if "/" in coord:
         return coord
 
-    return re.sub(
+    # =========================
+    # FORMAT DECIMAL
+    # =========================
+    if "," in coord:
+        parts = coord.split(",", 1)
+
+        if len(parts) == 2:
+            return f"{parts[0].strip()} / {parts[1].strip()}"
+
+    # =========================
+    # FORMAT DMS
+    # =========================
+    coord = re.sub(
         r'([NS])\s*[-]?\s*(?=\d)',
         r'\1 / ',
         coord,
         count=1
     )
+
+    return coord
 
 def wrap_company_address(address, width=42):
     """
