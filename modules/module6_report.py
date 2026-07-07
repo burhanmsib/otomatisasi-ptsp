@@ -6,6 +6,7 @@ from docx.text.paragraph import Paragraph
 from docx.enum.table import WD_ALIGN_VERTICAL
 from datetime import datetime
 from io import BytesIO
+import textwrap
 import re
 
 # =========================
@@ -102,6 +103,24 @@ def normalize_coordinate(coord):
         r'\1 / ',
         coord,
         count=1
+    )
+
+def wrap_company_address(address, width=42):
+    """
+    Membuat alamat perusahaan menjadi beberapa baris
+    agar tidak terlalu panjang ke kanan.
+    """
+
+    if not address:
+        return ""
+
+    return "\n".join(
+        textwrap.wrap(
+            str(address),
+            width=width,
+            break_long_words=False,
+            break_on_hyphens=False
+        )
     )
 
 
@@ -275,7 +294,7 @@ def build_interval_table(doc, intervals, tz="WIB"):
     for i, h in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = h
-        style_paragraph(cell.paragraphs[0], bold=True, align="center")
+        style_paragraph(cell.paragraphs[0], size=10, bold=True, align="center")
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
     # =========================
@@ -298,7 +317,7 @@ def build_interval_table(doc, intervals, tz="WIB"):
         for i, v in enumerate(values):
             cell = row[i]
             cell.text = str(v)
-            style_paragraph(cell.paragraphs[0], align="center")
+            style_paragraph(cell.paragraphs[0], size=10, align="center")
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
             # =========================
@@ -319,7 +338,7 @@ def build_interval_table(doc, intervals, tz="WIB"):
                 merged_cell.text = date_text
             
                 # Center horizontal
-                style_paragraph(merged_cell.paragraphs[0], align="center")
+                style_paragraph(merged_cell.paragraphs[0], size=10, align="center")
             
                 # Bold
                 if merged_cell.paragraphs[0].runs:
@@ -335,7 +354,7 @@ def build_notes_primary(doc):
     run0 = p0.add_run("*) satellite images enclosed")
     run0.italic = True
     run0.font.name = "Times New Roman"
-    run0.font.size = Pt(11)
+    run0.font.size = Pt(10)
     p0.aligment = WD_ALIGN_PARAGRAPH.LEFT
 
     doc.add_paragraph("")
@@ -372,7 +391,7 @@ def build_notes_primary(doc):
     
     for run in p.runs:
         run.font.name = "Times New Roman"
-        run.font.size = Pt(11)
+        run.font.size = Pt(10)
 
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
@@ -446,8 +465,8 @@ def build_satellite_image_table(doc, tanggal_str):
     table.rows[1].cells[0].paragraphs[0].add_run("[Insert Satellite Image Here]")
     table.rows[1].cells[1].paragraphs[0].add_run("[Insert Legend Here]")
 
-    style_paragraph(table.rows[1].cells[0].paragraphs[0], italic=True, align="center")
-    style_paragraph(table.rows[1].cells[1].paragraphs[0], italic=True, align="center")
+    style_paragraph(table.rows[1].cells[0].paragraphs[0], size=10, italic=True, align="center")
+    style_paragraph(table.rows[1].cells[1].paragraphs[0], size=10, italic=True, align="center")
 
     doc.add_paragraph("")
 
@@ -477,7 +496,9 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
         return val
 
     nama_perusahaan = get_fallback("Nama Perusahaan")
-    alamat_perusahaan = get_fallback("Alamat Perusahaan")
+    alamat_perusahaan = wrap_company_address(
+        get_fallback("Alamat Perusahaan")
+    )
     ref_no = get_fallback("Nomor Surat")
 
     if not ref_no:
