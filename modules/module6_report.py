@@ -87,19 +87,24 @@ import re
 
 def normalize_coordinate(coord):
     """
-    Normalisasi koordinat agar selalu menggunakan format:
+    Normalisasi koordinat agar selalu menjadi:
+
     7°45'07" S / 109°01'06" E
 
-    Jika sudah ada '/', tidak diubah.
+    Berlaku untuk format:
+    S 109...
+    S-109...
+    S/109...
     """
 
     coord = str(coord).strip()
 
+    # kalau sudah ada "/", biarkan
     if "/" in coord:
         return coord
 
     return re.sub(
-        r'([NS])\s+(?=\d)',
+        r'([NS])\s*[-]?\s*(?=\d)',
         r'\1 / ',
         coord,
         count=1
