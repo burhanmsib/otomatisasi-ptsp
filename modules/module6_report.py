@@ -460,7 +460,7 @@ def build_satellite_image_table(doc, tanggal_str):
 
     p = hdr.paragraphs[0]
     p.add_run(f"Weather Satellite Image on {tanggal_fmt} at ______")
-    style_paragraph(p, bold=True, align="center")
+    style_paragraph(p, bold=True, size=10, align="center")
 
     table.rows[1].cells[0].paragraphs[0].add_run("[Insert Satellite Image Here]")
     table.rows[1].cells[1].paragraphs[0].add_run("[Insert Legend Here]")
