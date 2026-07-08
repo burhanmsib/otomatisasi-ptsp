@@ -228,8 +228,6 @@ def process_route_segment_module2_streamlit(row, map_key):
         ).add_to(m2)
 
     with col_preview:
-
-        st.markdown("### 📍 Preview Rute")
     
         st.success("Rute tersimpan")
     
