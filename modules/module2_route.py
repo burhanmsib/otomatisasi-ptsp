@@ -8,6 +8,7 @@ import folium
 import json
 from folium.plugins import Draw
 from shapely.geometry import LineString
+from io import BytesIO
 
 # =========================
 # HELPER – PARSE KOORDINAT
@@ -290,6 +291,18 @@ def process_route_segment_module2_streamlit(row, map_key):
         data=geojson,
         file_name=f"route_{map_key}.geojson",
         mime="application/geo+json"
+    )
+
+    # =========================
+    # DOWNLOAD HTML
+    # =========================
+    html = m2.get_root().render()
+    
+    st.download_button(
+        label="🌐 Download Route Map (.html)",
+        data=html,
+        file_name=f"Route_{map_key}.html",
+        mime="text/html"
     )
 
     return {
