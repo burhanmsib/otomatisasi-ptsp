@@ -90,6 +90,11 @@ def process_route_segment_module2_streamlit(row, map_key):
         return None
 
     # =========================
+    # LAYOUT
+    # =========================
+    col_draw, col_preview = st.columns([1, 1])
+
+    # =========================
     # MAP DRAW
     # =========================
     m = folium.Map(
@@ -128,16 +133,27 @@ def process_route_segment_module2_streamlit(row, map_key):
         }
     ).add_to(m)
 
-    output = st_folium(
-        m,
-        height=800,
-        use_container_width=True,
-        key=f"draw_map_{map_key}",
-        returned_objects=["last_active_drawing"]
-    )
+    with col_draw:
+
+        st.markdown("### 🗺️ Gambar Rute")
+    
+        output = st_folium(
+            m,
+            height=800,
+            use_container_width=True,
+            key=f"draw_map_{map_key}",
+            returned_objects=["last_active_drawing"]
+        )
 
     drawing = output.get("last_active_drawing")
 
+    with col_preview:
+    
+        st.markdown("### 📍 Preview Rute")
+    
+        if drawing is None:
+            st.info("Belum ada rute yang digambar.")
+    
     if drawing is None:
         return None
 
@@ -211,14 +227,18 @@ def process_route_segment_module2_streamlit(row, map_key):
             """)
         ).add_to(m2)
 
-    st.success("Rute tersimpan")
+    with col_preview:
 
-    st_folium(
-        m2,
-        height=800,
-        use_container_width=True,
-        key=f"final_map_{map_key}"
-    )
+        st.markdown("### 📍 Preview Rute")
+    
+        st.success("Rute tersimpan")
+    
+        st_folium(
+            m2,
+            height=800,
+            use_container_width=True,
+            key=f"final_map_{map_key}"
+        )
 
     return {
         "tanggal": row.get("Tanggal Koordinat"),
