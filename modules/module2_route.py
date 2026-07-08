@@ -5,6 +5,7 @@
 import streamlit as st
 from streamlit_folium import st_folium
 import folium
+import json
 from folium.plugins import Draw
 from shapely.geometry import LineString
 
@@ -37,6 +38,50 @@ def split_route_into_4_segments(points_latlon):
         result.append((p.y, p.x))
 
     return result
+
+# =========================
+# Download Json
+# =========================
+
+def create_geojson(full_route, titik5):
+
+    features = []
+
+    # Garis rute
+    features.append({
+        "type": "Feature",
+        "properties": {
+            "name": "Route"
+        },
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [
+                [lon, lat] for lat, lon in full_route
+            ]
+        }
+    })
+
+    # Titik sampling
+    for i, (lat, lon) in enumerate(titik5, start=1):
+
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "point": i
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [lon, lat]
+            }
+        })
+
+    return json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": features
+        },
+        indent=2
+    )
 
 
 # =========================
@@ -237,6 +282,15 @@ def process_route_segment_module2_streamlit(row, map_key):
         )
         
     st.success("Rute tersimpan")
+
+    geojson = create_geojson(full_route, titik5)
+
+    st.download_button(
+        "📍 Download Route (.geojson)",
+        data=geojson,
+        file_name=f"route_{map_key}.geojson",
+        mime="application/geo+json"
+    )
 
     return {
         "tanggal": row.get("Tanggal Koordinat"),
