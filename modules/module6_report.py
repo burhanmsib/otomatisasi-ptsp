@@ -590,15 +590,17 @@ def replace_first_page_placeholders(doc, module1_rows, module5_rows):
                 ka = normalize_coordinate(row.get("Koordinat Awal", ""))
                 kb = normalize_coordinate(row.get("Koordinat Akhir", ""))
                 dt = parse_date_flexible(row.get("Tanggal Koordinat", ""))
-            
+                
                 if not ka or not kb:
                     continue
-            
+                
                 dt_str = format_date_en(dt) if dt else ""
-            
-                bullet_text = (
-                    f"• From {ka} to {kb} for {dt_str}"
-                )
+                
+                # Mode titik vs mode rute
+                if ka == kb:
+                    bullet_text = f"• Coordinate {ka} for {dt_str}"
+                else:
+                    bullet_text = f"• From {ka} to {kb} for {dt_str}"
             
                 new_p = insert_paragraph_after(current_p)
                 clear_paragraph(new_p)
