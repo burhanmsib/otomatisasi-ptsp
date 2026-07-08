@@ -976,7 +976,7 @@ if st.session_state.run_module5 and st.session_state.results_module34:
 # =========================
 st.header("🟥 Generate Laporan")
 
-template_path = Path("templates/Template PTSP.docx")
+template_path = Path("templates/Template PTSP New.docx")
 
 if not template_path.exists():
     st.error("Template tidak ditemukan")
