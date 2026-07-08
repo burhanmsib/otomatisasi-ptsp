@@ -229,14 +229,14 @@ def process_route_segment_module2_streamlit(row, map_key):
 
     with col_preview:
     
-        st.success("Rute tersimpan")
-    
         st_folium(
             m2,
             height=800,
             use_container_width=True,
             key=f"final_map_{map_key}"
         )
+        
+    st.success("Rute tersimpan")
 
     return {
         "tanggal": row.get("Tanggal Koordinat"),
