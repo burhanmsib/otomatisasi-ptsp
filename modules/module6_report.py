@@ -274,29 +274,21 @@ def build_title(doc, row):
     
     if ka and kb:
         if ka == kb:
+            coord_label = "Coordinate :"
             coord_text = ka
         else:
+            coord_label = "Coordinate from"
             coord_text = f"{ka} to {kb}"
     else:
+        coord_label = "Coordinate :"
         coord_text = "-"
-    # ka = row.get("Koordinat Awal", "")
-    # kb = row.get("Koordinat Akhir", "")
-
-    # # 🔥 FIX TITIK VS RUTE
-    # if ka and kb:
-    #     if str(ka) == str(kb):
-    #         coord_text = str(ka)
-    #     else:
-    #         coord_text = f"{ka} to {kb}"
-    # else:
-    #     coord_text = "-"
-
+    
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports\n").bold = True
-    p.add_run("Coordinate from ").bold = True
+    p.add_run(f"{coord_label}\n").bold = True
     p.add_run(f"{coord_text}\n")
     p.add_run(f"for {t_str}")
-
+    
     style_paragraph(p, bold=True, align="center")
 
     doc.add_paragraph("")
