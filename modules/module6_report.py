@@ -285,7 +285,7 @@ def build_title(doc, row):
     
     p = doc.add_paragraph()
     p.add_run("Meteorological Reports\n").bold = True
-    p.add_run(f"{coord_label}\n").bold = True
+    p.add_run(f"{coord_label}").bold = True
     p.add_run(f"{coord_text}\n")
     p.add_run(f"for {t_str}")
     
