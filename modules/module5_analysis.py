@@ -598,7 +598,7 @@ def build_local_times(date_utc, tz):
 # -------------------------
 # MAIN ENTRY
 # -------------------------
-def process_module5(results_module34, tz="WIB"):
+def process_module5(results_module34):
     output = []
 
     for item in results_module34:
@@ -607,7 +607,7 @@ def process_module5(results_module34, tz="WIB"):
             continue
 
         tanggal = item["tanggal"]
-        times = build_local_times(tanggal, tz)
+        times = build_local_times(tanggal, item["tz"])
 
         rows = []
         for i, seg in enumerate(item["segments"]):
