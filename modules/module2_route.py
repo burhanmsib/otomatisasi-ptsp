@@ -9,6 +9,9 @@ import json
 from folium.plugins import Draw
 from shapely.geometry import LineString
 from io import BytesIO
+from timezonefinder import TimezoneFinder
+
+tf = TimezoneFinder()
 
 # =========================
 # HELPER – PARSE KOORDINAT
@@ -20,6 +23,28 @@ def parse_decimal_coordinate(value):
     except Exception:
         return None, None
 
+# =========================
+# Konversi Zona Waktu
+# =========================
+def get_timezone(lat, lon):
+    """
+    Menentukan zona waktu Indonesia berdasarkan koordinat.
+    Mengembalikan:
+    WIB / WITA / WIT
+    """
+
+    tz = tf.timezone_at(lat=lat, lng=lon)
+
+    mapping = {
+        "Asia/Jakarta": "WIB",
+        "Asia/Pontianak": "WIB",
+
+        "Asia/Makassar": "WITA",
+
+        "Asia/Jayapura": "WIT"
+    }
+
+    return mapping.get(tz, "WIB")
 
 # =========================
 # SPLIT → 4 SEGMENT (5 TITIK)
@@ -112,6 +137,7 @@ def process_route_segment_module2_streamlit(row, map_key):
 
         lat = st.number_input("Latitude", key=f"lat_{map_key}")
         lon = st.number_input("Longitude", key=f"lon_{map_key}")
+        tz = get_timezone(lat, lon)
 
         if st.button("Simpan Titik", key=f"btn_point_{map_key}"):
 
@@ -120,7 +146,8 @@ def process_route_segment_module2_streamlit(row, map_key):
                 "awal": (lat, lon),
                 "akhir": (lat, lon),
                 "titik5": [(lat, lon)],
-                "polyline_full": [(lat, lon)]
+                "polyline_full": [(lat, lon)],
+                "tz": tz
             }
 
         return None
@@ -221,6 +248,10 @@ def process_route_segment_module2_streamlit(row, map_key):
     # 🔥 5 TITIK (SEGMENT)
     titik5 = split_route_into_4_segments(full_route)
 
+    rep_lat, rep_lon = titik5[2]
+
+    tz = get_timezone(rep_lat, rep_lon)
+
     # =========================
     # MAP FINAL (CLEAN)
     # =========================
@@ -310,5 +341,6 @@ def process_route_segment_module2_streamlit(row, map_key):
         "awal": (lat1, lon1),
         "akhir": (lat2, lon2),
         "titik5": titik5,
-        "polyline_full": full_route
+        "polyline_full": full_route,
+        "tz": tz
     }
