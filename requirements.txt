@@ -39,3 +39,5 @@ python-docx==0.8.11
 # UTILITIES
 # =========================
 requests==2.31.0
+
+timezonefinder
