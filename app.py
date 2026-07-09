@@ -401,6 +401,29 @@ def parse_coordinate(text):
         "akhir": f"{coords[-1][0]},{coords[-1][1]}",
         "all": coords
     }
+
+from timezonefinder import TimezoneFinder
+
+tf = TimezoneFinder()
+
+def get_timezone(lat, lon):
+
+    tz_name = tf.timezone_at(
+        lat=lat,
+        lng=lon
+    )
+
+    mapping = {
+        "Asia/Jakarta": "WIB",
+        "Asia/Pontianak": "WIB",
+        "Asia/Makassar": "WITA",
+        "Asia/Jayapura": "WIT",
+    }
+
+    return mapping.get(
+        tz_name,
+        "WIB"
+    )
             
 # st.info("ℹ️ Nilai koordinat hasil parsing mungkin berbeda format, namun perhitungan rute dan analisis tetap menggunakan data yang benar.")
 
@@ -481,56 +504,6 @@ if mode == "Ambil dari Google Sheet":
     st.dataframe(df_id)
 
     st.session_state.selected_data = df_id
-    
-
-    # # =========================
-    # # 🔥 PARSE OTOMATIS (TANPA PREVIEW UI)
-    # # =========================
-    # parsed_rows = []
-
-    # for _, row in df_id.iterrows():
-
-    #     koordinat = row.get("Koordinat", "")
-
-    #     parsed = parse_coordinate(koordinat)
-
-    #     if parsed is None:
-    #         st.warning(f"Koordinat tidak valid: {koordinat}")
-    #         continue
-
-    #     parsed_rows.append({
-    #         "Tanggal Koordinat": str(
-    #             row.get("Tanggal Koordinat") 
-    #             or row.get("Tanggal") 
-    #             or ""
-    #         ),
-
-    #         "Koordinat": koordinat,
-
-    #         # 🔥 PENTING UNTUK REPORT
-    #         "Nama Perusahaan": row.get("Nama Perusahaan", ""),
-    #         "Alamat Perusahaan": row.get("Alamat Perusahaan", ""),
-    #         "Nomor Surat": row.get("Nomor Surat", ""),
-
-    #         # 🔥 UNTUK SISTEM
-    #         "Koordinat Awal": koordinat,
-    #         "Koordinat Akhir": koordinat,
-
-    #         "Koordinat Awal (Desimal)": parsed.get("awal"),
-    #         "Koordinat Akhir (Desimal)": parsed.get("akhir"),
-
-    #         "Mode": parsed.get("mode"),
-    #         "All Points": parsed.get("all", [])
-    #     })
-
-    # if not parsed_rows:
-    #     st.error("Tidak ada koordinat yang valid")
-    #     st.stop()
-
-    # df_preview = pd.DataFrame(parsed_rows)
-
-    # # 🔥 SIMPAN KE SESSION (INI KUNCI)
-    # st.session_state.preview_data = df_preview
 
 # =========================
 # MODE 2 – INPUT MANUAL
@@ -871,7 +844,11 @@ if len(st.session_state.results_module2_dict) == len(df_id):
 # =========================
 st.header("🟨 Ambil Data Cuaca")
 
-tz = st.selectbox("Zona Waktu", ["WIB", "WITA", "WIT"])
+st.info(
+    "🕒 Zona waktu akan ditentukan otomatis berdasarkan lokasi analisis."
+)
+
+# tz = st.selectbox("Zona Waktu", ["WIB", "WITA", "WIT"])
 
 if "results_module2_dict" not in st.session_state or len(st.session_state.results_module2_dict) == 0:
     st.warning("Silakan isi minimal 1 titik terlebih dahulu")
@@ -925,6 +902,19 @@ if st.session_state.get("run_module34", False):
 
             row = df_id.iloc[i]
 
+            if len(item["titik5"]) == 1:
+
+                lat, lon = item["titik5"][0]
+            
+            else:
+            
+                lat, lon = item["titik5"][2]
+            
+            tz = get_timezone(
+                lat,
+                lon
+            )
+
             result = process_module34(
                 row=row,
                 polyline=item["titik5"],
@@ -962,8 +952,8 @@ if st.session_state.run_module5 and st.session_state.results_module34:
     with st.spinner("Analisis..."):
 
         results_module5 = process_module5(
-            st.session_state.results_module34,
-            tz=tz
+            st.session_state.results_module34
+            # tz=tz
         )
 
     st.session_state.results_module5 = results_module5
