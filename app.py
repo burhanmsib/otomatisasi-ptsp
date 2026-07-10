@@ -16,6 +16,9 @@ from modules.module2_route import process_route_segment_module2_streamlit
 from modules.module34_data import process_module34, load_datasets_cached
 from modules.module5_analysis import process_module5
 from modules.module6_report import generate_final_docx_streamlit
+import time
+
+t0 = time.perf_counter()
 
 # =========================
 # CONFIG
@@ -402,30 +405,6 @@ def parse_coordinate(text):
         "all": coords
     }
 
-from timezonefinder import TimezoneFinder
-
-tf = TimezoneFinder()
-
-def get_timezone(lat, lon):
-
-    tz_name = tf.timezone_at(
-        lat=lat,
-        lng=lon
-    )
-
-    mapping = {
-        "Asia/Jakarta": "WIB",
-        "Asia/Pontianak": "WIB",
-        "Asia/Makassar": "WITA",
-        "Asia/Jayapura": "WIT",
-    }
-
-    return mapping.get(
-        tz_name,
-        "WIB"
-    )
-            
-# st.info("ℹ️ Nilai koordinat hasil parsing mungkin berbeda format, namun perhitungan rute dan analisis tetap menggunakan data yang benar.")
 
 # =========================
 # MODE INPUT
@@ -918,7 +897,7 @@ if st.session_state.get("run_module34", False):
             result = process_module34(
                 row=row,
                 polyline=item["titik5"],
-                tz=tz,
+                tz=item["tz"],
                 ds_wave=st.session_state.ds_wave,
                 ds_cur=st.session_state.ds_cur,
                 ds_rain=st.session_state.ds_rain
@@ -938,6 +917,12 @@ if st.session_state.get("run_module34", False):
         st.session_state.results_module34 = results_module34
 
     st.session_state.run_module34 = False
+
+elapsed = time.perf_counter() - t0
+
+st.success(
+    f"Module34 selesai dalam {elapsed:.1f} detik"
+)
 
 # =========================
 # MODULE 5
