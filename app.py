@@ -859,6 +859,8 @@ if st.session_state.get("run_module34", False):
             st.session_state.ds_cur = ds_cur
             st.session_state.ds_rain = ds_rain
 
+    module34_start = time.perf_counter()
+
     results_module34 = []
     gagal = False
 
@@ -870,6 +872,8 @@ if st.session_state.get("run_module34", False):
 
         for idx, i in enumerate(keys):
 
+            row_start = time.perf_counter()
+            
             progress.progress((idx + 1) / len(keys))
 
             item = st.session_state.results_module2_dict[i]
@@ -896,6 +900,11 @@ if st.session_state.get("run_module34", False):
 
             results_module34.append(result)
 
+            st.write(
+                f"📅 {row['Tanggal Koordinat']} "
+                f"{time.perf_counter()-row_start:.2f} detik"
+            )
+
     if gagal:
         st.error("❌ Gagal mengambil data cuaca")
         st.session_state.results_module34 = None
@@ -905,11 +914,11 @@ if st.session_state.get("run_module34", False):
 
     st.session_state.run_module34 = False
 
-elapsed = time.perf_counter() - t0
-
-st.success(
-    f"Module34 selesai dalam {elapsed:.1f} detik"
-)
+    module34_elapsed = time.perf_counter() - module34_start
+    
+    st.success(
+        f"⏱️ Module34 selesai dalam {module34_elapsed:.2f} detik"
+    )
 
 # =========================
 # MODULE 5
