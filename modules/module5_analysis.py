@@ -620,7 +620,7 @@ def process_module5(results_module34):
 
         output.append({
             "tanggal": tanggal,
-            "tz": tz,
+            "tz": item["tz"],
             "intervals": rows
         })
 
