@@ -881,19 +881,6 @@ if st.session_state.get("run_module34", False):
 
             row = df_id.iloc[i]
 
-            if len(item["titik5"]) == 1:
-
-                lat, lon = item["titik5"][0]
-            
-            else:
-            
-                lat, lon = item["titik5"][2]
-            
-            tz = get_timezone(
-                lat,
-                lon
-            )
-
             result = process_module34(
                 row=row,
                 polyline=item["titik5"],
