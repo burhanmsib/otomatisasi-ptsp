@@ -12,7 +12,7 @@ from modules.module1_request import (
     load_request_sheet_streamlit,
     save_manual_input
 )
-from modules.module2_route import process_route_segment_module2_streamlit
+from modules.module2_route import (process_route_segment_module2_streamlit, get_timezone)
 from modules.module34_data import process_module34, load_datasets_cached
 from modules.module5_analysis import process_module5
 from modules.module6_report import generate_final_docx_streamlit
@@ -921,10 +921,37 @@ if st.session_state.get("run_module34", False):
 
             row = df_id.iloc[i]
 
+            # =========================
+            # SAFE TIMEZONE
+            # =========================
+            tz = item.get("tz")
+            
+            if not tz:
+            
+                titik5 = item.get("titik5", [])
+            
+                if titik5:
+                    # Titik representatif:
+                    # mode rute = titik tengah
+                    # mode titik = titik pertama
+                    rep_index = len(titik5) // 2
+                    rep_lat, rep_lon = titik5[rep_index]
+            
+                    tz = get_timezone(
+                        rep_lat,
+                        rep_lon
+                    )
+            
+                    # Simpan kembali agar tidak dihitung ulang
+                    item["tz"] = tz
+            
+                else:
+                    tz = "WIB"
+
             result = process_module34(
                 row=row,
                 polyline=item["titik5"],
-                tz=item["tz"],
+                tz=tz,
                 ds_wave=st.session_state.ds_wave,
                 ds_cur=st.session_state.ds_cur,
                 ds_rain=st.session_state.ds_rain
