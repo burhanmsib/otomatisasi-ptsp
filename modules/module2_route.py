@@ -193,19 +193,37 @@ def build_route_preview_map(
 def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
 
     st.subheader("Mode Input Lokasi")
-
-    # st.info(
-    #     "Klik beberapa titik untuk membuat jalur rute (belokan).\n"
-    #     "Semakin banyak titik, semakin detail jalurnya.\n"
-    #     "Double klik untuk menyelesaikan."
-    # )
-
+    
     mode = st.radio(
         "Pilih Mode",
         ["Gambar Rute", "Titik Tunggal"],
         horizontal=True,
         key=f"mode_{map_key}"
     )
+
+    # =========================
+    # VALIDASI SAVED ROUTE
+    # =========================
+    if saved_route is not None:
+    
+        saved_mode = saved_route.get("mode")
+    
+        # Data lama sebelum field "mode" ditambahkan
+        if saved_mode is None:
+    
+            saved_points = saved_route.get(
+                "polyline_full",
+                []
+            )
+    
+            if len(saved_points) >= 2:
+                saved_mode = "Gambar Rute"
+            else:
+                saved_mode = "Titik Tunggal"
+    
+        # Jangan tampilkan data dari mode berbeda
+        if saved_mode != mode:
+            saved_route = None
 
     # =========================
     # MODE TITIK TUNGGAL
@@ -241,7 +259,16 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             "Simpan Titik",
             key=f"btn_point_{map_key}"
         ):
-    
+        
+            if lat == 0.0 and lon == 0.0:
+        
+                st.error(
+                    "Koordinat belum diisi. "
+                    "Silakan masukkan latitude dan longitude."
+                )
+        
+                return saved_route
+        
             tz = get_timezone(lat, lon)
     
             # GEOJSON TITIK
@@ -287,6 +314,7 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             html = point_map.get_root().render()
     
             saved_route = {
+                "mode": "Titik Tunggal",
                 "tanggal": row.get("Tanggal Koordinat"),
                 "awal": (lat, lon),
                 "akhir": (lat, lon),
