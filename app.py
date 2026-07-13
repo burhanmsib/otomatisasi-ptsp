@@ -942,6 +942,60 @@ if st.session_state.run_module5 and st.session_state.results_module34:
 
     st.session_state.run_module5 = False
 
+# ==================================================
+# DOWNLOAD DATA RUTE TERSIMPAN
+# ==================================================
+if st.session_state.get("results_module2_dict"):
+
+    st.subheader("🗺️ Download Data Rute")
+
+    st.info(
+        "File rute dapat digunakan untuk analisis manual "
+        "jika terdapat data cuaca, gelombang, atau arus yang kosong."
+    )
+
+    for i, item in st.session_state.results_module2_dict.items():
+
+        tanggal = item.get(
+            "tanggal",
+            f"Rute {i + 1}"
+        )
+
+        tz = item.get(
+            "tz",
+            "-"
+        )
+
+        with st.expander(
+            f"📅 {tanggal} — {tz}"
+        ):
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                if item.get("geojson"):
+
+                    st.download_button(
+                        label="📍 Download GeoJSON",
+                        data=item["geojson"],
+                        file_name=f"route_{i}.geojson",
+                        mime="application/geo+json",
+                        key=f"saved_geojson_{i}"
+                    )
+
+            with col2:
+
+                if item.get("map_html"):
+
+                    st.download_button(
+                        label="🌐 Download Peta HTML",
+                        data=item["map_html"],
+                        file_name=f"route_{i}.html",
+                        mime="text/html",
+                        key=f"saved_html_{i}"
+                    )
+
 # =========================
 # MODULE 6
 # =========================
