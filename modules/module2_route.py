@@ -365,6 +365,10 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                         full_route
                     )
                 )
+
+                # ZONA WAKTU BERDASARKAN TITIK REPRESENTATIF RUTE
+                rep_lat, rep_lon = titik5[2]
+                tz = get_timezone(rep_lat, rep_lon)
     
                 # BUILD PREVIEW MAP
                 m2 = build_route_preview_map(
@@ -413,7 +417,9 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                     geojson,
     
                     "map_html":
-                    html
+                    html,
+
+                    "tz": tz
                 }
     
     
