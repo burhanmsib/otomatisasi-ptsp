@@ -211,23 +211,166 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
     # MODE TITIK TUNGGAL
     # =========================
     if mode == "Titik Tunggal":
-
-        lat = st.number_input("Latitude", key=f"lat_{map_key}")
-        lon = st.number_input("Longitude", key=f"lon_{map_key}")
-        tz = get_timezone(lat, lon)
-
-        if st.button("Simpan Titik", key=f"btn_point_{map_key}"):
-
-            return {
+    
+        # Ambil koordinat lama jika titik sudah tersimpan
+        saved_lat = 0.0
+        saved_lon = 0.0
+    
+        if saved_route is not None:
+            saved_points = saved_route.get("titik5", [])
+    
+            if saved_points:
+                saved_lat, saved_lon = saved_points[0]
+    
+        lat = st.number_input(
+            "Latitude",
+            value=float(saved_lat),
+            key=f"lat_{map_key}"
+        )
+    
+        lon = st.number_input(
+            "Longitude",
+            value=float(saved_lon),
+            key=f"lon_{map_key}"
+        )
+    
+        # =========================
+        # SIMPAN TITIK BARU
+        # =========================
+        if st.button(
+            "Simpan Titik",
+            key=f"btn_point_{map_key}"
+        ):
+    
+            tz = get_timezone(lat, lon)
+    
+            # GEOJSON TITIK
+            geojson = json.dumps(
+                {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "properties": {
+                                "name": "Analysis Point"
+                            },
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [
+                                    lon,
+                                    lat
+                                ]
+                            }
+                        }
+                    ]
+                },
+                indent=2
+            )
+    
+            # PETA TITIK
+            point_map = folium.Map(
+                location=[lat, lon],
+                zoom_start=8,
+                tiles="OpenStreetMap"
+            )
+    
+            folium.Marker(
+                [lat, lon],
+                tooltip="Titik Analisis",
+                icon=folium.Icon(
+                    color="red",
+                    icon="map-marker"
+                )
+            ).add_to(point_map)
+    
+            # HTML
+            html = point_map.get_root().render()
+    
+            saved_route = {
                 "tanggal": row.get("Tanggal Koordinat"),
                 "awal": (lat, lon),
                 "akhir": (lat, lon),
                 "titik5": [(lat, lon)],
                 "polyline_full": [(lat, lon)],
-                "tz": tz
+                "tz": tz,
+                "geojson": geojson,
+                "map_html": html
             }
-
-        return None
+    
+        # =========================
+        # TAMPILKAN TITIK TERSIMPAN
+        # =========================
+        if saved_route is not None:
+    
+            point_lat, point_lon = (
+                saved_route["titik5"][0]
+            )
+    
+            st.success("Titik tersimpan")
+    
+            # PREVIEW PETA
+            point_map = folium.Map(
+                location=[
+                    point_lat,
+                    point_lon
+                ],
+                zoom_start=8,
+                tiles="OpenStreetMap"
+            )
+    
+            folium.Marker(
+                [
+                    point_lat,
+                    point_lon
+                ],
+                tooltip="Titik Analisis",
+                icon=folium.Icon(
+                    color="red",
+                    icon="map-marker"
+                )
+            ).add_to(point_map)
+    
+            st_folium(
+                point_map,
+                height=500,
+                use_container_width=True,
+                key=f"point_map_{map_key}"
+            )
+    
+            # =========================
+            # DOWNLOAD
+            # =========================
+            col1, col2 = st.columns(2)
+    
+            with col1:
+    
+                if saved_route.get("geojson"):
+    
+                    st.download_button(
+                        "📍 Download Titik (.geojson)",
+                        data=saved_route["geojson"],
+                        file_name=(
+                            f"point_{map_key}.geojson"
+                        ),
+                        mime="application/geo+json",
+                        key=f"point_geojson_{map_key}"
+                    )
+    
+            with col2:
+    
+                if saved_route.get("map_html"):
+    
+                    st.download_button(
+                        "🌐 Download Peta Titik (.html)",
+                        data=saved_route["map_html"],
+                        file_name=(
+                            f"point_{map_key}.html"
+                        ),
+                        mime="text/html",
+                        key=f"point_html_{map_key}"
+                    )
+    
+        return saved_route
 
     # =========================
     # MODE GAMBAR RUTE
