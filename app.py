@@ -798,25 +798,61 @@ index_list = list(range(len(df_id)))
 selected_index = st.selectbox(
     "Pilih titik yang ingin diinput",
     index_list,
-    format_func=lambda x: f"Titik {x+1} - {df_id.iloc[x]['Tanggal Koordinat']}"
+    format_func=lambda x: (
+        f"Titik {x+1} - "
+        f"{df_id.iloc[x]['Tanggal Koordinat']}"
+    )
 )
 
 row = df_id.iloc[selected_index]
 
-hasil = process_route_segment_module2_streamlit(row, selected_index)
+# =========================
+# AMBIL RUTE YANG SUDAH TERSIMPAN
+# =========================
+saved_route = (
+    st.session_state
+    .results_module2_dict
+    .get(selected_index)
+)
 
+# =========================
+# JALANKAN MODULE 2
+# =========================
+hasil = process_route_segment_module2_streamlit(
+    row,
+    selected_index,
+    saved_route=saved_route
+)
+
+# =========================
+# SIMPAN / UPDATE RUTE
+# =========================
 if hasil is not None:
-    st.session_state.results_module2_dict[selected_index] = hasil
-    st.success(f"Titik {selected_index+1} tersimpan")
 
-if len(st.session_state.results_module2_dict) == len(df_id):
+    st.session_state.results_module2_dict[
+        selected_index
+    ] = hasil
+
+    st.success(
+        f"Titik {selected_index+1} tersimpan"
+    )
+
+# =========================
+# SEMUA RUTE SELESAI
+# =========================
+if (
+    len(st.session_state.results_module2_dict)
+    == len(df_id)
+):
 
     st.session_state.results_module2 = [
         st.session_state.results_module2_dict[i]
         for i in range(len(df_id))
     ]
 
-    st.success("✅ Semua titik/rute sudah dibuat")
+    st.success(
+        "✅ Semua titik/rute sudah dibuat"
+    )
 
 # =========================
 # MODULE 3-4
