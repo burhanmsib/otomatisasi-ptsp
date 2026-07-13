@@ -230,414 +230,414 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
         return None
 
     # =========================
-# MODE GAMBAR RUTE
-# =========================
-lat1, lon1 = parse_decimal_coordinate(
-    row.get("Koordinat Awal (Desimal)")
-)
-
-lat2, lon2 = parse_decimal_coordinate(
-    row.get("Koordinat Akhir (Desimal)")
-)
-
-if None in (lat1, lon1, lat2, lon2):
-    st.error("Format koordinat tidak valid")
-    return saved_route
-
-
-# =========================
-# LAYOUT
-# =========================
-col_draw, col_preview = st.columns([1, 1])
-
-
-# =========================
-# MAP DRAW
-# =========================
-m = folium.Map(
-    location=[
-        (lat1 + lat2) / 2,
-        (lon1 + lon2) / 2
-    ],
-    zoom_start=6,
-    tiles="OpenStreetMap"
-)
-
-
-# START
-folium.Marker(
-    [lat1, lon1],
-    tooltip="Start Point",
-    icon=folium.Icon(
-        color="green",
-        icon="play"
+    # MODE GAMBAR RUTE
+    # =========================
+    lat1, lon1 = parse_decimal_coordinate(
+        row.get("Koordinat Awal (Desimal)")
     )
-).add_to(m)
-
-
-# END
-folium.Marker(
-    [lat2, lon2],
-    tooltip="End Point",
-    icon=folium.Icon(
-        color="red",
-        icon="flag"
+    
+    lat2, lon2 = parse_decimal_coordinate(
+        row.get("Koordinat Akhir (Desimal)")
     )
-).add_to(m)
-
-
-Draw(
-    draw_options={
-        "polyline": {
-            "shapeOptions": {
-                "color": "#1565C0",
-                "weight": 5
-            }
-        },
-        "polygon": False,
-        "circle": False,
-        "rectangle": False,
-        "marker": False,
-        "circlemarker": False
-    }
-).add_to(m)
-
-
-# =========================
-# GAMBAR RUTE
-# =========================
-with col_draw:
-
-    st.markdown("### 🗺️ Gambar Rute")
-
-    output = st_folium(
-        m,
-        height=800,
-        use_container_width=True,
-        key=f"draw_map_{map_key}",
-        returned_objects=[
-            "last_active_drawing"
-        ]
+    
+    if None in (lat1, lon1, lat2, lon2):
+        st.error("Format koordinat tidak valid")
+        return saved_route
+    
+    
+    # =========================
+    # LAYOUT
+    # =========================
+    col_draw, col_preview = st.columns([1, 1])
+    
+    
+    # =========================
+    # MAP DRAW
+    # =========================
+    m = folium.Map(
+        location=[
+            (lat1 + lat2) / 2,
+            (lon1 + lon2) / 2
+        ],
+        zoom_start=6,
+        tiles="OpenStreetMap"
     )
-
-
-drawing = output.get(
-    "last_active_drawing"
-)
-
-
-# ==================================================
-# DEFAULT:
-# GUNAKAN RUTE YANG SUDAH TERSIMPAN
-# ==================================================
-route_result = saved_route
-
-
-# ==================================================
-# JIKA ADA GAMBAR BARU
-# PROSES DAN TIMPA RUTE LAMA
-# ==================================================
-if drawing is not None:
-
-    geom = drawing.get(
-        "geometry",
-        {}
-    )
-
-    if geom.get("type") == "LineString":
-
-        coords = geom.get(
-            "coordinates",
-            []
+    
+    
+    # START
+    folium.Marker(
+        [lat1, lon1],
+        tooltip="Start Point",
+        icon=folium.Icon(
+            color="green",
+            icon="play"
         )
-
-        if len(coords) >= 2:
-
-            # POLYLINE ASLI
-            full_route = [
-                (pt[1], pt[0])
-                for pt in coords
+    ).add_to(m)
+    
+    
+    # END
+    folium.Marker(
+        [lat2, lon2],
+        tooltip="End Point",
+        icon=folium.Icon(
+            color="red",
+            icon="flag"
+        )
+    ).add_to(m)
+    
+    
+    Draw(
+        draw_options={
+            "polyline": {
+                "shapeOptions": {
+                    "color": "#1565C0",
+                    "weight": 5
+                }
+            },
+            "polygon": False,
+            "circle": False,
+            "rectangle": False,
+            "marker": False,
+            "circlemarker": False
+        }
+    ).add_to(m)
+    
+    
+    # =========================
+    # GAMBAR RUTE
+    # =========================
+    with col_draw:
+    
+        st.markdown("### 🗺️ Gambar Rute")
+    
+        output = st_folium(
+            m,
+            height=800,
+            use_container_width=True,
+            key=f"draw_map_{map_key}",
+            returned_objects=[
+                "last_active_drawing"
             ]
-
-            # 5 TITIK SEGMENT
-            titik5 = (
-                split_route_into_4_segments(
-                    full_route
-                )
-            )
-
-            # BUILD PREVIEW MAP
-            m2 = build_route_preview_map(
-                full_route,
-                titik5,
-                lat1,
-                lon1,
-                lat2,
-                lon2
-            )
-
-            # GEOJSON
-            geojson = create_geojson(
-                full_route,
-                titik5
-            )
-
-            # HTML
-            html = (
-                m2
-                .get_root()
-                .render()
-            )
-
-            # HASIL BARU
-            route_result = {
-
-                "tanggal":
-                row.get(
-                    "Tanggal Koordinat"
-                ),
-
-                "awal":
-                (lat1, lon1),
-
-                "akhir":
-                (lat2, lon2),
-
-                "titik5":
-                titik5,
-
-                "polyline_full":
-                full_route,
-
-                "geojson":
-                geojson,
-
-                "map_html":
-                html
-            }
-
-
-# ==================================================
-# PREVIEW RUTE
-# ==================================================
-with col_preview:
-
-    st.markdown(
-        "### 📍 Preview Rute"
+        )
+    
+    
+    drawing = output.get(
+        "last_active_drawing"
     )
-
-    # =========================
-    # BELUM ADA RUTE
-    # =========================
-    if route_result is None:
-
-        st.info(
-            "Belum ada rute yang digambar."
+    
+    
+    # ==================================================
+    # DEFAULT:
+    # GUNAKAN RUTE YANG SUDAH TERSIMPAN
+    # ==================================================
+    route_result = saved_route
+    
+    
+    # ==================================================
+    # JIKA ADA GAMBAR BARU
+    # PROSES DAN TIMPA RUTE LAMA
+    # ==================================================
+    if drawing is not None:
+    
+        geom = drawing.get(
+            "geometry",
+            {}
         )
-
-    # =========================
-    # SUDAH ADA RUTE
-    # =========================
-    else:
-
-        full_route = (
-            route_result.get(
-                "polyline_full",
+    
+        if geom.get("type") == "LineString":
+    
+            coords = geom.get(
+                "coordinates",
                 []
             )
-        )
-
-        titik5 = (
-            route_result.get(
-                "titik5",
-                []
-            )
-        )
-
-        if full_route and titik5:
-
-            # Gunakan koordinat tersimpan
-            awal = route_result.get(
-                "awal",
-                (lat1, lon1)
-            )
-
-            akhir = route_result.get(
-                "akhir",
-                (lat2, lon2)
-            )
-
-            preview_lat1, preview_lon1 = awal
-            preview_lat2, preview_lon2 = akhir
-
-            # BUILD ULANG PETA
-            preview_map = (
-                build_route_preview_map(
+    
+            if len(coords) >= 2:
+    
+                # POLYLINE ASLI
+                full_route = [
+                    (pt[1], pt[0])
+                    for pt in coords
+                ]
+    
+                # 5 TITIK SEGMENT
+                titik5 = (
+                    split_route_into_4_segments(
+                        full_route
+                    )
+                )
+    
+                # BUILD PREVIEW MAP
+                m2 = build_route_preview_map(
                     full_route,
                     titik5,
-                    preview_lat1,
-                    preview_lon1,
-                    preview_lat2,
-                    preview_lon2
+                    lat1,
+                    lon1,
+                    lat2,
+                    lon2
+                )
+    
+                # GEOJSON
+                geojson = create_geojson(
+                    full_route,
+                    titik5
+                )
+    
+                # HTML
+                html = (
+                    m2
+                    .get_root()
+                    .render()
+                )
+    
+                # HASIL BARU
+                route_result = {
+    
+                    "tanggal":
+                    row.get(
+                        "Tanggal Koordinat"
+                    ),
+    
+                    "awal":
+                    (lat1, lon1),
+    
+                    "akhir":
+                    (lat2, lon2),
+    
+                    "titik5":
+                    titik5,
+    
+                    "polyline_full":
+                    full_route,
+    
+                    "geojson":
+                    geojson,
+    
+                    "map_html":
+                    html
+                }
+    
+    
+    # ==================================================
+    # PREVIEW RUTE
+    # ==================================================
+    with col_preview:
+    
+        st.markdown(
+            "### 📍 Preview Rute"
+        )
+    
+        # =========================
+        # BELUM ADA RUTE
+        # =========================
+        if route_result is None:
+    
+            st.info(
+                "Belum ada rute yang digambar."
+            )
+    
+        # =========================
+        # SUDAH ADA RUTE
+        # =========================
+        else:
+    
+            full_route = (
+                route_result.get(
+                    "polyline_full",
+                    []
                 )
             )
-
-            st_folium(
-                preview_map,
-                height=800,
-                use_container_width=True,
-                key=f"final_map_{map_key}"
+    
+            titik5 = (
+                route_result.get(
+                    "titik5",
+                    []
+                )
             )
-
-
-# ==================================================
-# DOWNLOAD RUTE TERSIMPAN
-# ==================================================
-if route_result is not None:
-
-    st.success(
-        "Rute tersimpan"
-    )
-
-    col_download1, col_download2 = (
-        st.columns(2)
-    )
-
-
-    # =========================
-    # GEOJSON
-    # =========================
-    with col_download1:
-
-        geojson_data = (
-            route_result.get(
-                "geojson"
-            )
+    
+            if full_route and titik5:
+    
+                # Gunakan koordinat tersimpan
+                awal = route_result.get(
+                    "awal",
+                    (lat1, lon1)
+                )
+    
+                akhir = route_result.get(
+                    "akhir",
+                    (lat2, lon2)
+                )
+    
+                preview_lat1, preview_lon1 = awal
+                preview_lat2, preview_lon2 = akhir
+    
+                # BUILD ULANG PETA
+                preview_map = (
+                    build_route_preview_map(
+                        full_route,
+                        titik5,
+                        preview_lat1,
+                        preview_lon1,
+                        preview_lat2,
+                        preview_lon2
+                    )
+                )
+    
+                st_folium(
+                    preview_map,
+                    height=800,
+                    use_container_width=True,
+                    key=f"final_map_{map_key}"
+                )
+    
+    
+    # ==================================================
+    # DOWNLOAD RUTE TERSIMPAN
+    # ==================================================
+    if route_result is not None:
+    
+        st.success(
+            "Rute tersimpan"
         )
-
-        # Untuk data lama yang belum punya geojson
-        if (
-            not geojson_data
-            and route_result.get(
-                "polyline_full"
-            )
-            and route_result.get(
-                "titik5"
-            )
-        ):
-
+    
+        col_download1, col_download2 = (
+            st.columns(2)
+        )
+    
+    
+        # =========================
+        # GEOJSON
+        # =========================
+        with col_download1:
+    
             geojson_data = (
-                create_geojson(
-                    route_result[
-                        "polyline_full"
-                    ],
-                    route_result[
-                        "titik5"
-                    ]
+                route_result.get(
+                    "geojson"
                 )
             )
-
-            route_result[
-                "geojson"
-            ] = geojson_data
-
-
-        if geojson_data:
-
-            st.download_button(
-                label=(
-                    "📍 Download Route "
-                    "(.geojson)"
-                ),
-                data=geojson_data,
-                file_name=(
-                    f"route_{map_key}.geojson"
-                ),
-                mime=(
-                    "application/geo+json"
-                ),
-                key=(
-                    f"download_geojson_"
-                    f"{map_key}"
+    
+            # Untuk data lama yang belum punya geojson
+            if (
+                not geojson_data
+                and route_result.get(
+                    "polyline_full"
                 )
-            )
-
-
-    # =========================
-    # HTML
-    # =========================
-    with col_download2:
-
-        html_data = (
-            route_result.get(
-                "map_html"
-            )
-        )
-
-        # Untuk data lama yang belum punya HTML
-        if (
-            not html_data
-            and route_result.get(
-                "polyline_full"
-            )
-            and route_result.get(
-                "titik5"
-            )
-        ):
-
-            awal = route_result.get(
-                "awal",
-                (lat1, lon1)
-            )
-
-            akhir = route_result.get(
-                "akhir",
-                (lat2, lon2)
-            )
-
-            html_map = (
-                build_route_preview_map(
-                    route_result[
-                        "polyline_full"
-                    ],
-                    route_result[
-                        "titik5"
-                    ],
-                    awal[0],
-                    awal[1],
-                    akhir[0],
-                    akhir[1]
+                and route_result.get(
+                    "titik5"
                 )
-            )
-
+            ):
+    
+                geojson_data = (
+                    create_geojson(
+                        route_result[
+                            "polyline_full"
+                        ],
+                        route_result[
+                            "titik5"
+                        ]
+                    )
+                )
+    
+                route_result[
+                    "geojson"
+                ] = geojson_data
+    
+    
+            if geojson_data:
+    
+                st.download_button(
+                    label=(
+                        "📍 Download Route "
+                        "(.geojson)"
+                    ),
+                    data=geojson_data,
+                    file_name=(
+                        f"route_{map_key}.geojson"
+                    ),
+                    mime=(
+                        "application/geo+json"
+                    ),
+                    key=(
+                        f"download_geojson_"
+                        f"{map_key}"
+                    )
+                )
+    
+    
+        # =========================
+        # HTML
+        # =========================
+        with col_download2:
+    
             html_data = (
-                html_map
-                .get_root()
-                .render()
-            )
-
-            route_result[
-                "map_html"
-            ] = html_data
-
-
-        if html_data:
-
-            st.download_button(
-                label=(
-                    "🌐 Download Route Map "
-                    "(.html)"
-                ),
-                data=html_data,
-                file_name=(
-                    f"route_{map_key}.html"
-                ),
-                mime="text/html",
-                key=(
-                    f"download_html_"
-                    f"{map_key}"
+                route_result.get(
+                    "map_html"
                 )
             )
-
-
-return route_result
+    
+            # Untuk data lama yang belum punya HTML
+            if (
+                not html_data
+                and route_result.get(
+                    "polyline_full"
+                )
+                and route_result.get(
+                    "titik5"
+                )
+            ):
+    
+                awal = route_result.get(
+                    "awal",
+                    (lat1, lon1)
+                )
+    
+                akhir = route_result.get(
+                    "akhir",
+                    (lat2, lon2)
+                )
+    
+                html_map = (
+                    build_route_preview_map(
+                        route_result[
+                            "polyline_full"
+                        ],
+                        route_result[
+                            "titik5"
+                        ],
+                        awal[0],
+                        awal[1],
+                        akhir[0],
+                        akhir[1]
+                    )
+                )
+    
+                html_data = (
+                    html_map
+                    .get_root()
+                    .render()
+                )
+    
+                route_result[
+                    "map_html"
+                ] = html_data
+    
+    
+            if html_data:
+    
+                st.download_button(
+                    label=(
+                        "🌐 Download Route Map "
+                        "(.html)"
+                    ),
+                    data=html_data,
+                    file_name=(
+                        f"route_{map_key}.html"
+                    ),
+                    mime="text/html",
+                    key=(
+                        f"download_html_"
+                        f"{map_key}"
+                    )
+                )
+    
+    
+    return route_result
