@@ -230,48 +230,62 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
     # =========================
     if mode == "Titik Tunggal":
     
-        # Ambil koordinat lama jika titik sudah tersimpan
-        saved_lat = 0.0
-        saved_lon = 0.0
-    
-        if saved_route is not None:
-            saved_points = saved_route.get("titik5", [])
-    
-            if saved_points:
-                saved_lat, saved_lon = saved_points[0]
-    
-        lat = st.number_input(
-            "Latitude",
-            value=float(saved_lat),
-            key=f"lat_{map_key}"
+        # =========================
+        # POSISI AWAL PETA
+        # =========================
+        lat1, lon1 = parse_decimal_coordinate(
+            row.get("Koordinat Awal (Desimal)")
         )
     
-        lon = st.number_input(
-            "Longitude",
-            value=float(saved_lon),
-            key=f"lon_{map_key}"
-        )
+        # Jika koordinat awal dari surat tersedia,
+        # gunakan sebagai pusat peta
+        if lat1 is None or lon1 is None:
+            map_center = [-2.5, 118.0]
+            zoom_start = 5
+        else:
+            map_center = [lat1, lon1]
+            zoom_start = 7
     
         # =========================
-        # SIMPAN TITIK BARU
+        # PETA INPUT TITIK
         # =========================
-        if st.button(
-            "Simpan Titik",
-            key=f"btn_point_{map_key}"
-        ):
-        
-            if lat == 0.0 and lon == 0.0:
-        
-                st.error(
-                    "Koordinat belum diisi. "
-                    "Silakan masukkan latitude dan longitude."
-                )
-        
-                return saved_route
-        
+        point_input_map = folium.Map(
+            location=map_center,
+            zoom_start=zoom_start,
+            tiles="OpenStreetMap"
+        )
+    
+        st.markdown("### 📍 Pilih Titik Lokasi")
+    
+        st.info(
+            "Klik satu lokasi pada peta untuk menentukan "
+            "titik analisis."
+        )
+    
+        output = st_folium(
+            point_input_map,
+            height=600,
+            use_container_width=True,
+            key=f"point_input_map_{map_key}",
+            returned_objects=["last_clicked"]
+        )
+    
+        clicked = output.get("last_clicked")
+    
+        # =========================
+        # JIKA USER KLIK PETA
+        # =========================
+        if clicked is not None:
+    
+            lat = float(clicked["lat"])
+            lon = float(clicked["lng"])
+    
+            # Zona waktu otomatis
             tz = get_timezone(lat, lon)
     
-            # GEOJSON TITIK
+            # =========================
+            # GEOJSON
+            # =========================
             geojson = json.dumps(
                 {
                     "type": "FeatureCollection",
@@ -294,7 +308,9 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                 indent=2
             )
     
-            # PETA TITIK
+            # =========================
+            # PETA PREVIEW
+            # =========================
             point_map = folium.Map(
                 location=[lat, lon],
                 zoom_start=8,
@@ -313,6 +329,9 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             # HTML
             html = point_map.get_root().render()
     
+            # =========================
+            # SIMPAN HASIL
+            # =========================
             saved_route = {
                 "mode": "Titik Tunggal",
                 "tanggal": row.get("Tanggal Koordinat"),
@@ -326,77 +345,84 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             }
     
         # =========================
-        # TAMPILKAN TITIK TERSIMPAN
+        # TAMPILKAN HASIL TERSIMPAN
         # =========================
         if saved_route is not None:
     
-            point_lat, point_lon = (
-                saved_route["titik5"][0]
+            saved_points = saved_route.get(
+                "titik5",
+                []
             )
     
-            st.success("Titik tersimpan")
+            if saved_points:
     
-            # PREVIEW PETA
-            point_map = folium.Map(
-                location=[
-                    point_lat,
-                    point_lon
-                ],
-                zoom_start=8,
-                tiles="OpenStreetMap"
-            )
+                point_lat, point_lon = saved_points[0]
     
-            folium.Marker(
-                [
-                    point_lat,
-                    point_lon
-                ],
-                tooltip="Titik Analisis",
-                icon=folium.Icon(
-                    color="red",
-                    icon="map-marker"
+                st.success(
+                    f"Titik tersimpan: "
+                    f"{point_lat:.5f}, {point_lon:.5f} "
+                    f"({saved_route.get('tz', '-')})"
                 )
-            ).add_to(point_map)
     
-            st_folium(
-                point_map,
-                height=500,
-                use_container_width=True,
-                key=f"point_map_{map_key}"
-            )
+                # =========================
+                # PREVIEW
+                # =========================
+                preview_map = folium.Map(
+                    location=[
+                        point_lat,
+                        point_lon
+                    ],
+                    zoom_start=8,
+                    tiles="OpenStreetMap"
+                )
     
-            # =========================
-            # DOWNLOAD
-            # =========================
-            col1, col2 = st.columns(2)
-    
-            with col1:
-    
-                if saved_route.get("geojson"):
-    
-                    st.download_button(
-                        "📍 Download Titik (.geojson)",
-                        data=saved_route["geojson"],
-                        file_name=(
-                            f"point_{map_key}.geojson"
-                        ),
-                        mime="application/geo+json",
-                        key=f"point_geojson_{map_key}"
+                folium.Marker(
+                    [
+                        point_lat,
+                        point_lon
+                    ],
+                    tooltip="Titik Analisis",
+                    icon=folium.Icon(
+                        color="red",
+                        icon="map-marker"
                     )
+                ).add_to(preview_map)
     
-            with col2:
+                st_folium(
+                    preview_map,
+                    height=500,
+                    use_container_width=True,
+                    key=f"point_preview_{map_key}"
+                )
     
-                if saved_route.get("map_html"):
+                # =========================
+                # DOWNLOAD
+                # =========================
+                col1, col2 = st.columns(2)
     
-                    st.download_button(
-                        "🌐 Download Peta Titik (.html)",
-                        data=saved_route["map_html"],
-                        file_name=(
-                            f"point_{map_key}.html"
-                        ),
-                        mime="text/html",
-                        key=f"point_html_{map_key}"
-                    )
+                with col1:
+    
+                    if saved_route.get("geojson"):
+    
+                        st.download_button(
+                            "📍 Download Titik (.geojson)",
+                            data=saved_route["geojson"],
+                            file_name=f"point_{map_key}.geojson",
+                            mime="application/geo+json",
+                            key=f"point_geojson_{map_key}"
+                        )
+    
+                with col2:
+    
+                    if saved_route.get("map_html"):
+    
+                        st.download_button(
+                            "🌐 Download Peta Titik (.html)",
+                            data=saved_route["map_html"],
+                            file_name=f"point_{map_key}.html",
+                            mime="text/html",
+                            key=f"point_html_{map_key}"
+                        )
     
         return saved_route
 
