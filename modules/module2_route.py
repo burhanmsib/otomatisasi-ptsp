@@ -231,54 +231,33 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
     if mode == "Titik Tunggal":
     
         # =========================
-        # POSISI AWAL PETA
+        # BACA KOORDINAT DARI DATA
         # =========================
-        lat1, lon1 = parse_decimal_coordinate(
+        lat, lon = parse_decimal_coordinate(
             row.get("Koordinat Awal (Desimal)")
         )
     
-        # Jika koordinat awal dari surat tersedia,
-        # gunakan sebagai pusat peta
-        if lat1 is None or lon1 is None:
-            map_center = [-2.5, 118.0]
-            zoom_start = 5
-        else:
-            map_center = [lat1, lon1]
-            zoom_start = 7
+        if lat is None or lon is None:
+            st.error(
+                "Koordinat titik tidak tersedia atau format tidak valid."
+            )
+            return saved_route
     
         # =========================
-        # PETA INPUT TITIK
+        # INFO KOORDINAT
         # =========================
-        point_input_map = folium.Map(
-            location=map_center,
-            zoom_start=zoom_start,
-            tiles="OpenStreetMap"
-        )
-    
-        st.markdown("### 📍 Pilih Titik Lokasi")
-    
         st.info(
-            "Klik satu lokasi pada peta untuk menentukan "
-            "titik analisis."
+            f"📍 Koordinat lokasi: "
+            f"{lat:.5f}, {lon:.5f}"
         )
     
-        output = st_folium(
-            point_input_map,
-            height=600,
-            use_container_width=True,
-            key=f"point_input_map_{map_key}",
-            returned_objects=["last_clicked"]
-        )
-    
-        clicked = output.get("last_clicked")
-    
         # =========================
-        # JIKA USER KLIK PETA
+        # SIMPAN TITIK
         # =========================
-        if clicked is not None:
-    
-            lat = float(clicked["lat"])
-            lon = float(clicked["lng"])
+        if st.button(
+            "💾 Simpan Titik",
+            key=f"btn_point_{map_key}"
+        ):
     
             # Zona waktu otomatis
             tz = get_timezone(lat, lon)
@@ -293,7 +272,7 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                         {
                             "type": "Feature",
                             "properties": {
-                                "name": "Analysis Point"
+                                "name": "Titik Analisis"
                             },
                             "geometry": {
                                 "type": "Point",
@@ -309,7 +288,7 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             )
     
             # =========================
-            # PETA PREVIEW
+            # BUAT PETA
             # =========================
             point_map = folium.Map(
                 location=[lat, lon],
@@ -326,7 +305,7 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                 )
             ).add_to(point_map)
     
-            # HTML
+            # Simpan HTML
             html = point_map.get_root().render()
     
             # =========================
@@ -334,7 +313,9 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             # =========================
             saved_route = {
                 "mode": "Titik Tunggal",
-                "tanggal": row.get("Tanggal Koordinat"),
+                "tanggal": row.get(
+                    "Tanggal Koordinat"
+                ),
                 "awal": (lat, lon),
                 "akhir": (lat, lon),
                 "titik5": [(lat, lon)],
@@ -345,7 +326,7 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
             }
     
         # =========================
-        # TAMPILKAN HASIL TERSIMPAN
+        # PREVIEW TITIK TERSIMPAN
         # =========================
         if saved_route is not None:
     
@@ -356,16 +337,24 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
     
             if saved_points:
     
-                point_lat, point_lon = saved_points[0]
+                point_lat, point_lon = (
+                    saved_points[0]
+                )
+    
+                tz = saved_route.get(
+                    "tz",
+                    "-"
+                )
     
                 st.success(
-                    f"Titik tersimpan: "
-                    f"{point_lat:.5f}, {point_lon:.5f} "
-                    f"({saved_route.get('tz', '-')})"
+                    f"✅ Titik tersimpan: "
+                    f"{point_lat:.5f}, "
+                    f"{point_lon:.5f} "
+                    f"({tz})"
                 )
     
                 # =========================
-                # PREVIEW
+                # PREVIEW MAP
                 # =========================
                 preview_map = folium.Map(
                     location=[
@@ -387,6 +376,10 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                         icon="map-marker"
                     )
                 ).add_to(preview_map)
+    
+                st.markdown(
+                    "### 📍 Preview Titik"
+                )
     
                 st_folium(
                     preview_map,
@@ -425,7 +418,7 @@ def process_route_segment_module2_streamlit(row, map_key, saved_route=None):
                         )
     
         return saved_route
-
+    
     # =========================
     # MODE GAMBAR RUTE
     # =========================
