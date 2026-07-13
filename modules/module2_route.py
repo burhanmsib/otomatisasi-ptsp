@@ -321,7 +321,8 @@ def process_route_segment_module2_streamlit(row, map_key):
         "📍 Download Route (.geojson)",
         data=geojson,
         file_name=f"route_{map_key}.geojson",
-        mime="application/geo+json"
+        mime="application/geo+json",
+        key=f"download_geojson_{map_key}"
     )
 
     # =========================
@@ -333,7 +334,8 @@ def process_route_segment_module2_streamlit(row, map_key):
         label="🌐 Download Route Map (.html)",
         data=html,
         file_name=f"Route_{map_key}.html",
-        mime="text/html"
+        mime="text/html",
+        key=f"download_html_{map_key}"
     )
 
     return {
@@ -342,5 +344,9 @@ def process_route_segment_module2_streamlit(row, map_key):
         "akhir": (lat2, lon2),
         "titik5": titik5,
         "polyline_full": full_route,
-        "tz": tz
+        "tz": tz,
+    
+        # Simpan file rute agar tetap tersedia setelah rerun
+        "geojson": geojson,
+        "map_html": html
     }
