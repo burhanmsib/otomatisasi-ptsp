@@ -854,6 +854,16 @@ if (
         "✅ Semua titik/rute sudah dibuat"
     )
 
+# ======================================
+# DEBUG MODE
+# ======================================
+DEBUG_CURRENT = st.sidebar.checkbox(
+    "🔧 Debug Current",
+    value=False
+)
+
+st.session_state.DEBUG_CURRENT = DEBUG_CURRENT
+
 # =========================
 # MODULE 3-4
 # =========================
