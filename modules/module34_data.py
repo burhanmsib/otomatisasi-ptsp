@@ -503,29 +503,29 @@ def load_datasets_cached(dt_input):
 
     for url in current_urls:
 
-    ds_cur = open_dataset_with_retry(url)
-
-    if ds_cur is not None:
-
-        print(f"CURRENT loaded: {url}")
-
-        if st.session_state.get("DEBUG_CURRENT", False):
-
-            st.subheader("🔧 FVCOM Dataset Info")
-
-            st.write("Variable U")
-            st.write(ds_cur["u"])
-
-            st.write("U Attributes")
-            st.write(ds_cur["u"].attrs)
-
-            st.write("Variable V")
-            st.write(ds_cur["v"])
-
-            st.write("V Attributes")
-            st.write(ds_cur["v"].attrs)
-
-        break
+        ds_cur = open_dataset_with_retry(url)
+    
+        if ds_cur is not None:
+    
+            print(f"CURRENT loaded: {url}")
+    
+            if st.session_state.get("DEBUG_CURRENT", False):
+    
+                st.subheader("🔧 FVCOM Dataset Info")
+    
+                st.write("Variable U")
+                st.write(ds_cur["u"])
+    
+                st.write("U Attributes")
+                st.write(ds_cur["u"].attrs)
+    
+                st.write("Variable V")
+                st.write(ds_cur["v"])
+    
+                st.write("V Attributes")
+                st.write(ds_cur["v"].attrs)
+    
+            break
 
     
     ds_rain = load_gsmap_cached(dt)
