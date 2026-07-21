@@ -616,25 +616,50 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
                 "speed_knot": wind_knot
             },
 
-            "current": {
-                "u": safe_extract(
-                    ds_cur,
-                    "u",
-                    t,
-                    lat,
-                    lon,
-                    depth=0.5
-                ),
+            # "current": {
+            #     "u": safe_extract(
+            #         ds_cur,
+            #         "u",
+            #         t,
+            #         lat,
+            #         lon,
+            #         depth=0.5
+            #     ),
 
-                "v": safe_extract(
-                    ds_cur,
-                    "v",
-                    t,
-                    lat,
-                    lon,
-                    depth=0.5
-                )
-            },
+            #     "v": safe_extract(
+            #         ds_cur,
+            #         "v",
+            #         t,
+            #         lat,
+            #         lon,
+            #         depth=0.5
+            #     )
+            # },
+
+            # ======================================
+            # CURRENT
+            # ======================================
+            
+            u_cur = safe_extract(
+                cur_time,
+                "u",
+                lat,
+                lon,
+                depth=0.5
+            )
+            
+            v_cur = safe_extract(
+                cur_time,
+                "v",
+                lat,
+                lon,
+                depth=0.5
+            )
+            
+            current_speed = np.sqrt(
+                u_cur**2 +
+                v_cur**2
+            )
 
             "rain": {
                 "precip": rain_val
@@ -643,6 +668,33 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
 
     except Exception:
 
+        # ======================================
+        # DEBUG CURRENT
+        # ======================================
+        
+        try:
+        
+            import streamlit as st
+        
+            if st.session_state.get("DEBUG_CURRENT", False):
+        
+                with st.expander(
+                    f"🔧 Current Debug ({t})",
+                    expanded=False
+                ):
+        
+                    st.write(
+                        {
+                            "Latitude": lat,
+                            "Longitude": lon,
+                            "Current U": u_cur,
+                            "Current V": v_cur,
+                            "Speed Raw": current_speed
+                        }
+                    )
+        
+        except:
+            pass
         # 🔥 RETURN AMAN
         return {
             "wave": {
