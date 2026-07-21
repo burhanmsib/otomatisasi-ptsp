@@ -22,6 +22,22 @@ TZ_OFFSET = {
     "WIT": 9
 }
 
+# =====================================
+# KELAS OPERASIONAL BMKG
+# =====================================
+
+WIND_CLASS = [
+    0, 2, 4, 6, 8, 10,
+    15, 20, 25, 30,
+    35, 40, 50, 60
+]
+
+CURRENT_CLASS = [
+    0, 5, 10, 20, 30,
+    45, 60, 80, 100,
+    150, 200, 300, 400
+]
+
 # -------------------------
 # BASIC UTILITIES
 # -------------------------
@@ -222,6 +238,33 @@ def limit_direction(start, end, max_span=90):
 
     return end
 
+def nearest_lower(value, classes):
+    """
+    Membulatkan ke kelas operasional di bawahnya.
+    """
+
+    result = classes[0]
+
+    for c in classes:
+        if value >= c:
+            result = c
+        else:
+            break
+
+    return result
+
+
+def nearest_upper(value, classes):
+    """
+    Membulatkan ke kelas operasional di atasnya.
+    """
+
+    for c in classes:
+        if value <= c:
+            return c
+
+    return classes[-1]
+
 
 def format_direction_range(start_deg, end_deg):
     if start_deg is None or end_deg is None:
@@ -333,18 +376,30 @@ def beaufort_range_from_knots(min_knot, max_knot):
     return f"{bf_min} - {bf_max}"
 
 
-# -------------------------
-# HELPER RANGE ROUNDING
-# -------------------------
-def rounded_range_with_padding(min_val, max_val):
+def rounded_range_with_padding(
+    min_val,
+    max_val,
+    value_type="wind"
+):
+
     if min_val is None or max_val is None:
-        return None, None
+        return "-", "-"
 
-    r_min = round(min_val)
-    r_max = round(max_val)
+    if value_type == "wind":
+        classes = WIND_CLASS
 
-    if r_min == r_max:
-        r_max = r_min + 1
+    elif value_type == "current":
+        classes = CURRENT_CLASS
+
+    else:
+        classes = list(range(500))
+
+    r_min = nearest_upper(min_val, classes)
+
+    r_max = nearest_lower(max_val, classes)
+
+    if r_min > r_max:
+        r_min, r_max = r_max, r_min
 
     return r_min, r_max
 
@@ -467,7 +522,8 @@ def analyze_segment(samples):
         
         w_min, w_max = rounded_range_with_padding(
             p10,
-            p90
+            p90,
+            "wind"
         )
     
         wind_txt = f"{dir_txt}, {w_min} - {w_max} knots"
@@ -526,19 +582,20 @@ def analyze_segment(samples):
         # =========================
         # REPRESENTATIVE CURRENT
         # =========================
-        p20 = np.percentile(
+        p10 = np.percentile(
             cur_spds,
-            20
+            10
         )
     
-        p80 = np.percentile(
+        p90 = np.percentile(
             cur_spds,
-            80
+            90
         )
     
         c_min, c_max = rounded_range_with_padding(
-            p20,
-            p80
+            p10,
+            p90,
+            "current"
         )
     
         cur_txt = (
