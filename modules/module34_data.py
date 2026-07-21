@@ -596,6 +596,76 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
         wind_knot = wind_speed(u_wind, v_wind)
 
         # =========================
+        # CURRENT
+        # =========================
+        u_cur = safe_extract(
+            ds_cur,
+            "u",
+            t,
+            lat,
+            lon,
+            depth=0.5
+        )
+
+        v_cur = safe_extract(
+            ds_cur,
+            "v",
+            t,
+            lat,
+            lon,
+            depth=0.5
+        )
+
+        # Kecepatan arus hasil model
+        current_speed_raw = np.sqrt(
+            u_cur**2 +
+            v_cur**2
+        )
+
+        # Jika diasumsikan model menggunakan m/s
+        current_speed_cm = current_speed_raw * 100
+
+        # =========================
+        # DEBUG CURRENT
+        # =========================
+        if st.session_state.get("DEBUG_CURRENT", False):
+
+            def current_category(cm):
+
+                if cm < 5:
+                    return "0-5 cm/s"
+                elif cm < 10:
+                    return "5-10 cm/s"
+                elif cm < 20:
+                    return "10-20 cm/s"
+                elif cm < 30:
+                    return "20-30 cm/s"
+                elif cm < 45:
+                    return "30-45 cm/s"
+                elif cm < 60:
+                    return "45-60 cm/s"
+                elif cm < 100:
+                    return "60-100 cm/s"
+                else:
+                    return ">100 cm/s"
+
+            with st.expander(
+                f"🔧 Current Debug ({t})",
+                expanded=False
+            ):
+
+                st.write({
+                    "Latitude": round(lat, 5),
+                    "Longitude": round(lon, 5),
+                    "Current U": round(u_cur, 4),
+                    "Current V": round(v_cur, 4),
+                    "Speed Raw": round(current_speed_raw, 4),
+                    "Speed x100": round(current_speed_cm, 2),
+                    "Kategori jika Raw = cm/s": current_category(current_speed_raw),
+                    "Kategori jika Raw = m/s": current_category(current_speed_cm)
+                })
+
+        # =========================
         # RETURN
         # =========================
         return {
@@ -616,87 +686,21 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
                 "speed_knot": wind_knot
             },
 
-            # "current": {
-            #     "u": safe_extract(
-            #         ds_cur,
-            #         "u",
-            #         t,
-            #         lat,
-            #         lon,
-            #         depth=0.5
-            #     ),
-
-            #     "v": safe_extract(
-            #         ds_cur,
-            #         "v",
-            #         t,
-            #         lat,
-            #         lon,
-            #         depth=0.5
-            #     )
-            # },
-
-            # ======================================
-            # CURRENT
-            # ======================================
-            
-            u_cur = safe_extract(
-                cur_time,
-                "u",
-                lat,
-                lon,
-                depth=0.5
-            )
-            
-            v_cur = safe_extract(
-                cur_time,
-                "v",
-                lat,
-                lon,
-                depth=0.5
-            )
-            
-            current_speed = np.sqrt(
-                u_cur**2 +
-                v_cur**2
-            )
+            "current": {
+                "u": u_cur,
+                "v": v_cur
+            },
 
             "rain": {
                 "precip": rain_val
             }
+
         }
 
     except Exception:
 
-        # ======================================
-        # DEBUG CURRENT
-        # ======================================
-        
-        try:
-        
-            import streamlit as st
-        
-            if st.session_state.get("DEBUG_CURRENT", False):
-        
-                with st.expander(
-                    f"🔧 Current Debug ({t})",
-                    expanded=False
-                ):
-        
-                    st.write(
-                        {
-                            "Latitude": lat,
-                            "Longitude": lon,
-                            "Current U": u_cur,
-                            "Current V": v_cur,
-                            "Speed Raw": current_speed
-                        }
-                    )
-        
-        except:
-            pass
-        # 🔥 RETURN AMAN
         return {
+
             "wave": {
                 "hs": None
             },
@@ -715,6 +719,7 @@ def extract_hourly_weather(ds_wave, ds_cur, ds_rain, t, lat, lon):
             "rain": {
                 "precip": None
             }
+
         }
 
 def process_module34(
