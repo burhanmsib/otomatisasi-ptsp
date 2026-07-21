@@ -277,7 +277,7 @@ def build_title(doc, row):
             coord_label = "Coordinate :"
             coord_text = ka
         else:
-            coord_label = "Coordinate from"
+            coord_label = "Coordinate from "
             coord_text = f"{ka} to {kb}"
     else:
         coord_label = "Coordinate :"
