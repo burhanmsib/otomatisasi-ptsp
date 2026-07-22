@@ -329,35 +329,46 @@ def wave_category_range(hs_values):
 # BEAUFORT SCALE
 # -------------------------
 def beaufort_from_knots(k):
-    if k is None or (isinstance(k, float) and math.isnan(k)):
+
+    if k is None or (
+        isinstance(k, float) and math.isnan(k)
+    ):
         return None
 
     if k < 1:
         return 0
+
     elif k <= 3:
         return 1
+
     elif k <= 6:
         return 2
+
     elif k <= 10:
         return 3
-    elif k <= 16:
+
+    elif k <= 15:
         return 4
+
     elif k <= 21:
         return 5
+
     elif k <= 27:
         return 6
+
     elif k <= 33:
         return 7
+
     elif k <= 40:
         return 8
-    elif k <= 47:
+
+    elif k <= 50:
         return 9
-    elif k <= 55:
-        return 10
-    elif k <= 63:
-        return 11
+
     else:
-        return 12
+        # Di atas 50 knot tidak didefinisikan
+        # pada tabel BMKG yang digunakan.
+        return 9
 
 
 def beaufort_range_from_knots(min_knot, max_knot):
@@ -394,12 +405,28 @@ def rounded_range_with_padding(
     else:
         classes = list(range(500))
 
+    # =========================
+    # Pembulatan operasional
+    # =========================
     r_min = nearest_upper(min_val, classes)
-
     r_max = nearest_lower(max_val, classes)
 
+    # =========================
+    # Kalau terbalik, tukar
+    # =========================
     if r_min > r_max:
         r_min, r_max = r_max, r_min
+
+    # =========================
+    # Jangan sampai hasil 10-10,
+    # 30-30, dst
+    # =========================
+    if r_min == r_max:
+
+        idx = classes.index(r_min)
+
+        if idx < len(classes) - 1:
+            r_max = classes[idx + 1]
 
     return r_min, r_max
 
@@ -525,9 +552,19 @@ def analyze_segment(samples):
             p90,
             "wind"
         )
-    
+        
+        # =====================================
+        # JANGAN SAMPAI 10-10, 15-15, dst
+        # =====================================
+        if w_min == w_max:
+        
+            idx = WIND_CLASS.index(w_min)
+        
+            if idx < len(WIND_CLASS) - 1:
+                w_max = WIND_CLASS[idx + 1]
+        
         wind_txt = f"{dir_txt}, {w_min} - {w_max} knots"
-    
+        
         beaufort = beaufort_range_from_knots(
             w_min,
             w_max
@@ -586,18 +623,28 @@ def analyze_segment(samples):
             cur_spds,
             10
         )
-    
+        
         p90 = np.percentile(
             cur_spds,
             90
         )
-    
+        
         c_min, c_max = rounded_range_with_padding(
             p10,
             p90,
             "current"
         )
-    
+        
+        # =====================================
+        # JANGAN SAMPAI 30-30, 45-45, dst
+        # =====================================
+        if c_min == c_max:
+        
+            idx = CURRENT_CLASS.index(c_min)
+        
+            if idx < len(CURRENT_CLASS) - 1:
+                c_max = CURRENT_CLASS[idx + 1]
+        
         cur_txt = (
             f"{dir_txt}, "
             f"{c_min} - {c_max} cm/s"
