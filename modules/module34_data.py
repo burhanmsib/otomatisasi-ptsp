@@ -439,6 +439,32 @@ def load_gsmap_cached(dt):
     except:
         return None
 
+# =========================
+# MODEL CYCLE DATETIME
+# =========================
+def get_cycle_datetime(dt_utc):
+
+    cycle_hour = 0 if dt_utc.hour < 12 else 12
+
+    return dt_utc.replace(
+        hour=cycle_hour,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+# =========================
+# MODEL CYCLE
+# =========================
+def get_model_cycle(dt_utc):
+    """
+    Menentukan baserun model berdasarkan UTC.
+    """
+
+    if dt_utc.hour < 12:
+        return "0000"
+
+    return "1200"
 
 # =========================
 # LOAD DATASET
@@ -447,87 +473,74 @@ def load_gsmap_cached(dt):
 def load_datasets_cached(dt_input):
 
     dt = normalize_date(dt_input)
+
     if dt is None:
         return None, None, None
+
+    # =========================
+    # TENTUKAN CYCLE MODEL
+    # =========================
+    dt = get_cycle_datetime(dt)
 
     user = st.secrets["bmkg"]["user"]
     password = st.secrets["bmkg"]["pass"]
 
-    YYYY, MM, DD = dt.strftime("%Y"), dt.strftime("%m"), dt.strftime("%d")
+    YYYY = dt.strftime("%Y")
+    MM = dt.strftime("%m")
+    DD = dt.strftime("%d")
+    
+    cycle = get_model_cycle(dt)
+    
+    # =========================
+    # WW3
+    # =========================
+    wave_cycle = "12" if cycle == "1200" else "00"
+    
+    wave_url = (
+        f"https://{user}:{password}@maritim.bmkg.go.id/"
+        f"opendap/ww3gfs/{YYYY}/{MM}/"
+        f"w3g_hires_{YYYY}{MM}{DD}_{wave_cycle}00.nc"
+    )
+    
+    ds_wave = open_dataset_with_retry(wave_url)
+    
+    if ds_wave is not None:
+        print(f"WW3 : {wave_url}")
+    
+    # =========================
+    # FVCOM
+    # =========================
+    current_url = (
+        f"https://{user}:{password}@maritim.bmkg.go.id/"
+        f"opendap/fvcom/{YYYY}/{MM}/"
+        f"InaFlows_{YYYY}{MM}{DD}_{cycle}.nc"
+    )
+    
+    ds_cur = open_dataset_with_retry(current_url)
+
+    if ds_cur is not None:
+
+        print(f"CURRENT loaded : {current_url}")
+
+        if st.session_state.get("DEBUG_CURRENT", False):
+
+            st.subheader("🔧 FVCOM Dataset Info")
+
+            st.write("Variable U")
+            st.write(ds_cur["u"])
+
+            st.write("U Attributes")
+            st.write(ds_cur["u"].attrs)
+
+            st.write("Variable V")
+            st.write(ds_cur["v"])
+
+            st.write("V Attributes")
+            st.write(ds_cur["v"].attrs)
 
     # =========================
-    # WAVE
-    # PRIORITAS:
-    # 1. 1200
-    # 2. 0000
+    # RAIN
     # =========================
-    ds_wave = None
-    
-    wave_urls = [
-    
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_1200.nc",
-    
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/ww3gfs/{YYYY}/{MM}/w3g_hires_{YYYY}{MM}{DD}_0000.nc",
-    ]
-    
-    for url in wave_urls:
-    
-        ds_wave = open_dataset_with_retry(url)
-    
-        if ds_wave is not None:
-            print(f"WAVE loaded: {url}")
-            break
-        
-    # =========================
-    # CURRENT
-    # PRIORITAS:
-    # 1. 1200
-    # 2. 0000
-    # =========================
-    ds_cur = None
-    
-    current_urls = [
-    
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_1200.nc",
-    
-        f"https://{user}:{password}@maritim.bmkg.go.id/opendap/fvcom/{YYYY}/{MM}/InaFlows_{YYYY}{MM}{DD}_0000.nc",
-    ]
-    
-    # for url in current_urls:
-    
-    #     ds_cur = open_dataset_with_retry(url)
-    
-    #     if ds_cur is not None:
-    #         print(f"CURRENT loaded: {url}")
-    #         break
-
-    for url in current_urls:
-
-        ds_cur = open_dataset_with_retry(url)
-    
-        if ds_cur is not None:
-    
-            print(f"CURRENT loaded: {url}")
-    
-            if st.session_state.get("DEBUG_CURRENT", False):
-    
-                st.subheader("🔧 FVCOM Dataset Info")
-    
-                st.write("Variable U")
-                st.write(ds_cur["u"])
-    
-                st.write("U Attributes")
-                st.write(ds_cur["u"].attrs)
-    
-                st.write("Variable V")
-                st.write(ds_cur["v"])
-    
-                st.write("V Attributes")
-                st.write(ds_cur["v"].attrs)
-    
-            break
-
-    
     ds_rain = load_gsmap_cached(dt)
 
     return ds_wave, ds_cur, ds_rain
