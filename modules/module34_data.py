@@ -528,6 +528,59 @@ def load_datasets_cached(dt_utc):
 
     return ds_wave, ds_cur, ds_rain
 
+# =========================
+# DATASET CACHE MANAGER
+# =========================
+def get_dataset_for_datetime(dt_local, tz="WIB"):
+    """
+    Mengambil dataset sesuai tanggal lokal.
+    Dataset hanya dibuka sekali untuk setiap
+    kombinasi tanggal + cycle.
+    """
+
+    if "dataset_cache" not in st.session_state:
+        st.session_state.dataset_cache = {}
+
+    tz_offset = TZ_OFFSET.get(tz, 7)
+
+    dt_local = normalize_date(dt_local)
+
+    dt_local = dt_local.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    dt_utc = (
+        dt_local
+        .replace(
+            tzinfo=timezone(
+                timedelta(hours=tz_offset)
+            )
+        )
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
+    )
+
+    cycle = get_model_cycle(dt_utc)
+
+    key = (
+        dt_utc.strftime("%Y%m%d"),
+        cycle
+    )
+
+    if key not in st.session_state.dataset_cache:
+
+        ds_wave, ds_cur, ds_rain = load_datasets_cached(dt_utc)
+
+        st.session_state.dataset_cache[key] = (
+            ds_wave,
+            ds_cur,
+            ds_rain
+        )
+
+    return st.session_state.dataset_cache[key]
 
 # =========================
 # SAFE EXTRACT
