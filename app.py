@@ -13,7 +13,10 @@ from modules.module1_request import (
     save_manual_input
 )
 from modules.module2_route import (process_route_segment_module2_streamlit, get_timezone)
-from modules.module34_data import process_module34, load_datasets_cached
+from modules.module34_data import (
+    process_module34,
+    get_dataset_for_datetime
+)
 from modules.module5_analysis import process_module5
 from modules.module6_report import generate_final_docx_streamlit
 import time
@@ -45,9 +48,10 @@ def init_state():
         "run_module34": False,
         "run_module5": False,
         "run_generate": False,
-        "ds_wave": None,
-        "ds_cur": None,
-        "ds_rain": None,
+        # "ds_wave": None,
+        # "ds_cur": None,
+        # "ds_rain": None,
+        "dataset_cache": {},
         "manual_saved": False,
         "preview_data": None,
         "df_id_manual": None,   # 🔥 TAMBAHAN FIX
@@ -888,22 +892,22 @@ if st.button("🌐 Ambil Data Cuaca"):
 
 if st.session_state.get("run_module34", False):
 
-    if st.session_state.get("ds_wave") is None:
+    # if st.session_state.get("ds_wave") is None:
 
-        with st.spinner("Load dataset (sekali saja)..."):
+    #     with st.spinner("Load dataset (sekali saja)..."):
 
-            sample_row = df_id.iloc[0]
-            dt_sample = sample_row["Tanggal Koordinat"]
+    #         sample_row = df_id.iloc[0]
+    #         dt_sample = sample_row["Tanggal Koordinat"]
 
-            ds_wave, ds_cur, ds_rain = load_datasets_cached(dt_sample)
+    #         ds_wave, ds_cur, ds_rain = load_datasets_cached(dt_sample)
 
-            if ds_wave is None or ds_cur is None:
-                st.error("Gagal load dataset BMKG")
-                st.stop()
+    #         if ds_wave is None or ds_cur is None:
+    #             st.error("Gagal load dataset BMKG")
+    #             st.stop()
 
-            st.session_state.ds_wave = ds_wave
-            st.session_state.ds_cur = ds_cur
-            st.session_state.ds_rain = ds_rain
+    #         st.session_state.ds_wave = ds_wave
+    #         st.session_state.ds_cur = ds_cur
+    #         st.session_state.ds_rain = ds_rain
 
     module34_start = time.perf_counter()
 
@@ -958,13 +962,18 @@ if st.session_state.get("run_module34", False):
                 else:
                     tz = "WIB"
 
+            ds_wave, ds_cur, ds_rain = get_dataset_for_datetime(
+                row["Tanggal Koordinat"],
+                tz
+            )
+            
             result = process_module34(
                 row=row,
                 polyline=item["titik5"],
                 tz=tz,
-                ds_wave=st.session_state.ds_wave,
-                ds_cur=st.session_state.ds_cur,
-                ds_rain=st.session_state.ds_rain
+                ds_wave=ds_wave,
+                ds_cur=ds_cur,
+                ds_rain=ds_rain
             )
 
             if result is None:
