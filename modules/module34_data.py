@@ -440,20 +440,6 @@ def load_gsmap_cached(dt):
         return None
 
 # =========================
-# MODEL CYCLE DATETIME
-# =========================
-def get_cycle_datetime(dt_utc):
-
-    cycle_hour = 0 if dt_utc.hour < 12 else 12
-
-    return dt_utc.replace(
-        hour=cycle_hour,
-        minute=0,
-        second=0,
-        microsecond=0
-    )
-
-# =========================
 # MODEL CYCLE
 # =========================
 def get_model_cycle(dt_utc):
@@ -470,26 +456,23 @@ def get_model_cycle(dt_utc):
 # LOAD DATASET
 # =========================
 @st.cache_resource(ttl=3600)
-def load_datasets_cached(dt_input):
+def load_datasets_cached(dt_utc):
+    """
+    dt_utc harus berupa datetime UTC (naive),
+    bukan tanggal lokal.
+    """
 
-    dt = normalize_date(dt_input)
-
-    if dt is None:
+    if dt_utc is None:
         return None, None, None
-
-    # =========================
-    # TENTUKAN CYCLE MODEL
-    # =========================
-    dt = get_cycle_datetime(dt)
 
     user = st.secrets["bmkg"]["user"]
     password = st.secrets["bmkg"]["pass"]
 
-    YYYY = dt.strftime("%Y")
-    MM = dt.strftime("%m")
-    DD = dt.strftime("%d")
-    
-    cycle = get_model_cycle(dt)
+    YYYY = dt_utc.strftime("%Y")
+    MM = dt_utc.strftime("%m")
+    DD = dt_utc.strftime("%d")
+
+    cycle = get_model_cycle(dt_utc)
     
     # =========================
     # WW3
@@ -541,7 +524,7 @@ def load_datasets_cached(dt_input):
     # =========================
     # RAIN
     # =========================
-    ds_rain = load_gsmap_cached(dt)
+    ds_rain = load_gsmap_cached(dt_utc)
 
     return ds_wave, ds_cur, ds_rain
 
